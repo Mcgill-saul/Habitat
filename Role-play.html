@@ -500,34 +500,58 @@ body {
   .round-label { font-size: 12px; margin-bottom: var(--sp-2); }
 }
 
-/* 对话行：两列布局，有第三列时自动切换为三列；手机端强制单列 */
-.dialogue-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.dialogue-row.has-third { grid-template-columns: 1fr 1fr 1fr; }
-@media (max-width: 768px) {
-  .dialogue-row { grid-template-columns: 1fr !important; gap: var(--sp-2); }
-}
+/* 对话线程：气泡纵向堆叠，Q靠左、A（含A2）靠右，一轮一轮按顺序往下排，
+   桌面/手机用同一套逻辑，不需要另外"退化"成单列 */
+.chat-thread { display: flex; flex-direction: column; gap: var(--sp-3); }
 
-.qa-block { display: flex; flex-direction: column; gap: 6px; }
+.msg-row { display: flex; }
+.msg-row.msg-q { justify-content: flex-start; }
+.msg-row.msg-a { justify-content: flex-end; }
 
-/* 卡片：左侧色条区分问答，带一点阴影跟主页卡片的"浮起"感呼应 */
-.card {
-  border-radius: var(--radius);
+.msg-block { display: flex; flex-direction: column; gap: 6px; max-width: 76%; }
+.msg-block-q { align-items: flex-start; }
+.msg-block-a { align-items: flex-end; }
+
+/* 气泡：左右各自用不同角落做"尖角"，模拟发出/收到的方向感 */
+.bubble {
+  border-radius: 16px;
   padding: 0.85rem 1.1rem;
   border: 1px solid;
-  border-left-width: 3px;
-  display: flex;
-  align-items: baseline;
   box-shadow: var(--shadow-sm);
 }
-.card-q { background: var(--q-bg); border-color: var(--q-border); border-left-color: var(--q-accent); }
-.card-a { background: var(--a-bg); border-color: var(--a-border); border-left-color: var(--a-accent); }
-.card-a2 { background: var(--a-bg); border-color: var(--a-border); border-left-color: var(--a-accent); opacity: 0.85; }
-.card-a2 .card-lbl { color: var(--a-accent); }
-.card-lbl { display: none; }
+.bubble-q { background: var(--q-bg); border-color: var(--q-border); border-bottom-left-radius: 4px; }
+.bubble-a { background: var(--a-bg); border-color: var(--a-border); border-bottom-right-radius: 4px; }
+.bubble-a2 { background: var(--a-bg); border-color: var(--a-border); border-bottom-right-radius: 4px; opacity: 0.82; margin-right: 14px; }
 .card-en { font-size: 15px; line-height: 1.55; color: var(--text); }
 @media (max-width: 768px) {
-  .card { padding: var(--sp-4); min-height: 60px; border-radius: 12px; }
+  .bubble { padding: var(--sp-4); border-radius: 14px; }
   .card-en { font-size: 16px; }
+  .msg-block { max-width: 88%; }
+}
+
+/* 回答区：默认收成一个"点击查看回答"的气泡按钮，点开后换成真正的回答气泡（可能带A2） */
+.answer-group { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 76%; }
+.answer-group .answer-content { display: none; flex-direction: column; align-items: flex-end; gap: var(--sp-3); width: 100%; }
+.answer-group.revealed .answer-content { display: flex; }
+.answer-group.revealed .reveal-btn { display: none; }
+.answer-alt-label {
+  font-family: 'Inter', sans-serif; font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text3); margin-right: 14px;
+}
+.reveal-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px dashed var(--a-border);
+  border-radius: 16px; border-bottom-right-radius: 4px;
+  padding: 0.75rem 1.1rem; cursor: pointer;
+  font-size: 14px; color: var(--a-accent);
+  font-family: 'Noto Sans SC', sans-serif;
+  transition: background 0.15s, border-color 0.15s;
+}
+.reveal-btn:hover { background: var(--a-bg); border-style: solid; }
+.reveal-btn .reveal-icon { font-size: 11px; }
+@media (max-width: 768px) {
+  .answer-group { max-width: 88%; }
+  .reveal-btn { padding: var(--sp-3) var(--sp-4); font-size: 15px; min-height: var(--tap-min); }
 }
 
 .alt-toggle {
@@ -1322,16 +1346,24 @@ const App = {
       }
     },
 
+    // 立即保存（结构性改动用，比如增删轮次/关键词、拖拽排序）：写入 localStorage
+    // 并闪一下"已保存"提示。跟 App.storage.autoSaveDebounced 是姐妹函数，
+    // 区别只是这个不等，敲键盘那种高频输入场景不要用这个，会写太勤
     autoSaveNow() {
       App.storage.saveData(App.state.scenes);
       App.storage.flashSaveMsg();
     },
 
+    // 防抖版自动保存：文字类输入（标签/标题/对话文本/关键词……）专用，
+    // 打字停顿 App.config.AUTOSAVE_DEBOUNCE_MS 毫秒后才真正落盘，不会每敲
+    // 一个字就写一次 localStorage
     autoSaveDebounced() {
       clearTimeout(App.storage.autoSaveDebounced._timer);
       App.storage.autoSaveDebounced._timer = setTimeout(App.storage.autoSaveNow, App.config.AUTOSAVE_DEBOUNCE_MS);
     },
 
+    // 顶栏"已保存 ✓"提示：闪一下、1.8 秒后自动消失。被 autoSaveNow 调用，
+    // 不需要单独手动触发
     flashSaveMsg() {
       const msg = document.getElementById('saveMsg');
       if (!msg) return;
@@ -1389,6 +1421,8 @@ const App = {
 
   sync: {
     // ── GIST 同步 ──
+    // 打开设置面板（设置按钮的点击目标）：把已存的 Token/ID 填回输入框，
+    // 清空上次的状态提示文字，显示遮罩+sheet
     openGistPanel() {
       document.getElementById('gistToken').value = localStorage.getItem('rp_gist_token') || '';
       document.getElementById('gistId').value    = localStorage.getItem('rp_gist_id')    || '';
@@ -1397,11 +1431,14 @@ const App = {
       document.getElementById('gistPanel').classList.add('show');
     },
 
+    // 关闭设置面板：点遮罩、点 × 都走这个
     closeGistPanel() {
       document.getElementById('gistPanelOverlay').classList.remove('show');
       document.getElementById('gistPanel').classList.remove('show');
     },
 
+    // "保存配置"按钮：填了 Gist ID 就直接存并标记已连接；没填就当成"第一次
+    // 使用"，调用 App.sync.createGist 自动新建一个
     saveGistConfig() {
       const token  = document.getElementById('gistToken').value.trim();
       const gistId = document.getElementById('gistId').value.trim();
@@ -1411,6 +1448,8 @@ const App = {
       else App.sync.createGist(token);
     },
 
+    // 首次配置、没填 Gist ID 时调用：新建一个私有 Gist 存当前数据，成功后
+    // 把生成的 ID 回填进输入框，供用户在别的设备上填同一个 ID 加入同步
     async createGist(token) {
       App.sync.setGistStatus('正在创建 Gist…', '');
       try {
@@ -1429,6 +1468,9 @@ const App = {
       } catch(e) { App.sync.setGistStatus('创建失败：' + e.message, 'error'); }
     },
 
+    // 推送到 Gist：manual=true 是用户手动点"立即上传"，manual=false 是自动
+    // 触发（防抖/启动同步）。带 _busy 并发保护和 _lastPush 限速，防止自动
+    // 触发跟手动点击撞在一起重复发请求
     async pushToGist(manual) {
       const token  = localStorage.getItem('rp_gist_token');
       const gistId = localStorage.getItem('rp_gist_id');
@@ -1459,6 +1501,9 @@ const App = {
       }
     },
 
+    // 真正发起 PATCH 请求的那一步，被 App.sync.pushToGist 和冲突处理里的
+    // "覆盖云端"共用。成功后记录时间戳、清脏标记；manual 才更新UI提示
+    // （自动触发的静默失败也不打扰用户，只是这次没推上去，下次还会再试）
     async doPushGist(token, gistId, manual) {
       try {
         const res = await fetch('https://api.github.com/gists/' + gistId, {
@@ -1491,6 +1536,7 @@ const App = {
       document.body.appendChild(banner);
     },
 
+    // 冲突提示条上三个按钮的统一处理：覆盖云端 / 改用云端数据 / 稍后再说
     resolveGistConflict(action) {
       const banner = document.getElementById('gistConflictBanner');
       if (banner) banner.remove();
@@ -1504,6 +1550,8 @@ const App = {
       // dismiss：不做任何事，本地修改仍保留，下次触发自动同步时会重新检测
     },
 
+    // 从 Gist 拉取云端数据覆盖本地。manual=true 是用户点"从云端刷新"，
+    // manual=false 是启动同步里判断本地干净时自动拉取
     async pullFromGist(manual) {
       const token  = localStorage.getItem('rp_gist_token');
       const gistId = localStorage.getItem('rp_gist_id');
@@ -1553,6 +1601,7 @@ const App = {
       }
     },
 
+    // 设置面板里那行状态文字（"上传成功✓"/"失败：xxx"之类），type 只影响颜色
     setGistStatus(msg, type) {
       const el = document.getElementById('gistStatus');
       if (!el) return;
@@ -1560,6 +1609,8 @@ const App = {
       el.style.color = type === 'error' ? '#c04848' : type === 'ok' ? '#1f9d5f' : '#888';
     },
 
+    // 同步一下顶栏和主页两处设置按钮的 tooltip 文字（是否已连接），按钮外观
+    // 本身不再用颜色区分连接状态，只是这里更新一下鼠标悬停时看到的提示
     updateGistBtn(connected) {
       const title = connected ? '设置（导出 / 导入 / 云同步）— 云同步已连接' : '设置（导出 / 导入 / 云同步）';
       const btn = document.getElementById('gistBtn');
@@ -1570,6 +1621,8 @@ const App = {
   },
 
   scene: {
+    // 按当前 sortMode 返回一份排好序的场景副本（不修改 App.state.scenes
+    // 本身），主页网格和手机端场景下拉都用这个，保证两处顺序一致
     getSortedScenes() {
       if (App.state.sortMode === 'alpha') {
         return [...App.state.scenes].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'zh'));
@@ -1578,6 +1631,7 @@ const App = {
       return [...App.state.scenes];
     },
 
+    // 当前正在查看/编辑的场景对象；主页时 currentId 是 null，找不到会返回 undefined
     currentScene() { return App.state.scenes.find(s => s.id === App.state.currentId); },
 
     // 点击场景：切换到对应场景页面
@@ -1833,28 +1887,37 @@ const App = {
         return `
         <div class="round">
           <div class="round-label">ROUND ${String(i+1).padStart(2,'0')}${r.title ? `<span style="font-family:'Noto Sans SC',sans-serif;font-weight:400;font-size:12px;color:var(--text2);letter-spacing:0.02em;">${App.utils.esc(r.title)}</span>` : ''}</div>
-          <div class="dialogue-row${hasA2 ? ' has-third' : ''}">
-            <div class="qa-block">
-              <div class="card card-q">
-                <div class="card-lbl">Q</div>
-                <p class="card-en">${App.utils.esc(r.q.en)}</p>
+          <div class="chat-thread">
+            <div class="msg-row msg-q">
+              <div class="msg-block msg-block-q">
+                <div class="bubble bubble-q">
+                  <p class="card-en">${App.utils.esc(r.q.en)}</p>
+                </div>
+                ${renderAltPanel(qHasContent, r.q, 'q', r.q.zhHidden !== false)}
               </div>
-              ${renderAltPanel(qHasContent, r.q, 'q', r.q.zhHidden !== false)}
             </div>
-            <div class="qa-block">
-              <div class="card card-a">
-                <div class="card-lbl">A</div>
-                <p class="card-en">${App.utils.esc(r.a.en)}</p>
+            <div class="msg-row msg-a">
+              <div class="answer-group" data-round-idx="${i}">
+                <button class="reveal-btn" type="button">
+                  <span class="reveal-icon">▶</span> 点击查看回答
+                </button>
+                <div class="answer-content">
+                  <div class="msg-block msg-block-a">
+                    <div class="bubble bubble-a">
+                      <p class="card-en">${App.utils.esc(r.a.en)}</p>
+                    </div>
+                    ${renderAltPanel(aHasContent, r.a, 'a', r.a.zhHidden !== false)}
+                  </div>
+                  ${hasA2 ? `<div class="msg-block msg-block-a">
+                    <div class="answer-alt-label">备选回答</div>
+                    <div class="bubble bubble-a2">
+                      <p class="card-en">${App.utils.esc(r.a2.en)}</p>
+                    </div>
+                    ${renderAltPanel(a2HasContent, r.a2, 'a2', r.a2.zhHidden !== false)}
+                  </div>` : ''}
+                </div>
               </div>
-              ${renderAltPanel(aHasContent, r.a, 'a', r.a.zhHidden !== false)}
             </div>
-            ${hasA2 ? `<div class="qa-block">
-              <div class="card card-a2">
-                <div class="card-lbl">A2</div>
-                <p class="card-en">${App.utils.esc(r.a2.en)}</p>
-              </div>
-              ${renderAltPanel(a2HasContent, r.a2, 'a2', r.a2.zhHidden !== false)}
-            </div>` : ''}
           </div>
         </div>`;
       }).join('');
@@ -1954,6 +2017,8 @@ const App = {
         </div>`;
     },
 
+    // 渲染编辑页里"替换说法"的单个输入框（Q/A/A2 三种 side 共用这一个模板），
+    // 被 App.render.renderRoundEdit 内部调用，不单独往外暴露给别处用
     renderAltInput(side, ri, ai, val) {
       return `
         <div class="alt-input-row">
@@ -1962,6 +2027,7 @@ const App = {
         </div>`;
     },
 
+    // 侧边栏+主内容区一起重绘，云同步 pull 成功后调这个，保证两块都跟最新数据同步
     renderAll() {
       App.render.renderSidebar();
       App.render.renderMain();
@@ -1969,6 +2035,8 @@ const App = {
   },
 
   dnd: {
+    // 主页场景卡片的拖拽排序，每次 App.render.renderHome() 重绘后要重新调用
+    // 一遍（卡片是新生成的 DOM，旧的事件监听不会跟着留下来）
     bindDragEvents() {
       const cards = document.querySelectorAll('.home-card.drag-mode');
       cards.forEach(card => {
@@ -1987,6 +2055,10 @@ const App = {
       });
     },
 
+    // 下面这六个都是通过 addEventListener 直接注册的（不是 App.dnd.xxx() 主动
+    // 调用），触发时 this 是拖拽事件发生的那张卡片本身，不是 App.dnd
+
+    // 开始拖：记住被拖的是哪张卡片
     handleDragStart(e) {
       App.state.dragSrcId = this.dataset.sceneId;
       this.classList.add('dragging');
@@ -1994,11 +2066,13 @@ const App = {
       e.dataTransfer.setData('text/plain', App.state.dragSrcId);
     },
 
+    // 拖着划过别的卡片上方：必须阻止默认行为，不然不允许 drop
     handleDragOver(e) {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
     },
 
+    // 拖进某张卡片范围：给它加高亮，提示"松手会插到这里"（跳过拖的就是它自己的情况）
     handleDragEnter(e) {
       e.preventDefault();
       if (this.dataset.sceneId !== App.state.dragSrcId) {
@@ -2006,10 +2080,12 @@ const App = {
       }
     },
 
+    // 拖出某张卡片范围：去掉高亮
     handleDragLeave() {
       this.classList.remove('drag-over');
     },
 
+    // 松手：真正调整 App.state.scenes 数组顺序的地方
     handleDrop(e) {
       e.preventDefault();
       this.classList.remove('drag-over');
@@ -2027,6 +2103,7 @@ const App = {
       }
     },
 
+    // 拖拽结束（不管有没有成功 drop）：清掉所有卡片身上残留的拖拽样式类
     handleDragEnd() {
       this.classList.remove('dragging');
       document.querySelectorAll('.home-card.drag-over').forEach(c => c.classList.remove('drag-over'));
@@ -2040,6 +2117,9 @@ const App = {
       if (dd) dd.classList.remove('show');
     },
 
+    // 真正的搜索逻辑，跨场景标题/标签/对话内容/关键词一起搜。bodyEl 传进来
+    // 的是结果要塞进哪个容器——顶栏下拉和主页内嵌结果用的是同一份逻辑，
+    // 只是渲染到不同的容器里
     doGlobalSearch(term, bodyEl) {
       const body = bodyEl || document.getElementById('gsBody');
       if (!body) return;
@@ -2127,6 +2207,7 @@ const App = {
       if (body.id === 'homeSearchResults') body.style.display = 'block';
     },
 
+    // 把命中的关键字包一层 <span class="gs-highlight"> 高亮显示，大小写不敏感
     highlightMatch(text, term) {
       if (!term) return App.utils.esc(text);
       const escaped = App.utils.esc(text);
@@ -2135,6 +2216,7 @@ const App = {
       return escaped.replace(regex, '<span class="gs-highlight">$1</span>');
     },
 
+    // 点击某条搜索结果：清空搜索框和结果列表，跳转到对应场景
     goToSceneFromSearch(id) {
       // 清空搜索框和结果
       const ts = document.getElementById('topbarSearch');
@@ -2179,6 +2261,12 @@ const App = {
       // 左侧项目删除
       if (e.target.classList.contains('scene-del')) {
         App.scene.delScene(e.target.dataset.delid);
+        return;
+      }
+      // 点击"查看回答"气泡按钮，展开真正的回答气泡（纯UI状态，不写入数据、不持久化，切场景/刷新后恢复收起）
+      const revealBtn = e.target.closest('.reveal-btn');
+      if (revealBtn) {
+        revealBtn.closest('.answer-group').classList.add('revealed');
         return;
       }
       // 展开代替文本
