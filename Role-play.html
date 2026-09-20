@@ -60,6 +60,17 @@ input[type="text"], input[type="search"], select, textarea {
   --a-border: #beb6f0;
   --a-accent: #5b4fe0;
 
+  /* 聊天气泡专用色：比上面两组卡片色再深一档，气泡背景/描边单独取值，
+     不跟编辑模式输入框、同步状态文字等复用 --q-bg/--a-bg 的地方混在一起改 */
+  --bubble-q-bg: #d5f0e2;
+  --bubble-q-border: #8bcba7;
+  --bubble-a-bg: #ded7f9;
+  --bubble-a-border: #a89bec;
+
+  /* Alternatives下拉框底色：比气泡色更淡一层，让下拉框像是气泡延伸出来的附属信息 */
+  --alt-body-q-bg: #eef8f1;
+  --alt-body-a-bg: #f1eefc;
+
   /* 主题色 */
   --accent: #4453e0;
   --accent-light: #e8ebfb;
@@ -521,20 +532,19 @@ body {
 .msg-block-q { align-items: flex-start; }
 .msg-block-a { align-items: flex-end; }
 
-/* 气泡：左右各自用不同角落做"尖角"，模拟发出/收到的方向感；
-   上下padding收窄、左右保留，短句单行也不会显得虚高 */
+/* 气泡、reveal按钮、Alternatives下拉框统一用10px圆角（尖角角落单独4px不变，保留方向感） */
 .bubble {
-  border-radius: 16px;
+  border-radius: 10px;
   padding: 9px 14px;
   border: 1px solid;
   box-shadow: var(--shadow-sm);
 }
-.bubble-q { background: var(--q-bg); border-color: var(--q-border); border-bottom-left-radius: 4px; }
-.bubble-a { background: var(--a-bg); border-color: var(--a-border); border-bottom-right-radius: 4px; }
-.bubble-a2 { background: var(--a-bg); border-color: var(--a-border); border-bottom-right-radius: 4px; opacity: 0.82; margin-right: 14px; }
+.bubble-q { background: var(--bubble-q-bg); border-color: var(--bubble-q-border); border-bottom-left-radius: 4px; }
+.bubble-a { background: var(--bubble-a-bg); border-color: var(--bubble-a-border); border-bottom-right-radius: 4px; }
+.bubble-a2 { background: var(--bubble-a-bg); border-color: var(--bubble-a-border); border-bottom-right-radius: 4px; opacity: 0.82; margin-right: 14px; }
 .card-en { font-size: 15px; line-height: 1.55; color: var(--text); }
 @media (max-width: 768px) {
-  .bubble { padding: 10px 16px; border-radius: 14px; }
+  .bubble { padding: 10px 16px; }
   .card-en { font-size: 16px; }
   .msg-block { max-width: min(92%, calc(100% - 40px)); }
 }
@@ -554,7 +564,7 @@ body {
 .reveal-btn {
   display: flex; align-items: center; gap: 8px;
   background: var(--surface); border: 1px dashed var(--a-border);
-  border-radius: 16px; border-bottom-right-radius: 4px;
+  border-radius: 10px; border-bottom-right-radius: 4px;
   padding: 9px 14px; cursor: pointer;
   font-size: 14px; color: var(--a-accent);
   font-family: 'Noto Sans SC', sans-serif;
@@ -575,28 +585,31 @@ body {
   transition: background 0.15s;
 }
 .alt-toggle:hover { background: var(--border); }
-.alt-arrow { font-size: 9px; transition: transform 0.25s cubic-bezier(.4,0,.2,1); color: var(--text3); }
-.alt-toggle.open .alt-arrow { transform: rotate(90deg); }
+/* 下拉框：底色按Q/A区分（浅绿/浅紫，呼应对应气泡色系），去掉了描边，
+   视觉上更像气泡"延伸"出来的附属信息，而不是单独一个白底表单框 */
 .alt-body {
-  display: none; background: var(--surface); border: 1px solid var(--border);
-  border-radius: 8px; padding: var(--sp-2) var(--sp-3); margin-top: 3px;
+  display: none; border-radius: 10px; padding: var(--sp-2) var(--sp-3); margin-top: 3px;
 }
 .alt-body.open { display: block; }
+.alt-body-q { background: var(--alt-body-q-bg); }
+.alt-body-a { background: var(--alt-body-a-bg); }
+/* 逐条之间不再用分隔线，改成纯间距；每条前面的标识统一是实心圆点——
+   普通备选说法用淡灰色点，中文翻译那一条单独用绿色点区分 */
 .alt-item {
-  font-size: 13px; color: var(--text); padding: 5px 0;
-  border-bottom: 1px solid var(--border); line-height: 1.5;
+  font-size: 13px; color: var(--text); padding: 4px 0;
+  line-height: 1.5;
   display: flex; gap: var(--sp-2);
 }
+.alt-item + .alt-item { margin-top: 2px; }
+.alt-item::before { content: '●'; color: var(--text3); opacity: 0.5; flex-shrink: 0; font-size: 7px; margin-top: 6px; }
 /* 中文遮罩：真实文字和占位符是两个独立的span，靠display切换谁可见——
    不再用"压缩原文字+伪元素叠加定位"的老办法，两种状态都是正常文档流，
    桌面手机表现一致，不会跑位或掉行 */
-.alt-item-zh { color: var(--text2); font-style: italic; border-bottom: 1px solid var(--border) !important; margin-bottom: 2px; padding-bottom: 6px !important; cursor: pointer; transition: color 0.15s; }
-.alt-item-zh::before { content: '中' !important; color: var(--accent) !important; font-style: normal; font-size: 10px; }
+.alt-item-zh { color: var(--text2); font-style: italic; margin-bottom: 4px; padding-bottom: 2px; cursor: pointer; transition: color 0.15s; }
+.alt-item-zh::before { content: '●' !important; color: var(--q-accent) !important; opacity: 1; font-style: normal; flex-shrink: 0; font-size: 7px; margin-top: 6px; }
 .alt-item-zh-mask { display: none; color: var(--text3); font-style: normal; letter-spacing: 0.25em; }
 .alt-item-zh.hidden .alt-item-zh-text { display: none; }
 .alt-item-zh.hidden .alt-item-zh-mask { display: inline; }
-.alt-item:last-child { border-bottom: none; }
-.alt-item::before { content: '—'; color: var(--text3); flex-shrink: 0; font-size: 11px; margin-top: 2px; }
 @media (max-width: 768px) {
   .alt-toggle { padding: var(--sp-2) 10px; font-size: 13px; min-height: var(--tap-min); }
   .alt-body { padding: 10px var(--sp-3); }
@@ -1897,10 +1910,8 @@ const App = {
           return zhItem + altItems;
         };
         const renderAltPanel = (hasContent, field, fieldName, zhHidden) => hasContent ? `
-              <button class="alt-toggle">
-                <span class="alt-arrow">▶</span> Alternatives
-              </button>
-              <div class="alt-body">${renderAltItems(field, fieldName, zhHidden)}</div>` : '';
+              <button class="alt-toggle">Alternatives</button>
+              <div class="alt-body ${fieldName === 'q' ? 'alt-body-q' : 'alt-body-a'}">${renderAltItems(field, fieldName, zhHidden)}</div>` : '';
 
         return `
         <div class="round">
