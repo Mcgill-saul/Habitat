@@ -486,6 +486,20 @@ body {
   .p-desc { font-size: 14px; line-height: 1.5; }
 }
 
+/* 全部展开/收起：一次性批量控制场景里所有回答气泡，用于轮次较多时快速通览，
+   跟逐条点击的 reveal-btn 是两套独立的按钮，不互相同步状态（纯批量操作，不追踪每条明细） */
+.practice-toolbar { display: flex; justify-content: flex-end; margin-bottom: var(--sp-4); margin-top: calc(-1 * var(--sp-4)); }
+.expand-all-btn {
+  background: none; border: 1px solid var(--border); border-radius: 999px;
+  padding: 6px 14px; font-size: 12px; color: var(--text2); cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+  transition: background 0.15s, border-color 0.15s;
+}
+.expand-all-btn:hover { background: var(--bg2); border-color: var(--border2); }
+@media (max-width: 768px) {
+  .expand-all-btn { padding: 8px 16px; font-size: 13px; min-height: var(--tap-min); }
+}
+
 /* Round分界：像聊天记录里的时间分隔一样，居中悬浮一个小胶囊，
    而不是贴左边的标题条——跟两轮之间拉开的间距一起，构成明确的"另起一轮"锚点 */
 .round { margin-bottom: 40px; }
@@ -532,16 +546,19 @@ body {
 .msg-block-q { align-items: flex-start; }
 .msg-block-a { align-items: flex-end; }
 
-/* 气泡、reveal按钮、Alternatives下拉框统一用10px圆角（尖角角落单独4px不变，保留方向感） */
+/* 气泡、reveal按钮、Alternatives下拉框统一10px圆角，四角一致——
+   原来给A/Q气泡单独切了个4px尖角做方向提示，但这个尖角是固定像素值，
+   气泡桌面/手机端padding和字号不完全一样，导致同一份代码在两端呈现出的"直角感"不一致，
+   干脆去掉这个不稳定的设计，四角统一 */
 .bubble {
   border-radius: 10px;
   padding: 9px 14px;
   border: 1px solid;
   box-shadow: var(--shadow-sm);
 }
-.bubble-q { background: var(--bubble-q-bg); border-color: var(--bubble-q-border); border-bottom-left-radius: 4px; }
-.bubble-a { background: var(--bubble-a-bg); border-color: var(--bubble-a-border); border-bottom-right-radius: 4px; }
-.bubble-a2 { background: var(--bubble-a-bg); border-color: var(--bubble-a-border); border-bottom-right-radius: 4px; opacity: 0.82; margin-right: 14px; }
+.bubble-q { background: var(--bubble-q-bg); border-color: var(--bubble-q-border); }
+.bubble-a { background: var(--bubble-a-bg); border-color: var(--bubble-a-border); }
+.bubble-a2 { background: var(--bubble-a-bg); border-color: var(--bubble-a-border); opacity: 0.82; margin-right: 14px; }
 .card-en { font-size: 15px; line-height: 1.55; color: var(--text); }
 @media (max-width: 768px) {
   .bubble { padding: 10px 16px; }
@@ -564,7 +581,7 @@ body {
 .reveal-btn {
   display: flex; align-items: center; gap: 8px;
   background: var(--surface); border: 1px dashed var(--a-border);
-  border-radius: 10px; border-bottom-right-radius: 4px;
+  border-radius: 10px;
   padding: 9px 14px; cursor: pointer;
   font-size: 14px; color: var(--a-accent);
   font-family: 'Noto Sans SC', sans-serif;
@@ -1963,6 +1980,9 @@ const App = {
               <h1 class="p-title">${App.utils.esc(s.title)}</h1>
               ${s.desc ? `<p class="p-desc">${App.utils.esc(s.desc)}</p>` : ''}
             </div>
+            <div class="practice-toolbar">
+              <button class="expand-all-btn" type="button" data-expanded="false">全部展开</button>
+            </div>
             ${rounds}
             <div class="p-section" style="margin-top:0.5rem">
               <div class="p-section-title">我的笔记</div>
@@ -2300,6 +2320,17 @@ const App = {
       const revealBtn = e.target.closest('.reveal-btn');
       if (revealBtn) {
         revealBtn.closest('.answer-block').classList.add('revealed');
+        return;
+      }
+      // 全部展开/收起：批量操作当前场景里所有回答气泡，按钮自身的 data-expanded 记录当前批量状态
+      // （纯UI层，跟单条 reveal-btn 互不同步，切场景/刷新后重置）
+      if (e.target.classList.contains('expand-all-btn')) {
+        const expand = e.target.dataset.expanded !== 'true';
+        document.querySelectorAll('.practice-main .answer-block').forEach(block => {
+          block.classList.toggle('revealed', expand);
+        });
+        e.target.dataset.expanded = expand ? 'true' : 'false';
+        e.target.textContent = expand ? '全部收起' : '全部展开';
         return;
       }
       // 展开代替文本
