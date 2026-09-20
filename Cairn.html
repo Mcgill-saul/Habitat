@@ -290,6 +290,9 @@
   .cal-entry-line{ font-size:var(--fs-xs); line-height:15px; display:flex; align-items:flex-start; gap:4px; }
   .cal-cell:not(.expanded) .cal-entry-line{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .cal-entry-dot{ width:6px; height:6px; border-radius:50%; flex:none; margin-top:4px; }
+  .cal-tooltip{ position:fixed; z-index:20; pointer-events:none; display:none; max-width:260px; background:var(--ink); color:var(--bg); font-size:var(--fs-xs); line-height:1.5; padding:4px 9px; border-radius:var(--radius-xs); }
+  .cal-tooltip-line{ display:flex; align-items:baseline; gap:6px; }
+  .cal-tooltip-dot{ width:6px; height:6px; border-radius:50%; flex:none; }
   .cal-entry-icon{ font-size:var(--fs-xs); line-height:1; flex:none; margin-top:2px; }
   .cal-more{ font-size:var(--fs-micro); color:var(--muted); }
 
@@ -346,7 +349,9 @@
   .media-cover-fallback{ width:100%; aspect-ratio:2/3; display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-size:var(--fs-display); font-weight:600; color:var(--on-color); }
   .media-card-body{ padding:10px 12px 12px; display:flex; flex-direction:column; gap:6px; flex:1; }
   .media-card-title{ font-size:var(--fs-sm); font-weight:600; line-height:1.35; color:var(--ink); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
-  .media-card-date{ font-size:var(--fs-xs); color:var(--muted); font-family:'IBM Plex Mono',monospace; }
+  .media-card-dates{ display:flex; flex-direction:column; gap:3px; }
+  .media-card-date{ font-size:var(--fs-xs); color:var(--muted); font-family:'IBM Plex Mono',monospace; display:flex; flex-wrap:wrap; gap:0 6px; }
+  .media-card-date-text{ font-family:'Inter',sans-serif; color:var(--ink-soft); min-width:0; overflow-wrap:anywhere; }
   .media-card-rating{ display:flex; gap:3px; }
   .media-card-meta{ display:flex; align-items:center; gap:6px; }
   .media-card-origin{ font-size:var(--fs-micro); color:var(--muted); }
@@ -354,7 +359,6 @@
   .media-card-dot.on{ background:var(--accent); }
   .media-card-tags{ display:flex; flex-wrap:wrap; gap:4px; margin-top:auto; padding-top:4px; }
   .media-card-tag{ font-size:var(--fs-micro); padding:2px 7px; border-radius:var(--radius-pill); background:var(--surface-2); color:var(--ink-soft); white-space:nowrap; }
-  .media-card-rewatch{ font-size:var(--fs-micro); color:var(--muted); }
 
   /* ---------- 时间线（横向条目栏位） ---------- */
   .tl-toolbar{ display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:20px; }
@@ -522,6 +526,7 @@
 </div>
 
 <div class="slot-menu" id="slotMenu"></div>
+<div class="cal-tooltip" id="calTooltip"></div>
 
 <script>
 /* =========================================================
@@ -884,7 +889,7 @@ const REGION_ALIASES = {
 const Parser = {
   // 日记里没打（已登记）标签的行，统一塞进这个key的桶里，用一个不会跟真实
   // 分类撞名的哨兵字符串占位——CalendarView按这个key识别"未标记"，
-  // ColumnBoard/SpanRail那边因为只认registeredCategories，天然不会捡到它。
+  // ColumnBoard/SpanRail那边只认yearCategories/圆环图那几列，天然不会捡到它。
   UNTAGGED_KEY: '__untagged__',
   cleanVal(v){
     v = (v||'').trim();
@@ -956,10 +961,18 @@ const Parser = {
     if(raw===undefined || raw===null || raw==='') return null;
     const s = String(raw).trim();
     if(s.includes('~')){
-      const [a, b] = s.split('~');
+      // 只按第一个~拆，不用split('~')整串拆——如果日期值里不小心多打了
+      // 一个~（比如"2023-12-01~~2024-03-15"手滑），split('~')会拆出三段，
+      // 后面又只解构取前两个，真正的结束日期就被静默丢掉、第二段（空
+      // 字符串）被当成"没写结束日期"误判成ongoing，且不会有任何警告——
+      // 这是个真实的bug。改成indexOf定位第一个~，之后不管出现几个~
+      // 都当结束日期原始文本的一部分：格式不对会走"date字段格式没认出来"
+      // 那条正常报警告路径，不会再悄悄吃成ongoing。
+      const tildeIdx = s.indexOf('~');
+      const a = s.slice(0, tildeIdx), b = s.slice(tildeIdx+1);
       const start = Parser.parseDatePart(a, defaultYear);
       if(!start) return null;
-      const bTrim = (b||'').trim();
+      const bTrim = b.trim();
       const end = bTrim==='' ? 'ongoing' : Parser.parseDatePart(bTrim, defaultYear);
       if(end !== 'ongoing' && !end) return null;
       return { isRange:true, start, end };
@@ -969,17 +982,21 @@ const Parser = {
     return { isRange:false, start, end:null };
   },
   /* fm.year字段——笔记级别的"默认年份"，格式不对（不是4位合理年份）就报警告
-     并当没填，跟rating的校验是同一个思路。 */
-  parseNoteYear(raw, basename, warnings){
+     并当没填，跟rating的校验是同一个思路。fieldName是为了让display_year
+     这类复用同一套校验逻辑的字段，警告文案里报的是它自己的字段名，不会
+     报错说"year"不合法却其实是别的字段写错了。 */
+  parseNoteYear(raw, basename, warnings, fieldName='year'){
     if(raw===undefined || raw==='') return null;
     const n = parseInt(raw, 10);
     if(Number.isInteger(n) && n>=1000 && n<=9999) return n;
-    warnings.push(`${basename}：year「${raw}」不是合法年份，已忽略`);
+    warnings.push(`${basename}：${fieldName}「${raw}」不是合法年份，已忽略`);
     return null;
   },
-  /* 通用：按标题关键字（"分栏分类"、"进度条固定栏位"、"日历跨度分类"、
+  /* 【旧格式】通用：按标题关键字（"分栏分类"、"进度条固定栏位"、"日历跨度分类"、
      "横向条目栏位"）从settings笔记正文里摘出对应小节的列表项，
-     这几张登记表全是同一套解析逻辑，靠标题文字路由到不同小节。 */
+     这几张登记表全是同一套解析逻辑，靠标题文字路由到不同小节。
+     只有settings笔记里没有「## 展示位」表的时候才读这几张旧表（见
+     parseDisplayTable/buildStore），等你把旧小节删掉之后这套旧解析会一起删。 */
   parseCategoryList(body, heading){
     const cats = new Set();
     let inSection = false;
@@ -993,12 +1010,12 @@ const Parser = {
   },
   parseCategoryRegistry(body){ return Parser.parseCategoryList(body, '分栏分类'); },
   parsePinnedCategories(body){ return Parser.parseCategoryList(body, '进度条固定栏位'); },
-  /* 媒体分类跟「分栏分类」「进度条固定栏位」是并列的独立登记表，不要求
+  /* 【旧格式】媒体分类跟「分栏分类」「进度条固定栏位」是并列的独立登记表，不要求
      同时也在「分栏分类」里——一个分类要么走分栏，要么走媒体卡片墙，
      没规定必须两头都登记。
      分类名后面缀一个"【Calendar】"标记（比如"Movie【Calendar】"），表示这个
-     媒体分类除了正常进卡片墙，精确到"天"的日期（含「## 时间线」里的重看
-     点日期）还会额外在日历格子里显示一行纯文字——不用再单独开一张「媒体
+     媒体分类除了正常进卡片墙，精确到"天"的日期（含「## 时间线」里的重看，
+     单天或起止都精确到天的一段）还会额外在日历格子里显示一行纯文字——不用再单独开一张「媒体
      日历分类」登记表，标记直接写在媒体分类这一行本身，少一层要维护的东西。
      解析出来的分类名已经把标记本身去掉了，不会带着"【Calendar】"这几个字
      混进真正的分类值里。
@@ -1028,14 +1045,94 @@ const Parser = {
     }
     return { categories, calendarCategories };
   },
-  /* 日历跨度分类——登记在这里的分类，跨度事件（start~end）会在CalendarView的
-     日历格子里显示cover色块盖住日期数字，跟「进度条固定栏位」并列但服务不同视图，
+  /* 【旧格式】日历跨度分类——登记在这里的分类，跨度事件（start~end）会在CalendarView的
+     日历格子里显示cover色块盖住日期数字（笔记名不在格子里写，放在色块的悬浮框里），
+     跟「进度条固定栏位」并列但服务不同视图，
      一个分类正常不会同时登记进这两张表（代码不做强制互斥，靠使用者自己别重复登记）。 */
   parseCalendarSpanCategories(body){ return Parser.parseCategoryList(body, '日历跨度分类'); },
-  /* 横向条目栏位——登记在这里的分类，会在新的"时间线"Tab里各占一行，横轴是
+  /* 【旧格式】横向条目栏位——登记在这里的分类，会在新的"时间线"Tab里各占一行，横轴是
      时间、纵轴是分类，一眼看到不同类别在同一年内的分布；行的显示顺序就是
      这张表里登记的先后顺序，跟「分栏分类」等其他表完全独立、互不依赖。 */
   parseHorizontalRowCategories(body){ return Parser.parseCategoryList(body, '横向条目栏位'); },
+  /* settings笔记里「## 展示位」下面的一张表——每个分类一行，每列是一个视图，
+     格子就是"这个分类在这个视图里出不出现"的开关，取代原来分散的几张登记表
+     （分栏分类/进度条固定栏位/日历跨度分类/媒体分类/横向条目栏位）。
+     表头按文字认列，跟列的先后位置无关、大小写不敏感，认不出的列（比如自己
+     加的"备注"）直接忽略：
+       category —— 分类名。必须有这一列；行的先后顺序就是各视图里的显示顺序
+       圆环图   —— 固定＝固定栏位；动态＝有进行中的事件时才出现在"其他"卡；留空＝不出现
+       Year     —— 打勾＝可以在Year tab里加成一列，只管这一件事，不连带别的
+       calendar —— 打勾＝月历里出现这个分类的一切（跨度画色块+文字，媒体按天显示）；
+                   写"文字"＝只显示文字、不画色块（居住这种长跨度用）；
+                   写emoji＝同打勾，媒体那一行前面用这个emoji当图标
+       Media    —— 打勾＝进Media tab的卡片墙
+       Timeline —— 打勾＝在Timeline tab里占一行
+     格子留空、写"-"/"×"/"否"都算关。没有这张表返回null（走旧登记表）；有表但
+     没有category列返回{rows:null}，让调用方也走旧登记表并带上警告。 */
+  parseDisplayTable(body){
+    let inSection = false;
+    const tableLines = [];
+    for(const raw of body.split(/\r?\n/)){
+      const h2 = raw.match(/^##\s+(.+)/);
+      if(h2){ inSection = h2[1].trim().includes('展示位'); continue; }
+      const line = raw.trim();
+      if(inSection && line.startsWith('|')) tableLines.push(line);
+    }
+    if(tableLines.length===0) return null;
+    const splitRow = line=>{
+      let t = line;
+      if(t.startsWith('|')) t = t.slice(1);
+      if(t.endsWith('|')) t = t.slice(0,-1);
+      return t.split('|').map(c=>c.trim());
+    };
+    const header = splitRow(tableLines[0]).map(h=>h.toLowerCase());
+    const colOf = name => header.indexOf(name.toLowerCase());
+    const cCat = colOf('category');
+    if(cCat<0) return { rows:null, warnings:['「## 展示位」里的表没找到 category 列，整张表已忽略'] };
+    const cRing = colOf('圆环图'), cYear = colOf('year'), cCal = colOf('calendar'),
+          cMedia = colOf('media'), cTl = colOf('timeline');
+    const OFF = /^(-|–|—|×|✗|否)?$/;
+    const CHECK = /^(✓|✔|√|是)$/;
+    const warnings = [], rows = [], seen = new Set();
+    tableLines.slice(1).forEach((line, idx)=>{
+      const cells = splitRow(line);
+      // 表头下面那行分隔行"|---|:-:|"（Obsidian居中对齐会写成":-:"）不是数据；
+      // 只认紧跟表头的那一行，免得哪天有分类真的写成全是"-"的一行被误吞。
+      if(idx===0 && cells.every(c=>/^:?-+:?$/.test(c))) return;
+      if(cells.every(c=>c==='')) return;
+      const cell = i => (i>=0 && i<cells.length) ? cells[i] : '';
+      const category = cell(cCat);
+      if(!category) return;
+      if(seen.has(category)){
+        warnings.push(`「## 展示位」里「${category}」出现了不止一行，只认第一行`);
+        return;
+      }
+      seen.add(category);
+      const bad = (col, v, hint)=> warnings.push(`「## 展示位」里「${category}」的「${col}」写了「${v}」，认不出（${hint}），已当作留空`);
+
+      const ringV = cell(cRing);
+      let ring = null;
+      if(ringV==='固定') ring = 'pinned';
+      else if(ringV==='动态') ring = 'dynamic';
+      else if(!OFF.test(ringV)) bad('圆环图', ringV, '应为 固定 / 动态 / 留空');
+
+      const calV = cell(cCal);
+      let calendar = null;
+      if(OFF.test(calV)) calendar = null;
+      else if(calV==='文字') calendar = { mode:'text', icon:null };
+      else if(CHECK.test(calV)) calendar = { mode:'full', icon:null };
+      else if(/^\p{Extended_Pictographic}/u.test(calV)) calendar = { mode:'full', icon:calV };
+      else bad('calendar', calV, '应为 ✓ / 文字 / 一个emoji / 留空');
+
+      rows.push({
+        category, ring, calendar,
+        year: !OFF.test(cell(cYear)),
+        media: !OFF.test(cell(cMedia)),
+        timeline: !OFF.test(cell(cTl)),
+      });
+    });
+    return { rows, warnings };
+  },
   /* 节日——登记在这里的，每年到了这个月日就自动出现（不用每年建笔记）。
      格式是"emoji 空格 月-日"，比如"🎄 12-25"；想标记某一年某一天（而不是
      每年重复），走的是另一条路——单独建一篇笔记，写`icon:`字段，见下面
@@ -1074,70 +1171,107 @@ const Parser = {
     return null;
   },
   /* frontmatter里"hide_from_rail: true"（Obsidian复选框打勾）表示"这条不想以
-     进度条/色块这种醒目形式出现"——具体表现是这条笔记完全不会被推进spanEvents
-     数组，SpanRail的固定栏位行/动态其他卡片、CalendarView的日历cover色块，
-     这几处消费的都是同一份spanEvents，所以勾了这个开关等于同时从这几处隐藏，
-     不是只管SpanRail一处；没写这个字段或者是false/没打勾，都当"正常显示"。
+     进度条/色块这种醒目形式出现"——具体表现是这条笔记不进spanEvents，改进
+     hiddenSpanEvents：SpanRail的固定栏位行/动态其他卡片、CalendarView的日历
+     cover色块只读spanEvents，所以都不显示；共时看板有自己的「横向条目栏位」
+     登记表，两份都读，色条照常画，不受这个开关影响。没写这个字段或者是
+     false/没打勾，都当"正常显示"。
      字段名故意叫"hide_xxx"而不是"show_xxx"——勾选＝隐藏才符合打勾开关的直觉，
      不用像布尔值取反那样费脑子。 */
   isRailHidden(fm){
     if(fm.hide_from_rail===undefined) return false;
     return ['true','yes','1','是','隐藏'].includes(String(fm.hide_from_rail).trim().toLowerCase());
   },
+  /* 「## 时间线」行首日期——从一行文字开头摘出一个日期，返回{date,rest,explicitYear}，
+     认不出返回null。起点和"~"后面的终点共用这一份规则，不各写一套：
+     · 写了年份（至少3位数字，"8-1 重看"这种1-2位开头的短写法才不会被误吃成
+       "年份8"）：后面可以跟"5月2日"/"5月"/"-5-2"/"-5"，也可以什么都不跟（只精确到年）；
+     · 没写年份：靠fallbackYear兜底（起点用笔记的year字段，终点用起点的年份），
+       至少得给出月份，不然没法判断这行到底是不是在讲日期。
+     strict只用在终点上——终点是从"~"后面试探着认的，认错了会把正文吃掉，
+     所以多做一道月/日范围校验；起点沿用老规矩不校验。 */
+  parseLineDateHead(text, fallbackYear, strict){
+    let year, rest = text, explicitYear = false;
+    const yearMatch = text.match(/^(-?\d{3,})/);
+    if(yearMatch){
+      year = +yearMatch[1]; explicitYear = true;
+      rest = text.slice(yearMatch[0].length);
+      if(rest.startsWith('年')) rest = rest.slice(1);
+    } else if(fallbackYear){
+      year = fallbackYear;
+    } else {
+      return null;
+    }
+    let month=null, day=null;
+    // 月日——中文"5月2日"/"5月"，或者ISO短横线，两种写法都认，也不要求补零
+    // （跟frontmatter的date字段/daily note行首日期保持同一种能力）。带年份时
+    // "2024-05-02"里年份后面剩下的是"-05-02"（月日前面有个"-"）；没带年份的
+    // 短写法"5-2"，月日直接开头，且必须月日都写。
+    const cnMd = rest.match(/^(\d{1,2})月(\d{1,2})日/);
+    const cnMOnly = !cnMd && rest.match(/^(\d{1,2})月/);
+    const dashMd = (!cnMd && !cnMOnly) && (explicitYear
+      ? rest.match(/^-(\d{1,2})(?:-(\d{1,2}))?(?!\d)/)
+      : rest.match(/^(\d{1,2})-(\d{1,2})(?!\d)/));
+    if(cnMd){ month=+cnMd[1]; day=+cnMd[2]; rest = rest.slice(cnMd[0].length); }
+    else if(cnMOnly){ month=+cnMOnly[1]; rest = rest.slice(cnMOnly[0].length); }
+    else if(dashMd){ month=+dashMd[1]; day=dashMd[2]?+dashMd[2]:null; rest = rest.slice(dashMd[0].length); }
+    if(!explicitYear && month===null) return null;
+    if(strict){
+      if(month!==null && (month<1 || month>12)) return null;
+      if(day!==null && (day<1 || day>31)) return null;
+    }
+    const precision = day ? 'day' : month ? 'month' : 'year';
+    return { date:{year, month, day, precision}, rest, explicitYear };
+  },
+  /* 「## 时间线」的一行：行首日期（可以是单点，也可以是"起~止"的一段）+ 正文
+     + 行尾可选的"display_year:XXXX"。
+     · 起~止：止的写法跟起同一套（见parseLineDateHead），没写年份就继承起点的年份，
+       继承出来比起点还早说明跨到了下一年，年份+1；"~"后面空着（"起~ 文字"）
+       表示还在进行中，跟date字段/## 阶段的开放式跨度是同一个约定；"~"后面
+       紧跟的东西认不出是日期，就不当跨度，"~"留在正文里。
+     · display_year：只影响Media tab里这一行归到哪个年份组，跟笔记属性里同名
+       字段同一个意思（属性那个管主date即"第一次"，这里管时间线这一行）；
+       不改变这一行日期本身的含义，日历/共时看板仍按真实日期定位。先剥掉
+       再解析日期，后面的日期/正文规则完全不用知道它存在，正文里也不会残留。
+       写错（不是4位年份）就忽略并通过displayYearBad带给buildStore报警告。
+     返回的year/month/day是起点；end是null（单点）/日期对象/'ongoing'；
+     endYear是老字段（只有"2020年~2022年"这种年份跨度才有值），保留兼容。 */
   parseTimelineLine(raw, defaultYear){
     const li = raw.match(/^\s*[-*]\s*(.+)$/);
     if(!li) return null;
-    const text = li[1].trim();
+    let text = li[1].trim();
 
-    // 至少3位数字才当"年份"处理（正常年份4位，负数公元前年份好歹也有3位数量级），
-    // 这样"8-1 重看"这种1-2位开头的短写法才不会被误吃成"年份8"。
-    const yearMatch = text.match(/^(-?\d{3,})/);
-    if(yearMatch){
-      const year = +yearMatch[1];
-      let rest = text.slice(yearMatch[0].length);
-      if(rest.startsWith('年')) rest = rest.slice(1);
-
-      // 年份跨度——这一行本身横跨好几年（比如"2020年~2022年，读研"），只认年份，
-      // 不细化到月日，跟frontmatter的date跨度是两回事，别搞混。
-      let endYear = null;
-      const rangeMatch = rest.match(/^\s*~\s*(-?\d+)年?/);
-      if(rangeMatch){
-        endYear = +rangeMatch[1];
-        rest = rest.slice(rangeMatch[0].length);
-      }
-
-      // 月日——中文"5月2日"/"5月"，或者ISO短横线"-5-2"/"-5"，两种写法都认，
-      // 也不要求补零（"-5-2"和"-05-02"一回事），想怎么写都行（跟frontmatter的
-      // date字段/daily note行首日期保持同一种能力）。
-      let month=null, day=null;
-      const cnMd = rest.match(/^(\d{1,2})月(\d{1,2})日/);
-      const cnMOnly = !cnMd && rest.match(/^(\d{1,2})月/);
-      const isoMd = !cnMd && !cnMOnly && rest.match(/^-(\d{1,2})(?:-(\d{1,2}))?(?!\d)/);
-      if(cnMd){ month=+cnMd[1]; day=+cnMd[2]; rest = rest.slice(cnMd[0].length); }
-      else if(cnMOnly){ month=+cnMOnly[1]; rest = rest.slice(cnMOnly[0].length); }
-      else if(isoMd){ month=+isoMd[1]; day=isoMd[2]?+isoMd[2]:null; rest = rest.slice(isoMd[0].length); }
-
-      rest = rest.trim();
-      return { year, month, day, endYear, text: rest };
+    let displayYear = null, displayYearBad = null;
+    const dy = text.match(/\s*display_year\s*[:：]\s*(\S*)\s*$/i);
+    if(dy){
+      const v = dy[1];
+      if(/^\d{4}$/.test(v) && +v>=1000) displayYear = +v; else displayYearBad = v;
+      text = text.slice(0, dy.index).trim();
     }
 
-    // 没写年份——只有笔记frontmatter填了year字段才认这种短写法，年份从那儿补；
-    // 至少得给出月份，不然没法判断这行到底是不是在讲日期。
-    if(defaultYear){
-      let rest = text;
-      let month=null, day=null;
-      const cnMd = rest.match(/^(\d{1,2})月(\d{1,2})日/);
-      const cnMOnly = !cnMd && rest.match(/^(\d{1,2})月/);
-      const dashMd = !cnMd && !cnMOnly && rest.match(/^(\d{1,2})-(\d{1,2})(?!\d)/);
-      if(cnMd){ month=+cnMd[1]; day=+cnMd[2]; rest = rest.slice(cnMd[0].length); }
-      else if(cnMOnly){ month=+cnMOnly[1]; rest = rest.slice(cnMOnly[0].length); }
-      else if(dashMd){ month=+dashMd[1]; day=+dashMd[2]; rest = rest.slice(dashMd[0].length); }
-      if(month!==null){
-        rest = rest.trim();
-        return { year: defaultYear, month, day, endYear:null, text: rest };
+    const head = Parser.parseLineDateHead(text, defaultYear, false);
+    if(!head) return null;
+    const start = head.date;
+    let rest = head.rest;
+    let end = null, endYear = null;
+
+    const tilde = rest.match(/^\s*~/);
+    if(tilde){
+      const after = rest.slice(tilde[0].length);
+      const eh = Parser.parseLineDateHead(after.trimStart(), start.year, true);
+      if(eh){
+        const e = eh.date;
+        if(!eh.explicitYear){
+          const key = d => (d.year*12 + ((d.month||1)-1))*32 + (d.day||1);
+          if(key(e) < key(start)) e.year = start.year + 1;
+        }
+        end = e; rest = eh.rest;
+        if(start.precision==='year' && e.precision==='year') endYear = e.year;
+      } else if(after==='' || /^\s/.test(after)){
+        end = 'ongoing'; rest = after;
       }
     }
-    return null;
+    return { year:start.year, month:start.month, day:start.day, endYear, end, text: rest.trim(), displayYear, displayYearBad };
   },
   /* 标题前后允许带装饰符号/emoji（比如"⏳ 时间线"、"📅时间线"），只去掉两端的
      非文字符号再比较，核心文字必须精确匹配——这样"时间线"不会被"小说时间线"
@@ -1201,7 +1335,7 @@ const Parser = {
   isDailyNoteFilename(basename){
     return /^\d{4}-\d{2}-\d{2}$/.test(basename);
   },
-  parseDailyNoteBody(body, registeredCategories){
+  parseDailyNoteBody(body, pointCategories){
     const entries = []; const warnings = [];
     for(const raw of body.split(/\r?\n/)){
       let line = raw.trim();
@@ -1224,7 +1358,8 @@ const Parser = {
       }
       if(!line) continue; // 日期前缀吃掉一整行之后正文是空的，没什么好记
 
-      // 有#标签就按老规矩：只认「已登记分类」的标签，命中的当作这条的分类。
+      // 有#标签就按老规矩：只认「已登记分类」（展示位表里有Year/calendar/Timeline
+      // 任一列的分类；旧格式是「分栏分类」）的标签，命中的当作这条的分类。
       // 没命中已登记标签分两种情况——压根没打标签、或者打了标签但那个标签
       // 没注册：这两种以前完全混在一起统一归进「未标记」桶，但"打了标签只是
       // 没注册"其实是表达了分类意图的，只是没有专属展示位（分栏卡片/进度条
@@ -1233,7 +1368,7 @@ const Parser = {
       // 多留一个rawTag记下"打了但没注册的那个标签文字"，日历格子渲染这条
       // 记录的时候，看有没有rawTag来决定用标签自己的颜色还是笼统的灰色。
       const tags = [...line.matchAll(/#([^\s#]+)/g)].map(m=>m[1]);
-      const registeredHere = tags.filter(t=>registeredCategories.has(t));
+      const registeredHere = tags.filter(t=>pointCategories.has(t));
       if(registeredHere.length>1){
         warnings.push(`这行有多个已登记标签（${registeredHere.join('、')}），只按第一个处理——${line}`);
       }
@@ -1270,16 +1405,28 @@ const Parser = {
   buildStore(files){
     const warnings = [];
     const spanEvents = [];
+    const hiddenSpanEvents = []; // hide_from_rail的跨度笔记，只有共时看板读
     const entriesByYear = {};
     const entriesByDay = {};
     const entriesByYearMonthUnplaced = {};
     const regionsSeen = new Set();
-    let registeredCategories = new Set();
+    // "哪个分类出现在哪些视图"有两种来源：settings笔记里的「## 展示位」表（新），
+    // 或者旧的几张分散的登记表（没有展示位表时才读，将来会删）。下面这些集合是
+    // 两种来源统一展开后的结果，各视图只认这些，不关心来源：
+    //   pointCategories        —— 认得的分类：日记#标签、点条目只对这些分类生效
+    //   yearCategories         —— Year tab里可以加成一列的分类（顺序=显示顺序）
+    //   calendarPointCategories—— 点条目在月历里显示的分类（Year/Timeline不受它限制）
+    //   ringExcludedCategories —— 表里明确没开圆环图的分类，不进圆环图"其他"卡
+    //   pinnedCategories/mediaCategories/mediaCalendarCategories/
+    //   calendarSpanCategories/horizontalRowCategories —— 各视图自己那一列
+    // 先按旧格式的登记表读进来，settings里有展示位表的话，读完之后整体改用表的结果。
+    let pointCategories = new Set();
     let pinnedCategories = new Set();
     let mediaCategories = new Set();
     let calendarSpanCategories = new Set();
     let mediaCalendarCategories = new Map();
     let horizontalRowCategories = new Set();
+    let displayRows = [];
     const holidayFixed = [];
     const iconEvents = [];
     const mediaItems = [];
@@ -1289,7 +1436,18 @@ const Parser = {
       const {fm, body} = Parser.parseNote(f.text);
       if(fm.type === 'settings'){
         registryFound = true;
-        Parser.parseCategoryRegistry(body).forEach(c=>registeredCategories.add(c));
+        const table = Parser.parseDisplayTable(body);
+        if(table){
+          table.warnings.forEach(w=> warnings.push(w));
+          if(table.rows){
+            table.rows.forEach(r=>{
+              if(displayRows.some(x=>x.category===r.category)){
+                warnings.push(`「## 展示位」里「${r.category}」在多篇settings笔记里都写了，只认先读到的那一行`);
+              } else displayRows.push(r);
+            });
+          }
+        }
+        Parser.parseCategoryRegistry(body).forEach(c=>pointCategories.add(c));
         Parser.parsePinnedCategories(body).forEach(c=>pinnedCategories.add(c));
         const mediaParsed = Parser.parseMediaCategoriesWithCalendarFlag(body);
         mediaParsed.categories.forEach(c=>mediaCategories.add(c));
@@ -1299,28 +1457,57 @@ const Parser = {
         Parser.parseHolidayList(body).forEach(h=>holidayFixed.push(h));
       }
     });
-    if(!registryFound) warnings.push('没找到 type: settings 的登记笔记，分栏暂时不会显示任何内容');
+    if(!registryFound) warnings.push('没找到 type: settings 的笔记，各视图暂时不会显示任何分类');
+
+    let yearCategories, calendarPointCategories, ringExcludedCategories;
+    if(displayRows.length>0){
+      // 有展示位表：以表为准，旧登记表读进来的东西全部作废。行的先后顺序
+      // 就是Set的插入顺序，各视图的显示顺序直接沿用。
+      const pick = fn => displayRows.filter(fn).map(r=>r.category);
+      pointCategories = new Set(pick(r=>r.year || r.calendar || r.timeline));
+      yearCategories = new Set(pick(r=>r.year));
+      calendarPointCategories = new Set(pick(r=>r.calendar));
+      pinnedCategories = new Set(pick(r=>r.ring==='pinned'));
+      ringExcludedCategories = new Set(pick(r=>!r.ring));
+      mediaCategories = new Set(pick(r=>r.media));
+      mediaCalendarCategories = new Map(displayRows.filter(r=>r.media && r.calendar).map(r=>[r.category, r.calendar.icon]));
+      calendarSpanCategories = new Set(pick(r=>r.calendar && r.calendar.mode==='full' && !r.media));
+      horizontalRowCategories = new Set(pick(r=>r.timeline));
+    } else {
+      // 旧格式：「分栏分类」一张表同时充当三个角色，展开成新的几个集合，行为不变。
+      yearCategories = new Set(pointCategories);
+      calendarPointCategories = pointCategories;
+      ringExcludedCategories = new Set(calendarSpanCategories);
+    }
 
     // "未标记"桶：daily note里没打已登记标签的行，用这个key单独归堆，
-    // 跟正常分类分开存，不会混进ColumnBoard的固定分栏卡片（那边只认
-    // categorySlots/registeredCategories），只在CalendarView（月视图）里露出。
+    // 跟正常分类分开存，不会混进ColumnBoard的Year列（那边只认
+    // categorySlots/yearCategories），只在CalendarView（月视图）里露出。
+    // 点条目分两份存：entriesByYear（Year tab和Timeline读，按分类取，各视图
+    // 自己挑要哪些分类）、entriesByDay/entriesByYearMonthUnplaced（只有月历读，
+    // 所以在这里就按calendarPointCategories筛掉月历不要的分类）。
     const UNTAGGED_KEY = Parser.UNTAGGED_KEY;
     const addPointEntry = (dateInfo, category, text, rawTag)=>{
       const isUntagged = category===null;
-      if(!isUntagged && !registeredCategories.has(category)) return;
+      if(!isUntagged && !pointCategories.has(category)) return;
+      const toCalendar = isUntagged || calendarPointCategories.has(category);
       const key = isUntagged ? UNTAGGED_KEY : category;
       const {year, month, day} = dateInfo;
       const entry = { text, month: month||null, day: day||null, rawTag: rawTag||null };
       if(day){
-        const dkey = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-        (entriesByDay[dkey] = entriesByDay[dkey]||{})[key] = (entriesByDay[dkey][key]||[]);
-        entriesByDay[dkey][key].push(entry);
+        if(toCalendar){
+          const dkey = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+          (entriesByDay[dkey] = entriesByDay[dkey]||{})[key] = (entriesByDay[dkey][key]||[]);
+          entriesByDay[dkey][key].push(entry);
+        }
         (entriesByYear[year] = entriesByYear[year]||{})[key] = (entriesByYear[year][key]||[]);
         entriesByYear[year][key].push(entry);
       } else if(month){
-        const mkey = `${year}-${String(month).padStart(2,'0')}`;
-        (entriesByYearMonthUnplaced[mkey] = entriesByYearMonthUnplaced[mkey]||{})[key] = (entriesByYearMonthUnplaced[mkey][key]||[]);
-        entriesByYearMonthUnplaced[mkey][key].push(entry);
+        if(toCalendar){
+          const mkey = `${year}-${String(month).padStart(2,'0')}`;
+          (entriesByYearMonthUnplaced[mkey] = entriesByYearMonthUnplaced[mkey]||{})[key] = (entriesByYearMonthUnplaced[mkey][key]||[]);
+          entriesByYearMonthUnplaced[mkey][key].push(entry);
+        }
         (entriesByYear[year] = entriesByYear[year]||{})[key] = (entriesByYear[year][key]||[]);
         entriesByYear[year][key].push(entry);
       } else {
@@ -1336,7 +1523,7 @@ const Parser = {
 
       if(Parser.isDailyNoteFilename(basename)){
         const [y,m,d] = basename.split('-').map(Number);
-        const {entries, warnings:w} = Parser.parseDailyNoteBody(body, registeredCategories);
+        const {entries, warnings:w} = Parser.parseDailyNoteBody(body, pointCategories);
         w.forEach(msg=>warnings.push(`${basename}：${msg}`));
         entries.forEach(e=> addPointEntry(e.dateOverride || {year:y,month:m,day:d}, e.category, e.text, e.rawTag));
         return;
@@ -1361,6 +1548,12 @@ const Parser = {
 
       const { items, skipped } = Parser.parseTimelineSection(body, '时间线', noteYear);
       skipped.forEach(line=> warnings.push(`${basename}：「## 时间线」里有一行没识别出年份，已跳过——${line}`));
+      items.forEach(it=>{
+        if(it.displayYearBad!==null){
+          const when = `${it.year}${it.month?`-${String(it.month).padStart(2,'0')}`:''}${it.day?`-${String(it.day).padStart(2,'0')}`:''}`;
+          warnings.push(`${basename}：「## 时间线」里 ${when} 那一行的 display_year「${it.displayYearBad}」不是合法年份，已忽略`);
+        }
+      });
 
       // date 留空（比如模板笔记还没填）跟"写了但写错格式"是两回事，
       // 前者是正常状态、不该报警告；只有非空却解析不出来才算真的写错了。
@@ -1394,9 +1587,17 @@ const Parser = {
       }
 
       // 媒体分类（读书/观影这类）走独立管线——不进分栏、不进SpanRail，只喂
-      // 媒体看板的卡片墙；重看/重读靠「## 时间线」里累加的点日期表示，
-      // 跟主date的起止跨度是两回事（主date只代表"第一次"这一段的起止）。
+      // 媒体看板的卡片墙，以及日历（带【Calendar】的分类）和共时看板；
+      // 重看/重读靠「## 时间线」里累加的日期表示（单天或"起~止"的一段），
+      // 跟主date是两回事（主date只代表"第一次"这一次出场）。
       if(mediaCategories.has(fm.category)){
+        // display_year：只影响媒体看板按年分组显示在哪一年，不影响date本身
+        // 的语义——用来处理"起点刚好卡在年末，但内容大部分属于下一年"这种
+        // 个别情况，笔记作者自己手动指一下；没写就还是走start.year那条
+        // 默认规则（MediaBoard.occurrencesOf里）。这里只管主date（第一次）
+        // 这一次出场；时间线里每一行各有自己行尾的display_year，见
+        // Parser.parseTimelineLine。
+        const displayYear = Parser.parseNoteYear(fm.display_year, basename, warnings, 'display_year');
         mediaItems.push({
           id: basename, title: basename, category: fm.category,
           rating: Parser.parseRating(fm.rating, basename, warnings),
@@ -1405,7 +1606,16 @@ const Parser = {
           coverUrl: fm.cover_url || null,
           start: dateInfo ? dateInfo.start : null,
           end: dateInfo ? (dateInfo.isRange ? dateInfo.end : dateInfo.start) : null,
-          rewatches: items.map(it=>({year:it.year, month:it.month, day:it.day, text:it.text})),
+          // 「## 时间线」的每一行是这个作品的一次"出场"（第二次及以后；主date永远
+          // 是第一次）——可以是单天，也可以是"起~止"的一段。start/end是给Media
+          // tab和日历用的日期对象；老的year/month/day保留，按点日期读的地方还在用；
+          // displayYear只影响Media tab把这一行归到哪个年份组。
+          rewatches: items.map(it=>({
+            year:it.year, month:it.month, day:it.day, text:it.text,
+            start:{year:it.year, month:it.month, day:it.day, precision: it.day?'day':it.month?'month':'year'},
+            end: it.end || null, displayYear: it.displayYear,
+          })),
+          displayYear,
         });
         return;
       }
@@ -1413,16 +1623,19 @@ const Parser = {
       if(dateInfo){
         if(dateInfo.isRange){
           // hide_from_rail: true —— 这条笔记不想以进度条/色块这种醒目形式出现
-          // （SpanRail的行/卡片、CalendarView的日历cover都不会显示），精确到
-          // 单篇笔记的开关，即使同分类其他笔记都正常显示。
-          if(!Parser.isRailHidden(fm)){
-            spanEvents.push({
-              id: basename, category: fm.category || 'other', title: basename,
-              start: dateInfo.start, end: dateInfo.end, region,
-              timelineItems: items.map(it=>({year:it.year, month:it.month, day:it.day, text:it.text})),
-              stages: Parser.parseStageSection(body, noteYear, basename, warnings),
-            });
-          }
+          // （SpanRail的行/卡片、CalendarView的日历cover不显示），精确到单篇
+          // 笔记的开关，即使同分类其他笔记都正常显示。被隐藏的进
+          // hiddenSpanEvents，共时看板照常读它画色条；它的`## 阶段`只服务
+          // SpanRail圆环，这里不解析（也就不会为它报`## 阶段`的格式警告）。
+          const hidden = Parser.isRailHidden(fm);
+          (hidden ? hiddenSpanEvents : spanEvents).push({
+            id: basename, category: fm.category || 'other', title: basename,
+            start: dateInfo.start, end: dateInfo.end, region,
+            // 只给共时看板去重用（HorizontalTimeline.rowItemsForCategory）：
+            // 色条已经盖住的那几天，同一条明细不再多画一个点。
+            timelineItems: items.map(it=>({year:it.year, month:it.month, day:it.day, text:it.text})),
+            stages: hidden ? [] : Parser.parseStageSection(body, noteYear, basename, warnings),
+          });
         } else if(fm.category && items.length===0){
           // 单值date的"文件名兜底"只在「## 时间线」没产出任何真实内容时才用——
           // 不然文件名和时间线内容会同时显示，变成两条重复的记录。
@@ -1431,8 +1644,15 @@ const Parser = {
       }
 
       if(fm.category){
+        // 「## 时间线」里只写了日期、没写文字的行：单日期笔记拿文件名兜底（那是这
+        // 篇笔记唯一的展示）；跨度笔记不产生点条目——色块/色条已经标了那一天，
+        // 兜底的文件名会变成格子里多出来的一行名字，Timeline上也会多一行点，
+        // 跟写了文字的行（被色条盖住、不画点）对不上，所以只写日期的行跟写了
+        // 文字的行按同一个规则走，都不额外画东西。
+        const isSpanNote = !!(dateInfo && dateInfo.isRange);
         items.forEach(it=>{
-          addPointEntry({year:it.year, month:it.month, day:it.day}, fm.category, it.text || basename);
+          const text = it.text || (isSpanNote ? '' : basename);
+          if(text) addPointEntry({year:it.year, month:it.month, day:it.day}, fm.category, text);
         });
       }
     });
@@ -1442,8 +1662,10 @@ const Parser = {
     // 选跨度更短的那个），只是不在警告条里提示了。
 
     return {
-      warnings, spanEvents, entriesByYear, entriesByDay, entriesByYearMonthUnplaced,
-      visitedRegions: [...regionsSeen], registeredCategories: [...registeredCategories],
+      warnings, spanEvents, hiddenSpanEvents, entriesByYear, entriesByDay, entriesByYearMonthUnplaced,
+      visitedRegions: [...regionsSeen],
+      yearCategories: [...yearCategories], calendarPointCategories: [...calendarPointCategories],
+      ringExcludedCategories: [...ringExcludedCategories],
       pinnedCategories: [...pinnedCategories],
       mediaItems, mediaCategories: [...mediaCategories],
       calendarSpanCategories: [...calendarSpanCategories],
@@ -1471,31 +1693,19 @@ const DEMO_FILES = [
   {path:'_dashboard/settings.md', text:`---
 type: settings
 ---
-## 分栏分类
-- 旅游
-- 爱好
-- 生活
+## 展示位
 
-## 进度条固定栏位
-- 居住
-- 工作
-
-## 媒体分类
-- 小说
-- 非虚构
-- Movie【Calendar】🎬
-- 电视剧
-
-## 日历跨度分类
-- 旅游
-
-## 横向条目栏位
-- 居住
-- 工作
-- 旅游
-- 爱好
-- 生活
-- Movie
+| category | 圆环图 | Year | calendar | Media | Timeline |
+|---|---|---|---|---|---|
+| 居住 | 固定 | | | | ✓ |
+| 工作 | 固定 | | | | ✓ |
+| 旅游 | | ✓ | ✓ | | ✓ |
+| 爱好 | | ✓ | 文字 | | ✓ |
+| 生活 | | ✓ | 文字 | | ✓ |
+| 小说 | | | | ✓ | |
+| 非虚构 | | | | ✓ | |
+| Movie | | | 🎬 | ✓ | ✓ |
+| 电视剧 | | | | ✓ | |
 
 ## 节日
 - 🎄 12-25
@@ -1771,10 +1981,13 @@ function deriveStore(raw){
     visitedCountries: [...visitedCountrySet],
     drilldown,
     spanEvents: raw.spanEvents,
+    hiddenSpanEvents: raw.hiddenSpanEvents,
     entriesByYear: raw.entriesByYear,
     entriesByDay: raw.entriesByDay,
     entriesByYearMonthUnplaced: raw.entriesByYearMonthUnplaced,
-    categoryOrder: raw.registeredCategories,
+    yearCategories: raw.yearCategories,
+    calendarPointCategories: raw.calendarPointCategories,
+    ringExcludedCategories: raw.ringExcludedCategories,
     pinnedCategories: raw.pinnedCategories,
     warnings: raw.warnings,
     mediaItems: raw.mediaItems,
@@ -1801,7 +2014,7 @@ const State = {
   railCollapsed: new Set(['pinned','other']),
   yearMin: 2015,
   yearMax: Math.max(NOW.getFullYear(), 2026),
-  categorySlots: Store.categoryOrder.slice(),
+  categorySlots: Store.yearCategories.slice(),
   hiddenMonthTags: new Set(),
   mediaFilter: 'all',
   mediaOriginFilter: 'all',
@@ -2028,8 +2241,9 @@ const SpanRail = {
   // 只要指针就是当前实际的今天，圆环天然就是满的；往回翻看历史月份，
   // 指针落在过去，圆环就只填一部分——这跟原来横条marker的算法是同一套
   // （pointer/s/en/total），只是从"线段+指针"换成"填充比例"这个视觉语言，
-  // 没有另起一套新逻辑。中间"第XX天"这个数字也跟着指针算，不是固定到
-  // 今天——指针在哪，数字就算到哪，跟圆环填充比例保持是同一件事。
+  // 没有另起一套新逻辑。中间"第XX天"这个数字原则上也跟着指针算，但有
+  // 明确结束日期的事件会在结束日期封顶（见下面capDate那段），不会像
+  // pct一样一直跟着指针/今天涨过头。
   ringSvg(ev, pointer){
     const color = Parser.colorForCategory(ev.category);
     const s = miOfDateObj(ev.start,false), en = ev.end==='ongoing' ? NOW_MI : miOfDateObj(ev.end,true);
@@ -2049,7 +2263,14 @@ const SpanRail = {
     }
 
     const pointerDate = pointer===NOW_MI ? NOW : miToApproxDate(pointer);
-    const days = daysBetweenDateOnly(dateObjToJSDate(ev.start,false), pointerDate) + 1;
+    // "第XX天"这个数字要在事件自己的结束日期封顶——不然指针（默认今天）
+    // 只要超过事件的结束日期，这个数字会一直跟着今天涨，变成"事件都结束
+    // 好几个月了，天数还在往上跳"这种错误显示。跟上面pct（填充比例）那个
+    // Math.min(100,...)是同一个道理，只是这里按"日期"封顶而不是百分比。
+    // 没写结束日期（ongoing）的事件不受影响，指针到哪算到哪，这块没变。
+    const capDate = ev.end==='ongoing' ? pointerDate : dateObjToJSDate(ev.end, true);
+    const effectiveDate = pointerDate < capDate ? pointerDate : capDate;
+    const days = daysBetweenDateOnly(dateObjToJSDate(ev.start,false), effectiveDate) + 1;
     const years = (days/365.25).toFixed(1);
     arcs += `<text x="${CX}" y="${CY+2}" text-anchor="middle"><tspan class="ring-num-affix">第</tspan><tspan class="ring-num" font-size="23">${days}</tspan><tspan class="ring-num-affix">天</tspan></text>`;
     arcs += `<text x="${CX}" y="${CY+20}" text-anchor="middle" class="ring-num-unit" font-size="12">${years}年</text>`;
@@ -2091,11 +2312,12 @@ const SpanRail = {
       const evs = this.pickForPointer(this.eventsByCategory(cat), pointer);
       return this.tileHtml(cat, evs, pointer);
     }).join('');
-    // 动态其他分类：另一张卡片——只剩"既不是固定栏位、也不是日历跨度分类"的
-    // 剩余分类才会出现在这里；日历跨度分类已经改成在CalendarView的日历格子里
-    // 用cover色块显示，不用再在这张卡片里重复一遍。
+    // 动态其他分类：另一张卡片——只剩"既不是固定栏位、也不是表里明确没开圆环图"
+    // 的剩余分类才会出现在这里（展示位表里圆环图留空的分类，比如已经在日历里
+    // 用色块显示的旅行，不用再在这张卡片里重复一遍；表里根本没写的分类照旧
+    // 会出现在这里，不丢东西；旧格式下"不出现"的是日历跨度分类）。
     const otherCats = [...new Set(Store.spanEvents.map(e=>e.category))]
-      .filter(c=>!pinnedCats.includes(c) && !(Store.calendarSpanCategories||[]).includes(c));
+      .filter(c=>!pinnedCats.includes(c) && !(Store.ringExcludedCategories||[]).includes(c));
     const dynTiles = otherCats.map(cat=>{
       const evs = this.pickForPointer(this.eventsByCategory(cat), pointer);
       return evs.length ? this.tileHtml(cat, evs, pointer) : '';
@@ -2262,15 +2484,15 @@ const CalendarView = {
   // #身体标签是同一个"分类身份"的两个数据来源，只是来源不同——所以颜色、
   // 是不是"已注册分类"、渲染成"色点+文字"这一整套，都原样复用笔记
   // #tag那条已有逻辑，不是另起一个新的展示系统。是否算"已注册分类"
-  // 跟着Store.categoryOrder走，判断方式跟解析笔记时"#身体是不是已注册
-  // 分类"完全一样——没注册就归进UNTAGGED_KEY桶+rawTag，注册了就直接
+  // 跟着Store.calendarPointCategories走（月历里认不认这个分类），判断方式
+  // 跟解析笔记时"#身体是不是已注册分类"完全一样——没注册就归进UNTAGGED_KEY桶+rawTag，注册了就直接
   // 用"身体"这个真分类key，两种情况下都跟笔记来源的同名标签合并到
   // 同一个桶里，共用同一个图例chip、同一个隐藏开关。
   FITNESS_BODY_TAG: '身体',
   fitnessBodyRawForDate(dateStr, fitnessByDate){
     const records = fitnessByDate[dateStr];
     if(!records || !records.length) return null;
-    const registered = (Store.categoryOrder||[]).includes(this.FITNESS_BODY_TAG);
+    const registered = (Store.calendarPointCategories||[]).includes(this.FITNESS_BODY_TAG);
     const key = registered ? this.FITNESS_BODY_TAG : Parser.UNTAGGED_KEY;
     const entries = [];
     records.forEach(r=>{
@@ -2462,8 +2684,8 @@ const CalendarView = {
     });
   },
   // 跨度事件（旅游/出差这类，登记在「日历跨度分类」里）落在某一天时的cover信息——
-  // 同一天撞上好几个的话，只挑第一个当色块主角，其余算进"+N"角标，展开详情
-  // 文字列表里则是全部都列出来，不丢信息，只是色块视觉上只能占一个。
+  // 同一天撞上好几个的话，色块颜色取第一个，其余算进"+N"角标；名字（文件名）
+  // 不在格子里写，全部列在色块的悬浮框里（showCoverTip），不丢信息。
   coverEventsForDate(jsDate){
     const cats = Store.calendarSpanCategories || [];
     if(cats.length===0) return [];
@@ -2477,7 +2699,8 @@ const CalendarView = {
   // 媒体（观影这类，媒体分类里带"【Calendar】"标记的那些）落在某一天时要额外
   // 显示的纯文字行——必须精确到"天"（起止都是day精度）才能定位到具体格子，
   // 只精确到月/年的媒体记录日历管不着，还是只在卡片墙露出；「## 时间线」
-  // 里的重看点日期各自算一行，跟主date的起止跨度分开判断，互不影响。
+  // 里的每一行重看各自算，跟主date的起止跨度分开判断，互不影响：单天只落在
+  // 那一天，起止都精确到天的一段跟主date一样每一天都算。
   mediaLinesForDate(y, m, d){
     const cats = Store.mediaCalendarCategories || new Map();
     if(cats.size===0) return [];
@@ -2492,26 +2715,45 @@ const CalendarView = {
         if(jsDate>=s && jsDate<=e) lines.push({category:item.category, text:item.title, icon});
       }
       (item.rewatches||[]).forEach(rw=>{
-        if(rw.year===y && rw.month===m && rw.day===d){
-          lines.push({category:item.category, text: rw.text ? `${item.title}·${rw.text}` : `${item.title}·重看`, icon});
+        // 这一行如果写成了"起~止"且起止都精确到天，跟主date一样每一天都算；
+        // 其他情况（单天、只精确到月/年、进行中）只认起点那一天。
+        const isSpan = rw.end && rw.end!=='ongoing' && rw.end.precision==='day' && rw.start.precision==='day';
+        const hit = isSpan
+          ? (jsDate>=dateObjToJSDate(rw.start,false) && jsDate<=dateObjToJSDate(rw.end,true))
+          : (rw.year===y && rw.month===m && rw.day===d);
+        if(hit){
+          lines.push({category:item.category, text: rw.text ? `${item.title}·${rw.text}` : item.title, icon});
         }
       });
     });
     return lines;
   },
-  // 跨度笔记（旅游/出差这类）落到具体某一天要显示的文字——只认「## 时间线」
-  // 里精确对上这一天的那条内容（比如"5月2日 到达大理"），没有时间线条目
-  // 覆盖到的那些天就纯用文件名；不额外解析正文其他自由段落——项目里目前
-  // 就只有「## 时间线」这一种结构化小节被解析，以后正文要加别的结构化内容，
-  // 单独按需再加对应的解析规则，不在这里预先猜一个"标题前面的文字"规则。
-  // 全文完整显示，不做长度截断——折叠状态下靠CSS单行省略号收起，
-  // 展开详情时应该能看到完整内容。
-  spanEventDayText(ev, y, m, d){
-    const match = (ev.timelineItems||[]).find(it=>it.year===y && it.month===m && it.day===d && it.text);
-    if(match) return `${ev.title}·${match.text}`;
-    return ev.title;
+  // 跨度笔记（旅游/出差这类，settings里的「日历跨度分类」）在月历里只做记号：
+  // 跨度内每一天的日期数字底下垫一块分类色，格子里不写笔记名字——一趟旅行占
+  // 好几天，每天都写一遍很碍眼，而且「## 时间线」里那天的细节本来就会作为点条目
+  // 显示，再拼一份"名字·细节"就成了重复。想知道这块色是哪趟，把鼠标停在色块上，
+  // 悬浮框里列出名字（文件名）；同一天叠了几段跨度就全列出来（原来色块自带的
+  // title只写第一段，"+N"角标后面藏着谁看不出来）。
+  showCoverTip(pill){
+    let items = [];
+    try{ items = JSON.parse(pill.dataset.tip || '[]'); }catch(e){}
+    if(!items.length) return;
+    const tip = document.getElementById('calTooltip');
+    tip.innerHTML = items.map(it=>`<div class="cal-tooltip-line"><span class="cal-tooltip-dot" style="background:${it.c}"></span><span>${Utils.escapeHtml(it.t)}</span></div>`).join('');
+    tip.style.display = 'block';
+    const r = pill.getBoundingClientRect();
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    const left = Math.max(8, Math.min(r.left + r.width/2 - tw/2, window.innerWidth - tw - 8));
+    let top = r.top - th - 6;
+    if(top < 8) top = r.bottom + 6;
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
   },
-  cellEntriesHtml(data, expanded, coverLines, mediaLines){
+  hideCoverTip(){
+    const tip = document.getElementById('calTooltip');
+    if(tip) tip.style.display = 'none';
+  },
+  cellEntriesHtml(data, expanded, mediaLines){
     const lines = [];
     if(data){
       Object.keys(data).forEach(cat=>{
@@ -2525,10 +2767,6 @@ const CalendarView = {
         });
       });
     }
-    (coverLines||[]).forEach(cl=>{
-      const color = Parser.colorForCategory(cl.category);
-      lines.push(`<div class="cal-entry-line"><span class="cal-entry-dot" style="background:${color}"></span><span>${Utils.escapeHtml(cl.text)}</span></div>`);
-    });
     (mediaLines||[]).forEach(ml=>{
       const marker = ml.icon
         ? `<span class="cal-entry-icon">${Utils.escapeHtml(ml.icon)}</span>`
@@ -2603,18 +2841,20 @@ const CalendarView = {
       const jsDate = new Date(y, m-1, d);
       const data = this.visibleData(this.mergeRawBuckets(Store.entriesByDay[dateStr], this.fitnessBodyRawForDate(dateStr, fitnessByDate)));
       const coverEvs = this.coverEventsForDate(jsDate);
-      const coverLines = coverEvs.map(ev=>({category:ev.category, text:this.spanEventDayText(ev, y, m, d)}));
+      // 悬浮框的内容：这一天落在哪几段跨度里（名字=文件名，色点=分类色）
+      const coverTips = coverEvs.map(ev=>({t:ev.title, c:Parser.colorForCategory(ev.category)}));
       const mediaLines = this.mediaLinesForDate(y, m, d).filter(ml=> !State.hiddenMonthTags.has(ml.category));
       const fitnessRow = this.fitnessRowHtml(fitnessByDate[dateStr]);
       const holidayIcon = this.holidayIconForDate(y, m, d);
       const expanded = State.expandedDays.has(dateStr);
-      const hasContent = !!data || coverEvs.length>0 || mediaLines.length>0 || !!fitnessRow;
+      // 只有跨度色块的格子没有可展开的内容，不算has-content（不显示可点击的手型/描边）
+      const hasContent = !!data || mediaLines.length>0 || !!fitnessRow;
       const isToday = dateStr===todayStr;
       let daynumHtml = `<div class="cal-daynum mono">${d}</div>`;
-      if(coverLines.length>0){
+      if(coverTips.length>0){
         const color = Parser.colorForCategory(coverEvs[0].category);
-        const extra = coverLines.length - 1;
-        daynumHtml = `<span class="cal-daynum-cover" style="background:${color}" title="${Utils.escapeHtml(coverLines[0].text)}">
+        const extra = coverTips.length - 1;
+        daynumHtml = `<span class="cal-daynum-cover" style="background:${color}" data-tip="${Utils.escapeHtml(JSON.stringify(coverTips))}">
           <span class="cal-daynum mono">${d}</span>
           ${extra>0 ? `<span class="cal-span-cover-badge">+${extra}</span>` : ''}
         </span>`;
@@ -2625,10 +2865,12 @@ const CalendarView = {
           ${daynumHtml}
           ${fitnessRow}
         </div>
-        <div class="cal-entries">${hasContent ? this.cellEntriesHtml(data, expanded, coverLines, mediaLines) : ''}</div>
+        <div class="cal-entries">${hasContent ? this.cellEntriesHtml(data, expanded, mediaLines) : ''}</div>
       </div>`;
     }
-    document.getElementById('calGrid').innerHTML = cells;
+    const grid = document.getElementById('calGrid');
+    grid.innerHTML = cells;
+    this.hideCoverTip();
     document.querySelectorAll('#calGrid .cal-cell.has-content').forEach(el=>{
       el.addEventListener('click', ()=>{
         const d = el.dataset.date;
@@ -2638,6 +2880,17 @@ const CalendarView = {
     });
   }
 };
+// 月历色块的悬浮框——事件委托绑在整张日历格子上一次，格子每次render()重画
+// 也不用重新绑（跟SlotMenu那几行绑定同一个写法）。
+document.getElementById('calGrid').addEventListener('mouseover', e=>{
+  const pill = e.target.closest('.cal-daynum-cover');
+  if(pill) CalendarView.showCoverTip(pill);
+});
+document.getElementById('calGrid').addEventListener('mouseout', e=>{
+  const pill = e.target.closest('.cal-daynum-cover');
+  if(pill && !pill.contains(e.relatedTarget)) CalendarView.hideCoverTip();
+});
+window.addEventListener('scroll', ()=>CalendarView.hideCoverTip(), true);
 
 /* =========================================================
    9. ColumnBoard
@@ -2680,7 +2933,7 @@ const ColumnBoard = {
       </div>`;
     }).join('');
 
-    const remaining = Store.categoryOrder.filter(c=>!State.categorySlots.includes(c));
+    const remaining = Store.yearCategories.filter(c=>!State.categorySlots.includes(c));
     const addCardHtml = `<div class="col-card add-card">
       <div class="add-card-label">${remaining.length ? '添加分类' : '分类都加上了'}</div>
       ${remaining.map(c=>`<div class="add-chip" data-add="${Utils.escapeHtml(c)}">${Utils.escapeHtml(c)}</div>`).join('')}
@@ -2721,7 +2974,7 @@ const SlotMenu = {
   },
   renderSwapList(){
     const menu = document.getElementById('slotMenu');
-    const remaining = Store.categoryOrder.filter(c=>!State.categorySlots.includes(c));
+    const remaining = Store.yearCategories.filter(c=>!State.categorySlots.includes(c));
     if(remaining.length===0){
       menu.innerHTML = `<div class="slot-menu-item" style="color:var(--muted); cursor:default;">分类都在栏位上了</div>`;
       return;
@@ -2779,17 +3032,41 @@ const MediaBoard = {
     if(d.precision==='month') return `${d.month}月`;
     return '';
   },
-  dateLine(item){
-    // origin不再掺进日期行——只负责日期本身，没写日期就提示"未注明日期"，
-    // origin挪到评分同一行、评分后面，见metaLine()/originHtml()。
-    if(!item.start) return '未注明日期';
-    // 只有起止落在同一年才省年份；跨年的条目（比如12月开始、次年1月看完）
-    // 还是把完整年份留着，不然"12-01 – 01-15"会让人以为是同一年内的事。
-    const sameYear = !item.end || item.end==='ongoing' || item.start.year===item.end.year;
-    const fmt = d => sameYear ? this.fmtDateNoYear(d) : this.fmtDate(d);
-    const s = fmt(item.start);
-    const e = (item.end && item.end!=='ongoing') ? fmt(item.end) : '';
+  // 一个作品的所有"出场"（一次出场=一段日期+可选说明文字）：主date永远是
+  // 第一次，「## 时间线」里每一行是第二次及以后。每次出场带自己归属的年份——
+  // 主date取笔记属性的display_year（有就用它），否则取起始年；时间线行取这一行
+  // 行尾自己的display_year，否则取起始年。跨年的跨度只归起始年，不重复出现。
+  occurrencesOf(item){
+    const occs = [];
+    if(item.start || item.displayYear){
+      occs.push({ year: item.displayYear || item.start.year, start:item.start, end:item.end, text:'' });
+    }
+    (item.rewatches||[]).forEach(rw=>{
+      occs.push({ year: rw.displayYear || rw.start.year, start:rw.start, end:rw.end, text:rw.text || '' });
+    });
+    return occs;
+  },
+  // 一次出场的日期文字。组标题已经是年份了，起止都落在这个年份组里就省年份；
+  // 只要有一端跟组年份对不上（跨年的跨度、display_year把它归到了别的年份），
+  // 就带完整年份，不然"12-28"放在下一年的组里，会让人以为是那一年的事。
+  // 只精确到年的日期省掉年份后什么都不剩，返回空字符串，交给occHtml决定
+  // 这一行要不要显示。
+  occDateText(o, groupYear){
+    if(!o.start) return '未注明日期';
+    const endValid = o.end && o.end!=='ongoing';
+    const noYear = String(o.start.year)===String(groupYear) && (!endValid || o.end.year===o.start.year);
+    const fmt = d => noYear ? this.fmtDateNoYear(d) : this.fmtDate(d);
+    const s = fmt(o.start);
+    const e = endValid ? fmt(o.end) : '';
     return (!e || e===s) ? s : `${s} – ${e}`;
+  },
+  // 说明文字前面可能残留分隔符（"2020年~2022年，读研"这种写法解析后剩下"，读研"），
+  // 只在这里显示时去掉，不改解析结果——日历那边读的还是原样。
+  occHtml(o, groupYear){
+    const date = this.occDateText(o, groupYear);
+    const text = (o.text||'').replace(/^[，,、:：\s]+/, '');
+    if(!date && !text) return '';
+    return `<div class="media-card-date">${date ? `<span>${Utils.escapeHtml(date)}</span>` : ''}${text ? `<span class="media-card-date-text">${Utils.escapeHtml(text)}</span>` : ''}</div>`;
   },
   originHtml(origin){
     if(!origin) return '';
@@ -2800,11 +3077,6 @@ const MediaBoard = {
     const origin = this.originHtml(item.origin);
     if(!rating && !origin) return '';
     return `<div class="media-card-meta">${rating}${origin}</div>`;
-  },
-  rewatchLine(item){
-    if(!item.rewatches || item.rewatches.length===0) return '';
-    const years = [...new Set(item.rewatches.map(r=>r.year))];
-    return `又看了${item.rewatches.length}次（${years.join('、')}）`;
   },
   ratingHtml(rating){
     if(!rating) return '';
@@ -2821,39 +3093,51 @@ const MediaBoard = {
     if(restCount>0) html += `<span class="media-card-tag">+${restCount}</span>`;
     return `<div class="media-card-tags">${html}</div>`;
   },
-  cardHtml(item){
+  // view = {item, occs}：同一个作品在某一年里的所有出场合成一张卡（同年多次
+  // 出场是一张卡里的多行，不出多张卡）；groupYear是这张卡所在的年份组。
+  cardHtml(view, groupYear){
+    const item = view.item;
     const color = Parser.colorForCategory(item.category);
     const cover = item.coverUrl
       ? `<img class="media-cover" src="${Utils.escapeHtml(item.coverUrl)}" alt="" loading="lazy"
           onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'media-cover-fallback',style:'background:${color}',textContent:'${Utils.escapeHtml(this.initialChar(item.title))}'}))">`
       : `<div class="media-cover-fallback" style="background:${color}">${Utils.escapeHtml(this.initialChar(item.title))}</div>`;
-    const rewatch = this.rewatchLine(item);
-    const dateLineText = this.dateLine(item);
+    const datesInner = view.occs.length
+      ? view.occs.map(o=>this.occHtml(o, groupYear)).join('')
+      : `<div class="media-card-date">未注明日期</div>`;
     return `<div class="media-card">
       ${cover}
       <div class="media-card-body">
         <div class="media-card-title">${Utils.escapeHtml(item.title)}</div>
-        ${dateLineText ? `<div class="media-card-date">${Utils.escapeHtml(dateLineText)}</div>` : ''}
+        ${datesInner ? `<div class="media-card-dates">${datesInner}</div>` : ''}
         ${this.metaLine(item)}
-        ${rewatch ? `<div class="media-card-rewatch">${Utils.escapeHtml(rewatch)}</div>` : ''}
         ${this.tagsHtml(item.tags)}
       </div>
     </div>`;
   },
-  // 分组年份取"第一次"的年份（主date的start）——没写date的条目统一归到
-  // "未注明年份"，排在最前面，不跟着排序方向跑来跑去。
+  // 按年份分组——一个作品在每个出现过的年份各出一张卡，每张卡只显示那一年
+  // 的出场（见occurrencesOf）。一次出场都没有（没写date、时间线也没有）的
+  // 作品统一归到"未注明年份"，排在最前面，不跟着排序方向跑来跑去。没写主date
+  // 但时间线里有年份的作品，只出现在时间线的那些年份，不进"未注明年份"。
   groupByYear(items){
     const groups = {};
     items.forEach(it=>{
-      const key = it.start ? it.start.year : '未注明年份';
-      (groups[key] = groups[key]||[]).push(it);
-    });
-    Object.values(groups).forEach(list=>{
-      list.sort((a,b)=>{
-        const da = a.start ? dateObjToJSDate(a.start,false) : 0;
-        const db = b.start ? dateObjToJSDate(b.start,false) : 0;
-        return da - db;
+      const occs = this.occurrencesOf(it);
+      if(occs.length===0){
+        (groups['未注明年份'] = groups['未注明年份']||[]).push({item:it, occs:[]});
+        return;
+      }
+      const byYear = {};
+      occs.forEach(o=> (byYear[o.year] = byYear[o.year]||[]).push(o));
+      Object.keys(byYear).forEach(y=>{
+        (groups[y] = groups[y]||[]).push({item:it, occs:byYear[y]});
       });
+    });
+    // 组内排序按这一年最早的一次出场；卡片里的多行也按日期先后排。
+    const startKey = o => o.start ? dateObjToJSDate(o.start,false).getTime() : 0;
+    Object.values(groups).forEach(list=>{
+      list.forEach(v=> v.occs.sort((a,b)=> startKey(a)-startKey(b)));
+      list.sort((a,b)=> (a.occs.length?startKey(a.occs[0]):0) - (b.occs.length?startKey(b.occs[0]):0));
     });
     return groups;
   },
@@ -2917,7 +3201,7 @@ const MediaBoard = {
       const list = groups[y];
       return `<div class="media-year-group">
         <div class="media-year-head display">${y} <span class="media-year-count">${list.length}条</span></div>
-        <div class="media-grid">${list.map(it=>this.cardHtml(it)).join('')}</div>
+        <div class="media-grid">${list.map(v=>this.cardHtml(v, y)).join('')}</div>
       </div>`;
     }).join('');
   }
@@ -2936,7 +3220,8 @@ const HorizontalTimeline = {
   // 汇总某个分类在某一年要显示的条目——三个数据源分别对应：跨度事件
   // （旅游/居住/工作这类start~end的）、单点日期条目（entriesByYear里已经
   // 按年份/分类分好的，含daily note打的标签和「## 时间线」的点日期）、
-  // 媒体条目（读书/观影这类，只取day精度能定位的，跟日历cover同一条规则）。
+  // 媒体条目（读书/观影这类，主date是第一次，「## 时间线」每一行是之后的一次出场，
+  // 都画在同一行里）。
   // 三者在数据模型里本来就是互斥的（一条笔记只会落进其中一种管线），
   // 这里只是分别读出来拼成同一种{title,start,end}形状。
   rowItemsForCategory(cat, year){
@@ -2945,11 +3230,13 @@ const HorizontalTimeline = {
     // mediaItems两处共用同一个日期对象，避免各写各的、漏改一处。
     const ongoingAsToday = {year:NOW.getFullYear(), month:NOW.getMonth()+1, day:NOW.getDate(), precision:'day'};
     // 跨度笔记自己「## 时间线」里的明细，已经打包进spanEvent.timelineItems了
-    // （用来给日历cover挑当天该显示哪句话），这里先记一下这些明细的"年-月-日-
+    // （这个字段现在只有这里用），这里先记一下这些明细的"年-月-日-
     // 文字"指纹，待会儿从entriesByYear的点日期里把它们排除掉——不然同一条
     // 笔记会又画一条横条、又在横条覆盖的那几天各自多画一个点，重复表达。
     const spanTimelineKeys = new Set();
-    (Store.spanEvents||[]).forEach(ev=>{
+    // 共时看板有自己的登记表，hide_from_rail只管进度条圆环和日历色块，
+    // 所以被隐藏的跨度笔记（hiddenSpanEvents）在这里也照常画。
+    [...(Store.spanEvents||[]), ...(Store.hiddenSpanEvents||[])].forEach(ev=>{
       if(ev.category!==cat) return;
       const ongoing = ev.end==='ongoing';
       const endD = ongoing ? ongoingAsToday : ev.end;
@@ -2965,13 +3252,29 @@ const HorizontalTimeline = {
       items.push({title:e.text, start:d, end:d});
     });
     (Store.mediaItems||[]).forEach(it=>{
-      if(it.category!==cat || !it.start) return;
-      // 之前这里ongoing被漏判、直接掉回it.start当终点，导致"进行中"的媒体
-      // 条目在横条上只画出起点那一个点，够不到今天——跟上面spanEvents那段
-      // 统一成同一套ongoingAsToday。
-      const ongoing = it.end==='ongoing';
-      const endD = ongoing ? ongoingAsToday : (it.end || it.start);
-      if(year>=it.start.year && year<=endD.year) items.push({title:it.title, start:it.start, end:endD, ongoing});
+      if(it.category!==cat) return;
+      // 主date（第一次）。没写主date的作品跳过这一段，但下面时间线里的
+      // 出场照样要画，所以这里不能直接return掉整个作品。
+      if(it.start){
+        // 之前这里ongoing被漏判、直接掉回it.start当终点，导致"进行中"的媒体
+        // 条目在横条上只画出起点那一个点，够不到今天——跟上面spanEvents那段
+        // 统一成同一套ongoingAsToday。
+        const ongoing = it.end==='ongoing';
+        const endD = ongoing ? ongoingAsToday : (it.end || it.start);
+        if(year>=it.start.year && year<=endD.year) items.push({title:it.title, start:it.start, end:endD, ongoing});
+      }
+      // 「## 时间线」里的每一行是第二次及以后的出场，单天画竖条、一段画色条，
+      // 规则跟主date完全一致。按真实日期定位，不看display_year（那个只管
+      // Media tab的年份分组）；标题沿用日历的写法"作品·说明"，你没写说明就只
+      // 显示作品名，不替你编"重看"之类的字。
+      (it.rewatches||[]).forEach(rw=>{
+        const rs = rw.start;
+        const ongoing = rw.end==='ongoing';
+        const endD = ongoing ? ongoingAsToday : (rw.end || rs);
+        if(year<rs.year || year>endD.year) return;
+        const text = (rw.text||'').replace(/^[，,、:：\s]+/, '');
+        items.push({title: text ? `${it.title}·${text}` : it.title, start:rs, end:endD, ongoing});
+      });
     });
     return items;
   },
@@ -3208,7 +3511,7 @@ async function connectVault(dirHandle){
   try{
     const files = await Parser.scanVaultFiles(dirHandle);
     deriveStore(Parser.buildStore(files));
-    State.categorySlots = Store.categoryOrder.slice();
+    State.categorySlots = Store.yearCategories.slice();
     setConnected(true);
     renderAll();
   } catch(e){
