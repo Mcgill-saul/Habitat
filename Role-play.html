@@ -475,29 +475,36 @@ body {
   .p-desc { font-size: 14px; line-height: 1.5; }
 }
 
-.round { margin-bottom: var(--sp-6); }
-.round-label {
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  color: var(--text2);
-  letter-spacing: 0.12em;
-  margin-bottom: 10px;
-  font-weight: 500;
-  display: flex;
+/* Round分界：像聊天记录里的时间分隔一样，居中悬浮一个小胶囊，
+   而不是贴左边的标题条——跟两轮之间拉开的间距一起，构成明确的"另起一轮"锚点 */
+.round { margin-bottom: 40px; }
+.round-label { display: flex; justify-content: center; margin-bottom: var(--sp-4); }
+.round-pill {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--text3);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  padding: 5px 16px;
+  box-shadow: none;
 }
-.round-label::before {
-  content: '';
-  display: inline-block;
-  width: 20px;
-  height: 1.5px;
-  background: var(--accent);
-  flex-shrink: 0;
+.round-pill-title {
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--text3);
+  font-size: 12px;
 }
 @media (max-width: 768px) {
-  .round { margin-bottom: var(--sp-5); }
-  .round-label { font-size: 12px; margin-bottom: var(--sp-2); }
+  .round { margin-bottom: var(--sp-6); }
+  .round-pill { font-size: 10px; padding: 4px 13px; }
+  .round-pill-title { font-size: 11px; }
 }
 
 /* 对话线程：气泡纵向堆叠，Q靠左、A（含A2）靠右，一轮一轮按顺序往下排，
@@ -508,14 +515,17 @@ body {
 .msg-row.msg-q { justify-content: flex-start; }
 .msg-row.msg-a { justify-content: flex-end; }
 
-.msg-block { display: flex; flex-direction: column; gap: 6px; max-width: 76%; }
+/* 最大宽度用"容器宽度减固定留白"而不是纯百分比，窄屏下也能撑满，
+   不会因为按比例算而过早换行；Q和A共用同一个值，宽度逻辑完全一致 */
+.msg-block { display: flex; flex-direction: column; gap: 6px; max-width: min(80%, calc(100% - 72px)); }
 .msg-block-q { align-items: flex-start; }
 .msg-block-a { align-items: flex-end; }
 
-/* 气泡：左右各自用不同角落做"尖角"，模拟发出/收到的方向感 */
+/* 气泡：左右各自用不同角落做"尖角"，模拟发出/收到的方向感；
+   上下padding收窄、左右保留，短句单行也不会显得虚高 */
 .bubble {
   border-radius: 16px;
-  padding: 0.85rem 1.1rem;
+  padding: 9px 14px;
   border: 1px solid;
   box-shadow: var(--shadow-sm);
 }
@@ -524,16 +534,19 @@ body {
 .bubble-a2 { background: var(--a-bg); border-color: var(--a-border); border-bottom-right-radius: 4px; opacity: 0.82; margin-right: 14px; }
 .card-en { font-size: 15px; line-height: 1.55; color: var(--text); }
 @media (max-width: 768px) {
-  .bubble { padding: var(--sp-4); border-radius: 14px; }
+  .bubble { padding: 10px 16px; border-radius: 14px; }
   .card-en { font-size: 16px; }
-  .msg-block { max-width: 88%; }
+  .msg-block { max-width: min(92%, calc(100% - 40px)); }
 }
 
-/* 回答区：默认收成一个"点击查看回答"的气泡按钮，点开后换成真正的回答气泡（可能带A2） */
-.answer-group { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 76%; }
-.answer-group .answer-content { display: none; flex-direction: column; align-items: flex-end; gap: var(--sp-3); width: 100%; }
-.answer-group.revealed .answer-content { display: flex; }
-.answer-group.revealed .reveal-btn { display: none; }
+/* 回答区：默认收成一个"点击查看回答"的气泡按钮，点开后换成真正的回答气泡（可能带A2）。
+   彻底拍平：reveal按钮和每个回答气泡各自独立占一行（复用.msg-row/.msg-block），
+   各自只根据自身文本撑宽度、封顶同一个max-width，互不牵连——
+   跟Q是完全同一套机制，不再有"父容器宽度看内容、内容宽度又被子容器强制撑满"的循环依赖 */
+.answer-block { display: flex; flex-direction: column; gap: var(--sp-3); }
+.answer-block .answer-content { display: none; flex-direction: column; gap: var(--sp-3); }
+.answer-block.revealed .answer-content { display: flex; }
+.answer-block.revealed .reveal-row { display: none; }
 .answer-alt-label {
   font-family: 'Inter', sans-serif; font-size: 10px; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--text3); margin-right: 14px;
@@ -542,7 +555,7 @@ body {
   display: flex; align-items: center; gap: 8px;
   background: var(--surface); border: 1px dashed var(--a-border);
   border-radius: 16px; border-bottom-right-radius: 4px;
-  padding: 0.75rem 1.1rem; cursor: pointer;
+  padding: 9px 14px; cursor: pointer;
   font-size: 14px; color: var(--a-accent);
   font-family: 'Noto Sans SC', sans-serif;
   transition: background 0.15s, border-color 0.15s;
@@ -550,8 +563,7 @@ body {
 .reveal-btn:hover { background: var(--a-bg); border-style: solid; }
 .reveal-btn .reveal-icon { font-size: 11px; }
 @media (max-width: 768px) {
-  .answer-group { max-width: 88%; }
-  .reveal-btn { padding: var(--sp-3) var(--sp-4); font-size: 15px; min-height: var(--tap-min); }
+  .reveal-btn { padding: 11px 16px; font-size: 15px; min-height: var(--tap-min); }
 }
 
 .alt-toggle {
@@ -575,10 +587,14 @@ body {
   border-bottom: 1px solid var(--border); line-height: 1.5;
   display: flex; gap: var(--sp-2);
 }
+/* 中文遮罩：真实文字和占位符是两个独立的span，靠display切换谁可见——
+   不再用"压缩原文字+伪元素叠加定位"的老办法，两种状态都是正常文档流，
+   桌面手机表现一致，不会跑位或掉行 */
 .alt-item-zh { color: var(--text2); font-style: italic; border-bottom: 1px solid var(--border) !important; margin-bottom: 2px; padding-bottom: 6px !important; cursor: pointer; transition: color 0.15s; }
 .alt-item-zh::before { content: '中' !important; color: var(--accent) !important; font-style: normal; font-size: 10px; }
-.alt-item-zh.hidden { color: transparent; letter-spacing: -0.05em; }
-.alt-item-zh.hidden::after { content: '• • •'; color: var(--text3); letter-spacing: 0.1em; font-style: normal; font-size: 11px; }
+.alt-item-zh-mask { display: none; color: var(--text3); font-style: normal; letter-spacing: 0.25em; }
+.alt-item-zh.hidden .alt-item-zh-text { display: none; }
+.alt-item-zh.hidden .alt-item-zh-mask { display: inline; }
 .alt-item:last-child { border-bottom: none; }
 .alt-item::before { content: '—'; color: var(--text3); flex-shrink: 0; font-size: 11px; margin-top: 2px; }
 @media (max-width: 768px) {
@@ -1873,7 +1889,9 @@ const App = {
         // 渲染单个 Alternatives 面板：中文翻译默认遮罩，可点击单独显示/隐藏
         const renderAltItems = (field, fieldName, zhHidden) => {
           const zhItem = field.zh
-            ? `<div class="alt-item alt-item-zh${zhHidden ? ' hidden' : ''}" data-round-idx="${i}" data-field="${fieldName}">${App.utils.esc(field.zh)}</div>`
+            ? `<div class="alt-item alt-item-zh${zhHidden ? ' hidden' : ''}" data-round-idx="${i}" data-field="${fieldName}">
+                 <span class="alt-item-zh-text">${App.utils.esc(field.zh)}</span><span class="alt-item-zh-mask">***</span>
+               </div>`
             : '';
           const altItems = (field.alts||[]).filter(x=>x).map(a=>`<div class="alt-item">${App.utils.esc(a)}</div>`).join('');
           return zhItem + altItems;
@@ -1886,7 +1904,7 @@ const App = {
 
         return `
         <div class="round">
-          <div class="round-label">ROUND ${String(i+1).padStart(2,'0')}${r.title ? `<span style="font-family:'Noto Sans SC',sans-serif;font-weight:400;font-size:12px;color:var(--text2);letter-spacing:0.02em;">${App.utils.esc(r.title)}</span>` : ''}</div>
+          <div class="round-label"><span class="round-pill">ROUND ${String(i+1).padStart(2,'0')}${r.title ? `<span class="round-pill-title">${App.utils.esc(r.title)}</span>` : ''}</span></div>
           <div class="chat-thread">
             <div class="msg-row msg-q">
               <div class="msg-block msg-block-q">
@@ -1896,26 +1914,30 @@ const App = {
                 ${renderAltPanel(qHasContent, r.q, 'q', r.q.zhHidden !== false)}
               </div>
             </div>
-            <div class="msg-row msg-a">
-              <div class="answer-group" data-round-idx="${i}">
+            <div class="answer-block" data-round-idx="${i}">
+              <div class="msg-row msg-a reveal-row">
                 <button class="reveal-btn" type="button">
                   <span class="reveal-icon">▶</span> 点击查看回答
                 </button>
-                <div class="answer-content">
+              </div>
+              <div class="answer-content">
+                <div class="msg-row msg-a">
                   <div class="msg-block msg-block-a">
                     <div class="bubble bubble-a">
                       <p class="card-en">${App.utils.esc(r.a.en)}</p>
                     </div>
                     ${renderAltPanel(aHasContent, r.a, 'a', r.a.zhHidden !== false)}
                   </div>
-                  ${hasA2 ? `<div class="msg-block msg-block-a">
+                </div>
+                ${hasA2 ? `<div class="msg-row msg-a">
+                  <div class="msg-block msg-block-a">
                     <div class="answer-alt-label">备选回答</div>
                     <div class="bubble bubble-a2">
                       <p class="card-en">${App.utils.esc(r.a2.en)}</p>
                     </div>
                     ${renderAltPanel(a2HasContent, r.a2, 'a2', r.a2.zhHidden !== false)}
-                  </div>` : ''}
-                </div>
+                  </div>
+                </div>` : ''}
               </div>
             </div>
           </div>
@@ -2266,7 +2288,7 @@ const App = {
       // 点击"查看回答"气泡按钮，展开真正的回答气泡（纯UI状态，不写入数据、不持久化，切场景/刷新后恢复收起）
       const revealBtn = e.target.closest('.reveal-btn');
       if (revealBtn) {
-        revealBtn.closest('.answer-group').classList.add('revealed');
+        revealBtn.closest('.answer-block').classList.add('revealed');
         return;
       }
       // 展开代替文本
@@ -2275,14 +2297,15 @@ const App = {
         e.target.nextElementSibling.classList.toggle('open');
         return;
       }
-      // Alternatives 中文翻译隐藏/点亮
-      if (e.target.classList.contains('alt-item-zh')) {
-        e.target.classList.toggle('hidden');
+      // Alternatives 中文翻译隐藏/点亮（现在容器里包了text/mask两个子span，用closest取到外层容器）
+      const zhToggle = e.target.closest('.alt-item-zh');
+      if (zhToggle) {
+        zhToggle.classList.toggle('hidden');
         const s = App.scene.currentScene();
-        const idx = parseInt(e.target.dataset.roundIdx);
-        const field = e.target.dataset.field;
+        const idx = parseInt(zhToggle.dataset.roundIdx);
+        const field = zhToggle.dataset.field;
         if (s && s.rounds[idx] && s.rounds[idx][field]) {
-          s.rounds[idx][field].zhHidden = e.target.classList.contains('hidden');
+          s.rounds[idx][field].zhHidden = zhToggle.classList.contains('hidden');
           App.storage.autoSaveNow();
         }
         return;
