@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cairn</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg: #FAFAFA;
@@ -58,17 +58,25 @@
     --fs-sm:      12px;  /* 小字：标签徽标、次要信息 */
     --fs-xs:      11px;  /* 极小字：日期戳、坐标轴刻度 */
     --fs-micro:   9px;   /* 日历格子内嵌文字，物理空间受限 */
+    /* 字体栈——拉丁字母/数字靠前面那个字体管，汉字靠后面的Noto Sans SC（各平台
+       字形一致，有400/500/600三档字重），没加载出来就退回系统自带的中文字体。
+       之前汉字全靠系统默认字体兜底：Windows上是微软雅黑（主要只有常规和粗体
+       两档，写600会直接变粗体，小字号挤），Fraunces和等宽字体里的汉字（月/年/
+       地名/警告条）更会落到宋体/新宋体。 */
+    --font-sans:  'Inter','Noto Sans SC','PingFang SC','Microsoft YaHei UI',sans-serif;
+    --font-serif: 'Fraunces','Noto Sans SC','PingFang SC','Microsoft YaHei UI',serif;
+    --font-mono:  'IBM Plex Mono','Noto Sans SC','PingFang SC','Microsoft YaHei UI',monospace;
   }
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; }
   html{ scrollbar-gutter: stable; }
   body{
     background:var(--bg); color:var(--ink);
-    font-family:'Inter',sans-serif; font-size:var(--fs-body);
+    font-family:var(--font-sans); font-size:var(--fs-body);
     -webkit-font-smoothing:antialiased;
   }
-  .display{ font-family:'Fraunces',serif; }
-  .mono{ font-family:'IBM Plex Mono',monospace; }
+  .display{ font-family:var(--font-serif); }
+  .mono{ font-family:var(--font-mono); }
 
   .app{ width:min(97vw, 2400px); margin:0 auto; padding:22px 32px 40px; position:relative; }
   /* 贴主内容区右边缘探出去的小竖排——重新连接状态灯+按钮，照抄
@@ -97,7 +105,7 @@
   .tabs{ display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
   .tabs-main{ display:flex; gap:6px; align-items:center; }
   .tab{
-    font-family:'Fraunces',serif; font-size:var(--fs-base); font-weight:500; cursor:pointer;
+    font-family:var(--font-serif); font-size:var(--fs-base); font-weight:500; cursor:pointer;
     padding:9px 20px; border-radius:var(--radius-pill); border:1px solid transparent; color:var(--muted);
   }
   /* 选中态统一走"蓝底白字"（accent+on-color）这条视觉语言，跟.gran-tab.active、
@@ -117,7 +125,7 @@
 
   .warn-strip{
     font-size:var(--fs-sm); color:var(--warn-text); background:var(--warn-bg); border:1px solid var(--warn-border);
-    padding:8px 14px; border-radius:var(--radius-sm); margin-bottom:16px; display:none; font-family:'IBM Plex Mono',monospace;
+    padding:8px 14px; border-radius:var(--radius-sm); margin-bottom:16px; display:none; font-family:var(--font-mono);
   }
 
   .panel{ display:none; }
@@ -146,9 +154,9 @@
      加粗、跟"地图看板"这些主Tab字号看齐但更大一档（fs-xl）；月份是配角，
      同字体但更轻的字重、更小一档、颜色也淡一点，形成主次关系，而不是
      两个数字一样权重地并排放。 */
-  .date-nav-label{ font-family:'Fraunces',serif; font-size:var(--fs-xl); font-weight:600; color:var(--ink); display:flex; align-items:center; }
+  .date-nav-label{ font-family:var(--font-serif); font-size:var(--fs-xl); font-weight:600; color:var(--ink); display:flex; align-items:center; }
   .date-nav-year{
-    font-family:'Fraunces',serif; font-size:var(--fs-xl); font-weight:600;
+    font-family:var(--font-serif); font-size:var(--fs-xl); font-weight:600;
     border:none; background:transparent; color:var(--ink); box-sizing:border-box;
     width:4.2ch; min-width:4.2ch; max-width:4.2ch; flex:none; padding:0;
     text-align:right; -moz-appearance:textfield;
@@ -158,7 +166,7 @@
   .date-nav-month{ display:none; flex:none; min-width:2.4em; white-space:nowrap; margin-left:4px; font-size:var(--fs-lg); font-weight:500; color:var(--ink-soft); }
   .date-nav-month.show{ display:inline-block; }
   .date-nav-today{
-    font-size:var(--fs-xs); font-weight:600; padding:11px 15px; margin-left:8px; border-radius:var(--radius-pill);
+    font-size:var(--fs-xs); font-weight:500; padding:11px 15px; margin-left:8px; border-radius:var(--radius-pill);
     border:1px solid var(--accent); background:var(--accent); color:var(--on-color); cursor:pointer;
     appearance:none; font-family:inherit;
   }
@@ -175,7 +183,7 @@
 
   .drill-panel{ margin-top:14px; padding-top:14px; border-top:1px solid var(--line); display:none; }
   .drill-panel.show{ display:block; }
-  .drill-title{ font-family:'Fraunces',serif; font-size:var(--fs-lg); font-weight:600; margin-bottom:2px; }
+  .drill-title{ font-family:var(--font-serif); font-size:var(--fs-lg); font-weight:600; margin-bottom:2px; }
   .drill-note{ font-size:var(--fs-xs); color:var(--muted); margin-bottom:12px; }
   .drill-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(96px,1fr)); gap:8px; }
   .drill-cell{ padding:11px 8px; border-radius:var(--radius-sm); text-align:center; font-size:var(--fs-xs); background:var(--unvisited); color:var(--muted); border:1px solid var(--line); }
@@ -195,7 +203,7 @@
   .rail-card{ background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px; --rail-tile-bg:#F5F5F5; }
   .rail-card-header{ display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; padding:2px 4px; margin:-2px -4px 8px; border-radius:var(--radius-xs); transition:background .12s ease; }
   .rail-card-header:hover{ background:var(--accent-soft); }
-  .rail-card-title{ font-size:var(--fs-sm); font-weight:600; color:var(--ink-soft); }
+  .rail-card-title{ font-size:var(--fs-sm); font-weight:500; color:var(--ink-soft); }
   .rail-toggle-icon{ display:flex; color:var(--muted); transition:transform .12s ease; }
   .rail-toggle-icon svg{ display:block; stroke:currentColor; }
   .rail-card.is-collapsed .rail-toggle-icon{ transform:rotate(-90deg); }
@@ -208,16 +216,16 @@
     width:calc((100% - 20px)/3); display:flex; flex-direction:column; align-items:center;
     text-align:center; background:var(--rail-tile-bg); border-radius:var(--radius); padding:12px 8px;
   }
-  .ring-tile-label{ font-size:var(--fs-sm); font-weight:600; color:var(--ink); margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  .ring-tile-label{ font-size:var(--fs-sm); font-weight:500; color:var(--ink); margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
   /* 笔记标题这行原本用--fs-micro(9px)，比上面类型名(--fs-sm 12px)矮太多；
      改成--fs-xs(11px)，跟media-card标题(--fs-sm)/日期(--fs-xs)那套"标题大一档、
      副信息小一档"的惯例对齐，而不是9px这种明显偏小的落差。 */
   .ring-tile-sub{ font-size:var(--fs-xs); color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
   .ring-tile-empty{ font-size:var(--fs-sm); color:var(--muted); }
   .ring-svg{ display:block; }
-  .ring-num{ font-family:'Fraunces',serif; font-weight:600; fill:var(--ink); }
-  .ring-num-affix{ font-family:'Inter',sans-serif; font-weight:500; font-size:var(--fs-xs); fill:var(--muted); }
-  .ring-num-unit{ font-family:'Inter',sans-serif; font-weight:500; fill:var(--muted); }
+  .ring-num{ font-family:var(--font-serif); font-weight:600; fill:var(--ink); }
+  .ring-num-affix{ font-family:var(--font-sans); font-weight:500; font-size:var(--fs-xs); fill:var(--muted); }
+  .ring-num-unit{ font-family:var(--font-sans); font-weight:500; fill:var(--muted); }
 
   .cal-card{
     background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px;
@@ -253,7 +261,7 @@
   .cal-unplaced-line{ font-size:var(--fs-sm); display:flex; align-items:flex-start; gap:6px; padding:2px 0; }
   .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); grid-auto-rows:minmax(144px, auto); gap:6px; align-items:stretch; }
   .cal-weekday-row{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:6px; }
-  .cal-weekday{ text-align:center; font-size:var(--fs-xs); font-weight:600; letter-spacing:.02em; color:var(--ink-soft); background:var(--cal-cell-bg); border-radius:var(--radius-sm); padding:6px 0; }
+  .cal-weekday{ text-align:center; font-size:var(--fs-xs); font-weight:500; letter-spacing:.02em; color:var(--ink-soft); background:var(--cal-cell-bg); border-radius:var(--radius-sm); padding:6px 0; }
   .cal-weekday:nth-child(6), .cal-weekday:nth-child(7){ color:var(--accent); }
   .cal-cell{ position:relative; z-index:0; border-radius:var(--radius-sm); background:var(--cal-cell-bg); padding:6px 7px; display:flex; flex-direction:column; gap:4px; overflow:hidden; transition:box-shadow .12s ease; }
   /* 节日水印——圣诞/生日这类固定公历月日、春节这类查表得出公历日期的节日，
@@ -269,14 +277,14 @@
   .cal-cell.has-content{ cursor:pointer; }
   .cal-cell.has-content:hover{ box-shadow:inset 0 0 0 2px var(--cal-ring-hover); }
   .cal-cell.is-today, .cal-cell.is-today:hover{ box-shadow:inset 0 0 0 2px var(--cal-ring-today); }
-  .cal-daynum{ font-family:'IBM Plex Mono',monospace; font-size:var(--fs-xs); color:var(--muted); flex:none; }
-  /* 跨度事件（旅游/出差这类，登记在「日历跨度分类」里）盖住日期数字的色块——
+  .cal-daynum{ font-family:var(--font-mono); font-size:var(--fs-xs); color:var(--muted); flex:none; }
+  /* 跨度事件（旅游/出差这类，展示位表里calendar列打✓的分类）盖住日期数字的色块——
      用inline-flex包住数字本身而不是绝对定位叠加，尺寸自然跟着数字走，不用
      手动对齐像素。多条命中时只显示第一条的颜色，其余用角标"+N"提示还有更多，
      不在格子里堆叠展示（点开格子展开详情能看到全部文字）。 */
   .cal-daynum-cover{ display:inline-flex; align-items:center; gap:4px; align-self:flex-start; padding:1px 6px; border-radius:var(--radius-xs); }
   .cal-daynum-cover .cal-daynum{ color:var(--on-color); }
-  .cal-span-cover-badge{ font-size:var(--fs-micro); color:var(--on-color); opacity:0.85; font-family:'Inter',sans-serif; }
+  .cal-span-cover-badge{ font-size:var(--fs-micro); color:var(--on-color); opacity:0.85; font-family:var(--font-sans); }
   /* 日期数字这一行——日期数字 + Fitness当天记录，并排显示在格子第一行，
      不受展开/折叠影响（跟cal-entries那套"折叠只显示3行+更多"是两回事）。
      日期数字宽度不固定（1位数比2位数窄），Fitness内容的起始位置会跟着数字
@@ -284,7 +292,7 @@
      让起始位置完全对齐，但单数字那天gap显得过宽不协调，改回这种自然宽度。 */
   .cal-daynum-row{ display:flex; align-items:center; gap:6px; }
   .cal-fitness-row{ display:flex; gap:3px; flex:1; min-width:0; }
-  .cal-fitness-chip{ font-size:var(--fs-xs); font-weight:600; padding:2px 5px; border-radius:var(--radius-xs); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center; }
+  .cal-fitness-chip{ font-size:var(--fs-xs); font-weight:500; padding:2px 5px; border-radius:var(--radius-xs); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center; }
   .cal-entries{ display:flex; flex-direction:column; gap:2px; overflow:hidden; }
   .cal-cell:not(.expanded) .cal-entries{ max-height:84px; }
   .cal-entry-line{ font-size:var(--fs-xs); line-height:15px; display:flex; align-items:flex-start; gap:4px; }
@@ -303,7 +311,7 @@
   .col-board-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:16px; align-items:start; }
   .col-card{ background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px; min-height:120px; }
   .col-card-head{ margin-bottom:9px; padding-bottom:8px; border-bottom:1px solid var(--line); }
-  .col-card-label{ font-size:var(--fs-sm); font-weight:600; display:inline-flex; align-items:center; gap:6px; cursor:pointer; padding:3px 6px; margin:-3px -6px; border-radius:var(--radius-xs); }
+  .col-card-label{ font-size:var(--fs-sm); font-weight:500; display:inline-flex; align-items:center; gap:6px; cursor:pointer; padding:3px 6px; margin:-3px -6px; border-radius:var(--radius-xs); }
   .col-card-label:hover{ background:var(--accent-soft); }
   .col-dot{ width:8px; height:8px; border-radius:50%; display:inline-block; }
   .col-items{ display:flex; flex-direction:column; gap:5px; }
@@ -329,6 +337,8 @@
   /* ---------- 媒体看板（卡片墙） ---------- */
   .media-toolbar{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
   .media-filters{ display:flex; flex-direction:column; gap:8px; }
+  .media-toolbar-right{ display:flex; align-items:center; gap:10px; }
+  .media-view-switch .gran-tab{ padding:6px 14px; }   /* 跟旁边的筛选chip/排序按钮同高，不用Year/Month那套11px 15px */
   .media-chip-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .media-chip-row-label{ font-size:var(--fs-xs); color:var(--muted); flex:none; }
   .media-chips{ display:flex; gap:6px; flex-wrap:wrap; }
@@ -341,17 +351,17 @@
   .media-empty-line{ font-size:var(--fs-sm); color:var(--muted); font-style:italic; margin-bottom:10px; }
   .media-year-group{ margin-bottom:30px; }
   .media-year-group:last-child{ margin-bottom:0; }
-  .media-year-head{ font-family:'Fraunces',serif; font-size:var(--fs-xl); font-weight:600; margin-bottom:14px; display:flex; align-items:baseline; gap:8px; }
-  .media-year-count{ font-size:var(--fs-xs); color:var(--muted); font-family:'Inter',sans-serif; font-weight:400; }
+  .media-year-head{ font-family:var(--font-serif); font-size:var(--fs-xl); font-weight:600; margin-bottom:14px; display:flex; align-items:baseline; gap:8px; }
+  .media-year-count{ font-size:var(--fs-xs); color:var(--muted); font-family:var(--font-sans); font-weight:400; }
   .media-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(148px,1fr)); gap:16px; }
   .media-card{ background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; display:flex; flex-direction:column; }
   .media-cover{ width:100%; aspect-ratio:2/3; object-fit:cover; display:block; background:var(--surface-2); }
-  .media-cover-fallback{ width:100%; aspect-ratio:2/3; display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-size:var(--fs-display); font-weight:600; color:var(--on-color); }
+  .media-cover-fallback{ width:100%; aspect-ratio:2/3; display:flex; align-items:center; justify-content:center; font-family:var(--font-serif); font-size:var(--fs-display); font-weight:600; color:var(--on-color); }
   .media-card-body{ padding:10px 12px 12px; display:flex; flex-direction:column; gap:6px; flex:1; }
-  .media-card-title{ font-size:var(--fs-sm); font-weight:600; line-height:1.35; color:var(--ink); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .media-card-title{ font-size:var(--fs-sm); font-weight:500; line-height:1.35; color:var(--ink); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
   .media-card-dates{ display:flex; flex-direction:column; gap:3px; }
-  .media-card-date{ font-size:var(--fs-xs); color:var(--muted); font-family:'IBM Plex Mono',monospace; display:flex; flex-wrap:wrap; gap:0 6px; }
-  .media-card-date-text{ font-family:'Inter',sans-serif; color:var(--ink-soft); min-width:0; overflow-wrap:anywhere; }
+  .media-card-date{ font-size:var(--fs-xs); color:var(--muted); font-family:var(--font-mono); display:flex; flex-wrap:wrap; gap:0 6px; }
+  .media-card-date-text{ font-family:var(--font-sans); color:var(--ink-soft); min-width:0; overflow-wrap:anywhere; }
   .media-card-rating{ display:flex; gap:3px; }
   .media-card-meta{ display:flex; align-items:center; gap:6px; }
   .media-card-origin{ font-size:var(--fs-micro); color:var(--muted); }
@@ -360,11 +370,11 @@
   .media-card-tags{ display:flex; flex-wrap:wrap; gap:4px; margin-top:auto; padding-top:4px; }
   .media-card-tag{ font-size:var(--fs-micro); padding:2px 7px; border-radius:var(--radius-pill); background:var(--surface-2); color:var(--ink-soft); white-space:nowrap; }
 
-  /* ---------- 时间线（横向条目栏位） ---------- */
+  /* ---------- 时间线（展示位表的Timeline列） ---------- */
   .tl-toolbar{ display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:20px; }
-  .tl-year-label{ font-family:'Fraunces',serif; font-size:var(--fs-lg); font-weight:600; min-width:64px; max-width:64px; text-align:center; }
+  .tl-year-label{ font-family:var(--font-serif); font-size:var(--fs-lg); font-weight:600; min-width:64px; max-width:64px; text-align:center; }
   .tl-axis{ display:flex; margin-left:112px; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid var(--line); }
-  .tl-axis-tick{ flex:1; font-size:var(--fs-xs); color:var(--muted); font-family:'IBM Plex Mono',monospace; }
+  .tl-axis-tick{ flex:1; font-size:var(--fs-xs); color:var(--muted); font-family:var(--font-mono); }
   /* 去掉了之前"米色/白色"隔行底色——色条本身已经是每个类目自己的"轨道"了，
      再叠一层隔行底色是多余的视觉噪音。改成单纯用行间距（margin-bottom）
      隔开各个类目；PAD/margin具体数值的推导见下面.tl-row-label那段注释。 */
@@ -401,12 +411,17 @@
   /* 色条不再靠overflow:hidden硬裁标题文字——色条本身要精确反映时间跨度，
      不能为了塞下文字被拉宽；文字装不下的时候就让它溢出到色条右边的
      淡色轨道上继续显示（甘特图类界面的常见处理：色块管"多长"，文字管
-     "是什么"，互不将就）。轨道底色很浅、标题是深色，溢出到轨道上一样
-     看得清。代价是如果同一行相邻两条记录时间贴得很近，溢出的文字理论上
-     可能视觉上碰到下一个色条——个人记录场景下这种情况少见，先不特殊处理。 */
-  .tl-bar{ position:absolute; border-radius:var(--radius-xs); display:flex; align-items:center; padding:0 8px; white-space:nowrap; cursor:default; border:1px solid transparent; transition:border-color .12s; }
+     "是什么"，互不将就）。色条是类目色约35%的中等色调底、标题是深色字
+     （对比度9:1以上），溢出到浅色轨道上一样看得清。曾经试过实心类目色+白字，
+     太深，白字一半调透明对比度又不够，而且白字溢出去看不见、得把标题挪到色条
+     外面，得不偿失，所以改回这个做法。代价是如果同一行相邻两条记录时间贴得
+     很近，溢出的文字理论上可能视觉上碰到下一个色条——个人记录场景下这种
+     情况少见，先不特殊处理。 */
+  .tl-bar{ position:absolute; border-radius:var(--radius-xs); display:flex; align-items:center; padding:0 8px 0 4px; white-space:nowrap; cursor:default; border:1px solid transparent; transition:border-color .12s; }
   .tl-bar:hover{ border-color:var(--surface); }
-  .tl-bar-label{ font-size:var(--fs-micro); font-weight:600; color:var(--ink); }
+  /* 色条标题：原来是9px那档（--fs-micro），汉字在这个字号下太密；提到11px（--fs-xs）
+     再加一点字距，色条高22px放得下。 */
+  .tl-bar-label{ font-size:var(--fs-xs); font-weight:500; letter-spacing:0.02em; color:var(--ink); }
   .tl-dot{ position:absolute; border-radius:var(--radius-xxs); cursor:default; box-shadow:0 1px 2px rgba(0,0,0,0.15); transition:filter .12s; }
   .tl-dot:hover{ filter:brightness(1.15); }
 </style>
@@ -507,7 +522,13 @@
           <div class="media-chips" id="mediaOriginChips"></div>
         </div>
       </div>
-      <div class="media-sort-btn" id="mediaSortBtn"></div>
+      <div class="media-toolbar-right">
+        <div class="gran-switch show media-view-switch" id="mediaViewSwitch">
+          <div class="gran-tab active" data-view="year">Year</div>
+          <div class="gran-tab" data-view="all">All</div>
+        </div>
+        <div class="media-sort-btn" id="mediaSortBtn"></div>
+      </div>
     </div>
     <div class="media-empty-line" id="mediaEmptyLine" style="display:none;"></div>
     <div id="mediaYearGroups"></div>
@@ -992,71 +1013,10 @@ const Parser = {
     warnings.push(`${basename}：${fieldName}「${raw}」不是合法年份，已忽略`);
     return null;
   },
-  /* 【旧格式】通用：按标题关键字（"分栏分类"、"进度条固定栏位"、"日历跨度分类"、
-     "横向条目栏位"）从settings笔记正文里摘出对应小节的列表项，
-     这几张登记表全是同一套解析逻辑，靠标题文字路由到不同小节。
-     只有settings笔记里没有「## 展示位」表的时候才读这几张旧表（见
-     parseDisplayTable/buildStore），等你把旧小节删掉之后这套旧解析会一起删。 */
-  parseCategoryList(body, heading){
-    const cats = new Set();
-    let inSection = false;
-    for(const raw of body.split(/\r?\n/)){
-      const h2 = raw.match(/^##\s+(.+)/);
-      if(h2){ inSection = h2[1].trim().includes(heading); continue; }
-      const li = raw.match(/^[-*]\s+(.+)/);
-      if(inSection && li) cats.add(li[1].trim());
-    }
-    return cats;
-  },
-  parseCategoryRegistry(body){ return Parser.parseCategoryList(body, '分栏分类'); },
-  parsePinnedCategories(body){ return Parser.parseCategoryList(body, '进度条固定栏位'); },
-  /* 【旧格式】媒体分类跟「分栏分类」「进度条固定栏位」是并列的独立登记表，不要求
-     同时也在「分栏分类」里——一个分类要么走分栏，要么走媒体卡片墙，
-     没规定必须两头都登记。
-     分类名后面缀一个"【Calendar】"标记（比如"Movie【Calendar】"），表示这个
-     媒体分类除了正常进卡片墙，精确到"天"的日期（含「## 时间线」里的重看，
-     单天或起止都精确到天的一段）还会额外在日历格子里显示一行纯文字——不用再单独开一张「媒体
-     日历分类」登记表，标记直接写在媒体分类这一行本身，少一层要维护的东西。
-     解析出来的分类名已经把标记本身去掉了，不会带着"【Calendar】"这几个字
-     混进真正的分类值里。
-     "【Calendar】"后面还可以再跟一个emoji（比如"Movie【Calendar】🎬"），
-     这样日历格子里这行前面显示的就是这个emoji，不是普通色点——为了让
-     这类"额外强调"的媒体记录跟#标签那套朴素色点风格区分开。emoji是可选
-     的，不写就还是原来的色点效果，calendarCategories从Set换成Map
-     （分类名→emoji，没写emoji的话值是null），既能判断"是不是日历分类"
-     （.has）又能顺带查"该用什么emoji"（.get）。 */
-  parseMediaCategoriesWithCalendarFlag(body){
-    const categories = new Set();
-    const calendarCategories = new Map();
-    let inSection = false;
-    for(const raw of body.split(/\r?\n/)){
-      const h2 = raw.match(/^##\s+(.+)/);
-      if(h2){ inSection = h2[1].trim().includes('媒体分类'); continue; }
-      const li = raw.match(/^[-*]\s+(.+)/);
-      if(!inSection || !li) continue;
-      const flagMatch = li[1].match(/^(.+?)\s*【Calendar】\s*(\S*)\s*$/);
-      if(flagMatch){
-        const name = flagMatch[1].trim();
-        categories.add(name);
-        calendarCategories.set(name, flagMatch[2] || null);
-      } else {
-        categories.add(li[1].trim());
-      }
-    }
-    return { categories, calendarCategories };
-  },
-  /* 【旧格式】日历跨度分类——登记在这里的分类，跨度事件（start~end）会在CalendarView的
-     日历格子里显示cover色块盖住日期数字（笔记名不在格子里写，放在色块的悬浮框里），
-     跟「进度条固定栏位」并列但服务不同视图，
-     一个分类正常不会同时登记进这两张表（代码不做强制互斥，靠使用者自己别重复登记）。 */
-  parseCalendarSpanCategories(body){ return Parser.parseCategoryList(body, '日历跨度分类'); },
-  /* 【旧格式】横向条目栏位——登记在这里的分类，会在新的"时间线"Tab里各占一行，横轴是
-     时间、纵轴是分类，一眼看到不同类别在同一年内的分布；行的显示顺序就是
-     这张表里登记的先后顺序，跟「分栏分类」等其他表完全独立、互不依赖。 */
-  parseHorizontalRowCategories(body){ return Parser.parseCategoryList(body, '横向条目栏位'); },
   /* settings笔记里「## 展示位」下面的一张表——每个分类一行，每列是一个视图，
-     格子就是"这个分类在这个视图里出不出现"的开关，取代原来分散的几张登记表
-     （分栏分类/进度条固定栏位/日历跨度分类/媒体分类/横向条目栏位）。
+     格子就是"这个分类在这个视图里出不出现"的开关（原来是分栏分类/进度条固定栏位/
+     日历跨度分类/媒体分类/横向条目栏位五张分散的登记表，已经合并到这里，旧格式的
+     解析代码已删除）。
      表头按文字认列，跟列的先后位置无关、大小写不敏感，认不出的列（比如自己
      加的"备注"）直接忽略：
        category —— 分类名。必须有这一列；行的先后顺序就是各视图里的显示顺序
@@ -1067,8 +1027,8 @@ const Parser = {
                    写emoji＝同打勾，媒体那一行前面用这个emoji当图标
        Media    —— 打勾＝进Media tab的卡片墙
        Timeline —— 打勾＝在Timeline tab里占一行
-     格子留空、写"-"/"×"/"否"都算关。没有这张表返回null（走旧登记表）；有表但
-     没有category列返回{rows:null}，让调用方也走旧登记表并带上警告。 */
+     格子留空、写"-"/"×"/"否"都算关。没有这张表返回null；有表但没有category列
+     返回{rows:null}并带警告，调用方按"没有表"处理。 */
   parseDisplayTable(body){
     let inSection = false;
     const tableLines = [];
@@ -1173,8 +1133,8 @@ const Parser = {
   /* frontmatter里"hide_from_rail: true"（Obsidian复选框打勾）表示"这条不想以
      进度条/色块这种醒目形式出现"——具体表现是这条笔记不进spanEvents，改进
      hiddenSpanEvents：SpanRail的固定栏位行/动态其他卡片、CalendarView的日历
-     cover色块只读spanEvents，所以都不显示；共时看板有自己的「横向条目栏位」
-     登记表，两份都读，色条照常画，不受这个开关影响。没写这个字段或者是
+     cover色块只读spanEvents，所以都不显示；共时看板有自己的Timeline列，
+     两份都读，色条照常画，不受这个开关影响。没写这个字段或者是
      false/没打勾，都当"正常显示"。
      字段名故意叫"hide_xxx"而不是"show_xxx"——勾选＝隐藏才符合打勾开关的直觉，
      不用像布尔值取反那样费脑子。 */
@@ -1359,7 +1319,7 @@ const Parser = {
       if(!line) continue; // 日期前缀吃掉一整行之后正文是空的，没什么好记
 
       // 有#标签就按老规矩：只认「已登记分类」（展示位表里有Year/calendar/Timeline
-      // 任一列的分类；旧格式是「分栏分类」）的标签，命中的当作这条的分类。
+      // 任一列的分类）的标签，命中的当作这条的分类。
       // 没命中已登记标签分两种情况——压根没打标签、或者打了标签但那个标签
       // 没注册：这两种以前完全混在一起统一归进「未标记」桶，但"打了标签只是
       // 没注册"其实是表达了分类意图的，只是没有专属展示位（分栏卡片/进度条
@@ -1410,22 +1370,14 @@ const Parser = {
     const entriesByDay = {};
     const entriesByYearMonthUnplaced = {};
     const regionsSeen = new Set();
-    // "哪个分类出现在哪些视图"有两种来源：settings笔记里的「## 展示位」表（新），
-    // 或者旧的几张分散的登记表（没有展示位表时才读，将来会删）。下面这些集合是
-    // 两种来源统一展开后的结果，各视图只认这些，不关心来源：
+    // "哪个分类出现在哪些视图"全部来自settings笔记里的「## 展示位」表（一个分类一行、
+    // 每个视图一列，见Parser.parseDisplayTable），读完之后在下面展开成各视图要用的集合：
     //   pointCategories        —— 认得的分类：日记#标签、点条目只对这些分类生效
     //   yearCategories         —— Year tab里可以加成一列的分类（顺序=显示顺序）
     //   calendarPointCategories—— 点条目在月历里显示的分类（Year/Timeline不受它限制）
     //   ringExcludedCategories —— 表里明确没开圆环图的分类，不进圆环图"其他"卡
     //   pinnedCategories/mediaCategories/mediaCalendarCategories/
     //   calendarSpanCategories/horizontalRowCategories —— 各视图自己那一列
-    // 先按旧格式的登记表读进来，settings里有展示位表的话，读完之后整体改用表的结果。
-    let pointCategories = new Set();
-    let pinnedCategories = new Set();
-    let mediaCategories = new Set();
-    let calendarSpanCategories = new Set();
-    let mediaCalendarCategories = new Map();
-    let horizontalRowCategories = new Set();
     let displayRows = [];
     const holidayFixed = [];
     const iconEvents = [];
@@ -1447,38 +1399,23 @@ const Parser = {
             });
           }
         }
-        Parser.parseCategoryRegistry(body).forEach(c=>pointCategories.add(c));
-        Parser.parsePinnedCategories(body).forEach(c=>pinnedCategories.add(c));
-        const mediaParsed = Parser.parseMediaCategoriesWithCalendarFlag(body);
-        mediaParsed.categories.forEach(c=>mediaCategories.add(c));
-        mediaParsed.calendarCategories.forEach((icon, c)=>mediaCalendarCategories.set(c, icon));
-        Parser.parseCalendarSpanCategories(body).forEach(c=>calendarSpanCategories.add(c));
-        Parser.parseHorizontalRowCategories(body).forEach(c=>horizontalRowCategories.add(c));
         Parser.parseHolidayList(body).forEach(h=>holidayFixed.push(h));
       }
     });
     if(!registryFound) warnings.push('没找到 type: settings 的笔记，各视图暂时不会显示任何分类');
+    else if(displayRows.length===0) warnings.push('settings 笔记里没找到「## 展示位」表，各视图暂时不会显示任何分类');
 
-    let yearCategories, calendarPointCategories, ringExcludedCategories;
-    if(displayRows.length>0){
-      // 有展示位表：以表为准，旧登记表读进来的东西全部作废。行的先后顺序
-      // 就是Set的插入顺序，各视图的显示顺序直接沿用。
-      const pick = fn => displayRows.filter(fn).map(r=>r.category);
-      pointCategories = new Set(pick(r=>r.year || r.calendar || r.timeline));
-      yearCategories = new Set(pick(r=>r.year));
-      calendarPointCategories = new Set(pick(r=>r.calendar));
-      pinnedCategories = new Set(pick(r=>r.ring==='pinned'));
-      ringExcludedCategories = new Set(pick(r=>!r.ring));
-      mediaCategories = new Set(pick(r=>r.media));
-      mediaCalendarCategories = new Map(displayRows.filter(r=>r.media && r.calendar).map(r=>[r.category, r.calendar.icon]));
-      calendarSpanCategories = new Set(pick(r=>r.calendar && r.calendar.mode==='full' && !r.media));
-      horizontalRowCategories = new Set(pick(r=>r.timeline));
-    } else {
-      // 旧格式：「分栏分类」一张表同时充当三个角色，展开成新的几个集合，行为不变。
-      yearCategories = new Set(pointCategories);
-      calendarPointCategories = pointCategories;
-      ringExcludedCategories = new Set(calendarSpanCategories);
-    }
+    // 行的先后顺序就是Set的插入顺序，各视图的显示顺序直接沿用。
+    const pick = fn => displayRows.filter(fn).map(r=>r.category);
+    const pointCategories = new Set(pick(r=>r.year || r.calendar || r.timeline));
+    const yearCategories = new Set(pick(r=>r.year));
+    const calendarPointCategories = new Set(pick(r=>r.calendar));
+    const pinnedCategories = new Set(pick(r=>r.ring==='pinned'));
+    const ringExcludedCategories = new Set(pick(r=>!r.ring));
+    const mediaCategories = new Set(pick(r=>r.media));
+    const mediaCalendarCategories = new Map(displayRows.filter(r=>r.media && r.calendar).map(r=>[r.category, r.calendar.icon]));
+    const calendarSpanCategories = new Set(pick(r=>r.calendar && r.calendar.mode==='full' && !r.media));
+    const horizontalRowCategories = new Set(pick(r=>r.timeline));
 
     // "未标记"桶：daily note里没打已登记标签的行，用这个key单独归堆，
     // 跟正常分类分开存，不会混进ColumnBoard的Year列（那边只认
@@ -1587,7 +1524,7 @@ const Parser = {
       }
 
       // 媒体分类（读书/观影这类）走独立管线——不进分栏、不进SpanRail，只喂
-      // 媒体看板的卡片墙，以及日历（带【Calendar】的分类）和共时看板；
+      // 媒体看板的卡片墙，以及日历（calendar列有内容的媒体分类）和共时看板；
       // 重看/重读靠「## 时间线」里累加的日期表示（单天或"起~止"的一段），
       // 跟主date是两回事（主date只代表"第一次"这一次出场）。
       if(mediaCategories.has(fm.category)){
@@ -1956,8 +1893,8 @@ const DRILLDOWN_REFERENCE = {
              '台湾','香港','澳门'] },
   UK: { note:'占位示意，不是真实行政区划轮廓', regions:['伦敦','曼彻斯特','爱丁堡','伯明翰','利物浦','布里斯托','牛津','剑桥'] },
 };
-/* 之前是写死的SPAN_CATEGORY_CONFIG，现在改成从settings笔记的
-   「## 进度条固定栏位」小节读（Store.pinnedCategories），不用改代码就能加常驻分类。 */
+/* 之前是写死的SPAN_CATEGORY_CONFIG，现在改成从settings笔记「## 展示位」表里
+   圆环图列写"固定"的分类读（Store.pinnedCategories），不用改代码就能加常驻分类。 */
 
 let Store = {};      // 派生后的渲染用数据，见 deriveStore()
 let RawStore = {};    // Parser.buildStore 的原始输出
@@ -2019,6 +1956,8 @@ const State = {
   mediaFilter: 'all',
   mediaOriginFilter: 'all',
   mediaSortDesc: true,
+  mediaView: 'year',          // 'year'=按年份分组 / 'all'=去重合集（每个作品一张卡）
+  slotsCustomized: false,     // Year tab的分栏是不是用户自己摆过的（摆过的才会存进快照）
   timelineYear: NOW.getFullYear(),
 };
 function pad2(n){ return String(n).padStart(2,'0'); }
@@ -2082,6 +2021,98 @@ function pickEmptyLine(key){
   for(let i=0;i<key.length;i++) h = (h*31 + key.charCodeAt(i)) >>> 0;
   return EMPTY_LINES[h % EMPTY_LINES.length];
 }
+
+/* =========================================================
+   5.5 UiSnapshot —— 页面状态快照
+       关闭页面时把"页面当时是什么样子"存进localStorage，下次打开自动还原：停在
+       哪个tab、Year/Month、看的哪一年哪个月、Media的类型/地区筛选/排序/Year|All
+       视图、Year tab里自己摆的分栏、进度条圆环的折叠、月历里隐藏的标签、地图
+       钻取到了哪个国家、Timeline看的哪一年——不用每次都回到默认的All/第一个tab。
+       只存"界面状态"，不存任何笔记内容（笔记内容永远从vault现读）。
+       地图钻取是唯一不放在State里的界面状态（drilled存在MapView里，跟钻取面板的
+       DOM操作绑在一起，挪进State也解不开这个耦合），所以save()/applyMapDrill()
+       直接读写MapView。
+       两个时机要分清：
+       · restore()在页面刚加载、Store还只是demo数据的时候就跑，所以这里只校验
+         "类型对不对"，不拿Store去核对——不然真实vault的分类名会被demo数据误判成
+         无效、被清回默认。跟Store有关的核对（这个分类还在不在……）放到各模块用的
+         时候做，而且不改State，真实vault连上以后存的值又能生效（见
+         MediaBoard.render、ColumnBoard.visibleSlots、reconcileSlots）。
+       · save()在页面关闭/切走时跑（pagehide+visibilitychange），不是每次点击都写。
+   ========================================================= */
+const UiSnapshot = {
+  KEY: 'cairn_ui_v1',
+  pendingMapDrill: null,
+  save(){
+    try{
+      localStorage.setItem(this.KEY, JSON.stringify({
+        v: 1,
+        tab: State.tab, gran: State.gran, year: State.year, month: State.month,
+        railCollapsed: [...State.railCollapsed],
+        categorySlots: State.slotsCustomized ? State.categorySlots.slice() : null,
+        hiddenMonthTags: [...State.hiddenMonthTags],
+        mediaFilter: State.mediaFilter, mediaOriginFilter: State.mediaOriginFilter,
+        mediaSortDesc: State.mediaSortDesc, mediaView: State.mediaView,
+        timelineYear: State.timelineYear,
+        mapDrilled: MapView.drilled,
+      }));
+    }catch(e){ /* 存不了（隐私模式/存储满了）就算了，下次回到默认，不影响使用 */ }
+  },
+  // 只校验"类型对不对"（tab是不是那四个之一、年份是不是整数……），不拿Store去核对——
+  // 页面刚加载时Store还只是demo数据，拿它核对会把真实vault的分类名误判成无效。
+  restore(){
+    let snap = null;
+    try{ snap = JSON.parse(localStorage.getItem(this.KEY) || 'null'); }catch(e){ return; }
+    if(!snap || snap.v!==1) return;
+    const isInt = (n, lo, hi)=> Number.isInteger(n) && n>=lo && n<=hi;
+    const strs = a => Array.isArray(a) ? a.filter(x=>typeof x==='string').slice(0,500) : null;
+    if(['map','columns','media','timeline'].includes(snap.tab)) State.tab = snap.tab;
+    if(snap.gran==='year' || snap.gran==='month') State.gran = snap.gran;
+    if(isInt(snap.year, 1900, 2200)) State.year = snap.year;
+    if(isInt(snap.month, 1, 12)) State.month = snap.month;
+    const rail = strs(snap.railCollapsed);
+    if(rail) State.railCollapsed = new Set(rail.filter(x=>x==='pinned' || x==='other'));
+    const slots = strs(snap.categorySlots);
+    if(slots){ State.categorySlots = slots; State.slotsCustomized = true; }
+    const tags = strs(snap.hiddenMonthTags);
+    if(tags) State.hiddenMonthTags = new Set(tags);
+    if(typeof snap.mediaFilter==='string') State.mediaFilter = snap.mediaFilter;
+    if(typeof snap.mediaOriginFilter==='string') State.mediaOriginFilter = snap.mediaOriginFilter;
+    if(typeof snap.mediaSortDesc==='boolean') State.mediaSortDesc = snap.mediaSortDesc;
+    if(snap.mediaView==='year' || snap.mediaView==='all') State.mediaView = snap.mediaView;
+    if(isInt(snap.timelineYear, 1900, 2200)) State.timelineYear = snap.timelineYear;
+    this.pendingMapDrill = typeof snap.mapDrilled==='string' ? snap.mapDrilled : null;
+  },
+  // 真实vault连上（或重新连上）之后，Year tab的分栏怎么定：
+  //  · 用户摆过分栏（自己加减换过，或者上次关页面时存下来的）——尊重这份摆法，只把
+  //    已经不存在的分类去掉（settings里删了某个分类、demo换成真实vault）；一个都
+  //    对不上就退回默认（全部分类）；
+  //  · 没摆过——照旧：全部分类按settings里的顺序排。
+  reconcileSlots(){
+    if(!State.slotsCustomized){ State.categorySlots = Store.yearCategories.slice(); return; }
+    const valid = State.categorySlots.filter(c=>Store.yearCategories.includes(c));
+    if(valid.length===0 && State.categorySlots.length>0){
+      State.categorySlots = Store.yearCategories.slice();
+      State.slotsCustomized = false;
+      return;
+    }
+    State.categorySlots = valid;
+  },
+  // 地图钻取要等Store里有这个国家的数据才能还原，所以不在restore()里做：页面刚
+  // 加载时试一次（demo里恰好有这个国家就先钻进去），真实vault连上后再钻一次
+  // （consume=true，用完就清掉，不然以后手动"重新选择"文件夹又会把地图拉回去）。
+  applyMapDrill(consume){
+    const name = this.pendingMapDrill;
+    if(name && Store.drilldown[name]){
+      if(MapView.drilled===name) MapView.goBack();   // 先退出再钻一次，刷新钻取面板里的内容
+      MapView.onClickCountry(name);
+    }
+    if(consume) this.pendingMapDrill = null;
+  },
+};
+UiSnapshot.restore();
+window.addEventListener('pagehide', ()=>UiSnapshot.save());
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') UiSnapshot.save(); });
 
 /* =========================================================
    6. MapView
@@ -2315,7 +2346,7 @@ const SpanRail = {
     // 动态其他分类：另一张卡片——只剩"既不是固定栏位、也不是表里明确没开圆环图"
     // 的剩余分类才会出现在这里（展示位表里圆环图留空的分类，比如已经在日历里
     // 用色块显示的旅行，不用再在这张卡片里重复一遍；表里根本没写的分类照旧
-    // 会出现在这里，不丢东西；旧格式下"不出现"的是日历跨度分类）。
+    // 会出现在这里，不丢东西）。
     const otherCats = [...new Set(Store.spanEvents.map(e=>e.category))]
       .filter(c=>!pinnedCats.includes(c) && !(Store.ringExcludedCategories||[]).includes(c));
     const dynTiles = otherCats.map(cat=>{
@@ -2612,7 +2643,7 @@ const CalendarView = {
     return Object.keys(out).length ? out : null;
   },
   // 当前月实际出现过哪些标签（含"未标记"桶）——不看开关状态，只看数据本身，
-  // 当前月实际出现过哪些标签（含"未标记"桶、含【Calendar】媒体分类）——
+  // 当前月实际出现过哪些标签（含"未标记"桶、含在日历里显示的媒体分类）——
   // 不看开关状态，只看数据本身，所以翻月会跟着变，这个月没出现的标签不会
   // 占面板位置。"未标记"桶内部得拆开逐条看：打了标签只是没注册的
   // （entry.rawTag有值）各自算一个独立的虚拟key（"rawtag:xxx"前缀，跟
@@ -2663,7 +2694,7 @@ const CalendarView = {
       const displayName = rawTagMatch ? rawTagMatch[1] : key;
       const label = isUntagged ? '未标记' : displayName;
       const active = !State.hiddenMonthTags.has(key);
-      // 【Calendar】媒体分类如果配了emoji（比如Movie🎬），chip上也显示这个
+      // 媒体分类如果在calendar列里写了emoji（比如Movie🎬），chip上也显示这个
       // emoji代替色点，跟格子里的呈现方式对上，不是换了个地方又变回色点。
       const mediaIcon = (Store.mediaCalendarCategories && Store.mediaCalendarCategories.get(displayName)) || null;
       const marker = isUntagged
@@ -2683,7 +2714,7 @@ const CalendarView = {
       });
     });
   },
-  // 跨度事件（旅游/出差这类，登记在「日历跨度分类」里）落在某一天时的cover信息——
+  // 跨度事件（旅游/出差这类，calendar列打✓的分类）落在某一天时的cover信息——
   // 同一天撞上好几个的话，色块颜色取第一个，其余算进"+N"角标；名字（文件名）
   // 不在格子里写，全部列在色块的悬浮框里（showCoverTip），不丢信息。
   coverEventsForDate(jsDate){
@@ -2696,7 +2727,7 @@ const CalendarView = {
       return jsDate>=s && jsDate<=e;
     });
   },
-  // 媒体（观影这类，媒体分类里带"【Calendar】"标记的那些）落在某一天时要额外
+  // 媒体（观影这类，calendar列有内容的媒体分类）落在某一天时要额外
   // 显示的纯文字行——必须精确到"天"（起止都是day精度）才能定位到具体格子，
   // 只精确到月/年的媒体记录日历管不着，还是只在卡片墙露出；「## 时间线」
   // 里的每一行重看各自算，跟主date的起止跨度分开判断，互不影响：单天只落在
@@ -2728,7 +2759,7 @@ const CalendarView = {
     });
     return lines;
   },
-  // 跨度笔记（旅游/出差这类，settings里的「日历跨度分类」）在月历里只做记号：
+  // 跨度笔记（旅游/出差这类，展示位表里calendar列打✓的分类）在月历里只做记号：
   // 跨度内每一天的日期数字底下垫一块分类色，格子里不写笔记名字——一趟旅行占
   // 好几天，每天都写一遍很碍眼，而且「## 时间线」里那天的细节本来就会作为点条目
   // 显示，再拼一份"名字·细节"就成了重复。想知道这块色是哪趟，把鼠标停在色块上，
@@ -2897,6 +2928,13 @@ window.addEventListener('scroll', ()=>CalendarView.hideCoverTip(), true);
    ========================================================= */
 const ColumnBoard = {
   currentData(){ return Store.entriesByYear[State.year]; },
+  // 当前要显示的分栏：State.categorySlots里还存在的分类。刚打开页面时Store还是demo
+  // 数据，上次存的分栏（真实vault的分类）一个都对不上，就先按默认（全部分类）显示，
+  // 不动State里存的那份——等真实vault连上了，UiSnapshot.reconcileSlots再按它来。
+  visibleSlots(){
+    const valid = State.categorySlots.filter(c=>Store.yearCategories.includes(c));
+    return (valid.length===0 && State.categorySlots.length>0) ? Store.yearCategories.slice() : valid;
+  },
   render(){
     document.getElementById('colBoardTitle').textContent = String(State.year);
     document.getElementById('colBoardSub').textContent = '按年';
@@ -2916,7 +2954,8 @@ const ColumnBoard = {
       if(e.month) return `${pad2(e.month)}月`;
       return '';
     };
-    const cardsHtml = State.categorySlots.map(cat=>{
+    const slots = this.visibleSlots();
+    const cardsHtml = slots.map(cat=>{
       const color = Parser.colorForCategory(cat);
       const items = (data && data[cat]) ? data[cat] : [];
       const itemsHtml = items.map(e=>{
@@ -2933,7 +2972,7 @@ const ColumnBoard = {
       </div>`;
     }).join('');
 
-    const remaining = Store.yearCategories.filter(c=>!State.categorySlots.includes(c));
+    const remaining = Store.yearCategories.filter(c=>!slots.includes(c));
     const addCardHtml = `<div class="col-card add-card">
       <div class="add-card-label">${remaining.length ? '添加分类' : '分类都加上了'}</div>
       ${remaining.map(c=>`<div class="add-chip" data-add="${Utils.escapeHtml(c)}">${Utils.escapeHtml(c)}</div>`).join('')}
@@ -2946,6 +2985,8 @@ const ColumnBoard = {
     grid.querySelectorAll('[data-add]').forEach(el=>{
       el.addEventListener('click', ()=>{
         const c = el.dataset.add;
+        State.categorySlots = ColumnBoard.visibleSlots();
+        State.slotsCustomized = true;
         if(!State.categorySlots.includes(c)) State.categorySlots.push(c);
         ColumnBoard.render();
       });
@@ -2974,7 +3015,7 @@ const SlotMenu = {
   },
   renderSwapList(){
     const menu = document.getElementById('slotMenu');
-    const remaining = Store.yearCategories.filter(c=>!State.categorySlots.includes(c));
+    const remaining = Store.yearCategories.filter(c=>!ColumnBoard.visibleSlots().includes(c));
     if(remaining.length===0){
       menu.innerHTML = `<div class="slot-menu-item" style="color:var(--muted); cursor:default;">分类都在栏位上了</div>`;
       return;
@@ -2988,6 +3029,10 @@ const SlotMenu = {
     const menu = document.getElementById('slotMenu');
     const cat = menu.dataset.cat;
     if(item.dataset.action==='open-swap'){ this.renderSwapList(); return; }
+    if(item.dataset.action==='delete' || item.dataset.action==='swap-to'){
+      State.categorySlots = ColumnBoard.visibleSlots();
+      State.slotsCustomized = true;
+    }
     if(item.dataset.action==='delete'){
       const idx = State.categorySlots.indexOf(cat);
       if(idx>-1) State.categorySlots.splice(idx,1);
@@ -3010,6 +3055,10 @@ document.addEventListener('click', e=>{
 /* =========================================================
    10.5 MediaBoard —— 读书/观影这类"媒体分类"的卡片墙，
         独立于分栏看板/SpanRail，只读Store.mediaItems。
+        两种视图（State.mediaView，右上角Year|All切换）：
+        · Year：按年份分组，一个作品在每个出现过的年份各出一张卡，只显示那一年的出场；
+        · All：去重合集，每个作品一张卡，按第一次出场的日期排，一次出场都没有的放最后。
+        类型/地区筛选和排序两个视图共用。
    ========================================================= */
 const MediaBoard = {
   // 去掉书名号/引号这类装饰符号，取标题第一个字当封面兜底的"缩略字"。
@@ -3095,16 +3144,19 @@ const MediaBoard = {
   },
   // view = {item, occs}：同一个作品在某一年里的所有出场合成一张卡（同年多次
   // 出场是一张卡里的多行，不出多张卡）；groupYear是这张卡所在的年份组。
-  cardHtml(view, groupYear){
+  // allMode：去重合集里的卡片，日期区不逐条列出每次出场，见allDatesHtml。
+  cardHtml(view, groupYear, allMode){
     const item = view.item;
     const color = Parser.colorForCategory(item.category);
     const cover = item.coverUrl
       ? `<img class="media-cover" src="${Utils.escapeHtml(item.coverUrl)}" alt="" loading="lazy"
           onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'media-cover-fallback',style:'background:${color}',textContent:'${Utils.escapeHtml(this.initialChar(item.title))}'}))">`
       : `<div class="media-cover-fallback" style="background:${color}">${Utils.escapeHtml(this.initialChar(item.title))}</div>`;
-    const datesInner = view.occs.length
-      ? view.occs.map(o=>this.occHtml(o, groupYear)).join('')
-      : `<div class="media-card-date">未注明日期</div>`;
+    const datesInner = allMode
+      ? this.allDatesHtml(item)
+      : (view.occs.length
+        ? view.occs.map(o=>this.occHtml(o, groupYear)).join('')
+        : `<div class="media-card-date">未注明日期</div>`);
     return `<div class="media-card">
       ${cover}
       <div class="media-card-body">
@@ -3114,6 +3166,37 @@ const MediaBoard = {
         ${this.tagsHtml(item.tags)}
       </div>
     </div>`;
+  },
+  // 一个作品的所有出场按"第几次"排好：主date是第一次（永远排最前），后面是时间线里
+  // 各行按日期先后；没写主date的作品，就是时间线里最早的那一次当第一次。
+  orderedOccurrences(item){
+    const occs = this.occurrencesOf(item);
+    const key = o => o.start ? dateObjToJSDate(o.start,false).getTime() : Infinity;
+    if(item.start || item.displayYear){
+      const [main, ...rest] = occs;
+      return [main, ...rest.sort((a,b)=>key(a)-key(b))];
+    }
+    return occs.sort((a,b)=>key(a)-key(b));
+  },
+  // 去重合集（All）里卡片的日期区：第一次的日期（跟年份视图同一套写法，但没有年份
+  // 组可以省略，一律带完整年份）；之后每次出场合成一行"又看 N 次：年份…"，一部看了
+  // 六遍的作品也只占两行，网格不会参差不齐；每一次的完整日期和说明放在这一行的
+  // 悬浮title里。逐年的详细日期去Year视图看。
+  allDatesHtml(item){
+    const occs = this.orderedOccurrences(item);
+    if(occs.length===0) return `<div class="media-card-date">未注明日期</div>`;
+    const [first, ...rest] = occs;
+    let html = this.occHtml(first, null);
+    if(rest.length>0){
+      const years = [...new Set(rest.map(o=>o.start ? o.start.year : o.year))].sort((a,b)=>a-b);
+      const tip = occs.map(o=>{
+        const d = this.occDateText(o, null);
+        const t = (o.text||'').replace(/^[，,、:：\s]+/, '');
+        return t ? `${d}  ${t}` : d;
+      }).join('\n');
+      html += `<div class="media-card-date" title="${Utils.escapeHtml(tip)}"><span class="media-card-date-text">又看 ${rest.length} 次：${years.join(' · ')}</span></div>`;
+    }
+    return html;
   },
   // 按年份分组——一个作品在每个出现过的年份各出一张卡，每张卡只显示那一年
   // 的出场（见occurrencesOf）。一次出场都没有（没写date、时间线也没有）的
@@ -3143,26 +3226,34 @@ const MediaBoard = {
   },
   render(){
     const items = Store.mediaItems || [];
-    const chipsEl = document.getElementById('mediaChips');
     const cats = Store.mediaCategories || [];
-    chipsEl.innerHTML = ['<div class="media-chip ' + (State.mediaFilter==='all'?'active':'') + '" data-filter="all">全部</div>']
-      .concat(cats.map(c=>`<div class="media-chip ${State.mediaFilter===c?'active':''}" data-filter="${Utils.escapeHtml(c)}">${Utils.escapeHtml(c)}</div>`))
+    // 地区chip是动态生成的——只列出实际出现过的origin值，一条都没有就把
+    // 这整行藏起来（不显示一个只有"All"、点了也没意义的空筛选行）。
+    const origins = [...new Set(items.map(it=>it.origin).filter(Boolean))].sort();
+    // State里的筛选值可能是上次快照存下来的，指向当前Store里没有的分类/地区（刚打开
+    // 页面还是demo数据、或者settings里删掉了）——这次渲染当成All，但不改State，
+    // 真实vault连上以后存的值又能生效（见UiSnapshot）。
+    const filterCat = (State.mediaFilter==='all' || cats.includes(State.mediaFilter)) ? State.mediaFilter : 'all';
+    const filterOrigin = (State.mediaOriginFilter==='all' || origins.includes(State.mediaOriginFilter)) ? State.mediaOriginFilter : 'all';
+    const view = State.mediaView==='all' ? 'all' : 'year';
+    document.querySelectorAll('#mediaViewSwitch .gran-tab').forEach(t=>t.classList.toggle('active', t.dataset.view===view));
+
+    const chipsEl = document.getElementById('mediaChips');
+    chipsEl.innerHTML = ['<div class="media-chip ' + (filterCat==='all'?'active':'') + '" data-filter="all">All</div>']
+      .concat(cats.map(c=>`<div class="media-chip ${filterCat===c?'active':''}" data-filter="${Utils.escapeHtml(c)}">${Utils.escapeHtml(c)}</div>`))
       .join('');
     chipsEl.querySelectorAll('[data-filter]').forEach(el=>{
       el.addEventListener('click', ()=>{ State.mediaFilter = el.dataset.filter; this.render(); });
     });
 
-    // 地区chip是动态生成的——只列出实际出现过的origin值，一条都没有就把
-    // 这整行藏起来（不显示一个只有"全部"、点了也没意义的空筛选行）。
-    const origins = [...new Set(items.map(it=>it.origin).filter(Boolean))].sort();
     const originRow = document.getElementById('mediaOriginRow');
     if(origins.length===0){
       originRow.style.display = 'none';
     } else {
       originRow.style.display = 'flex';
       const originChipsEl = document.getElementById('mediaOriginChips');
-      originChipsEl.innerHTML = ['<div class="media-chip ' + (State.mediaOriginFilter==='all'?'active':'') + '" data-origin-filter="all">全部</div>']
-        .concat(origins.map(o=>`<div class="media-chip ${State.mediaOriginFilter===o?'active':''}" data-origin-filter="${Utils.escapeHtml(o)}">${Utils.escapeHtml(o)}</div>`))
+      originChipsEl.innerHTML = ['<div class="media-chip ' + (filterOrigin==='all'?'active':'') + '" data-origin-filter="all">All</div>']
+        .concat(origins.map(o=>`<div class="media-chip ${filterOrigin===o?'active':''}" data-origin-filter="${Utils.escapeHtml(o)}">${Utils.escapeHtml(o)}</div>`))
         .join('');
       originChipsEl.querySelectorAll('[data-origin-filter]').forEach(el=>{
         el.addEventListener('click', ()=>{ State.mediaOriginFilter = el.dataset.originFilter; this.render(); });
@@ -3175,19 +3266,41 @@ const MediaBoard = {
 
     // 类型（category）和地区（origin）是两个各自独立的筛选维度，同时生效时
     // 取交集——比如"电影"+"日本"就是"日本电影"，而不是两者的并集。
-    let filtered = State.mediaFilter==='all' ? items : items.filter(it=>it.category===State.mediaFilter);
-    if(State.mediaOriginFilter!=='all') filtered = filtered.filter(it=>it.origin===State.mediaOriginFilter);
+    let filtered = filterCat==='all' ? items : items.filter(it=>it.category===filterCat);
+    if(filterOrigin!=='all') filtered = filtered.filter(it=>it.origin===filterOrigin);
     const emptyLine = document.getElementById('mediaEmptyLine');
     const wrap = document.getElementById('mediaYearGroups');
     if(filtered.length===0){
       emptyLine.style.display = 'block';
       emptyLine.textContent = cats.length===0
-        ? '还没有登记任何「媒体分类」，去 settings 笔记加一个吧。'
-        : pickEmptyLine('media-' + State.mediaFilter + '-' + State.mediaOriginFilter);
+        ? '还没有登记任何媒体分类，去 settings 笔记的「展示位」表里，给分类的 Media 列打勾吧。'
+        : pickEmptyLine('media-' + filterCat + '-' + filterOrigin);
       wrap.innerHTML = '';
       return;
     }
     emptyLine.style.display = 'none';
+
+    // All：去重合集——每个作品一张卡、不分年份组。按"第一次出场的日期"排，降序/升序
+    // 沿用排序按钮；没有任何日期的放最后（这是平铺的一整页，不像年份视图里"未注明
+    // 年份"是固定排最前的一个分组）。标题栏的数量是不重复的作品数，跟Year视图里
+    // 各年份的"N条"（那一年的出场数）含义不同。
+    if(view==='all'){
+      const firstKey = it=>{
+        const o = this.orderedOccurrences(it)[0];
+        return (o && o.start) ? dateObjToJSDate(o.start,false).getTime() : null;
+      };
+      const byTitle = (a,b)=> a.it.title.localeCompare(b.it.title);
+      const rows = filtered.map(it=>({it, k:firstKey(it)}));
+      const dated = rows.filter(r=>r.k!==null)
+        .sort((a,b)=> (State.mediaSortDesc ? b.k-a.k : a.k-b.k) || byTitle(a,b));
+      const undated = rows.filter(r=>r.k===null).sort(byTitle);
+      const ordered = dated.concat(undated).map(r=>r.it);
+      wrap.innerHTML = `<div class="media-year-group">
+        <div class="media-year-head display">All <span class="media-year-count">共 ${ordered.length} 个作品</span></div>
+        <div class="media-grid">${ordered.map(it=>this.cardHtml({item:it, occs:this.occurrencesOf(it)}, null, true)).join('')}</div>
+      </div>`;
+      return;
+    }
 
     const groups = this.groupByYear(filtered);
     let years = Object.keys(groups);
@@ -3206,9 +3319,15 @@ const MediaBoard = {
     }).join('');
   }
 };
+// Year|All视图切换——事件委托绑在切换条上一次，render()重画chip/卡片不用重新绑。
+document.getElementById('mediaViewSwitch').addEventListener('click', e=>{
+  const tab = e.target.closest('.gran-tab'); if(!tab) return;
+  State.mediaView = tab.dataset.view;
+  MediaBoard.render();
+});
 
 /* =========================================================
-   10.6 HorizontalTimeline —— "横向条目栏位"里登记的分类，
+   10.6 HorizontalTimeline —— 展示位表里Timeline列打勾的分类，
         一行一个分类摊在同一条年度时间轴上，横向对比不同类别的分布。
    ========================================================= */
 const HorizontalTimeline = {
@@ -3308,7 +3427,11 @@ const HorizontalTimeline = {
     const color = Parser.colorForCategory(cat);
     const raw = this.rowItemsForCategory(cat, year);
     const label = `<div class="tl-row-label" title="${Utils.escapeHtml(cat)}"><span class="tl-row-dot" style="background:${color}"></span>${Utils.escapeHtml(cat)}</div>`;
-    const PAD = 4, BAR_H = 22, GAP = 10, DOT_W = 5;
+    // GAP是同一个分类里多条色条上下叠放时，相邻两条之间的间距，取不同分类之间
+    // 视觉间距的一半——不同分类之间是上一行的PAD(4)+行间距(.tl-row的margin-bottom
+    // 2px)+下一行的PAD(4)=10px，同分类内部靠得近一些（5px），一眼能看出"这几条是
+    // 同一类的"。改这个数不会影响分类之间的间距（那边是PAD和CSS决定的）。
+    const PAD = 4, BAR_H = 22, GAP = 5, DOT_W = 5;
     // 轨道底色条固定跟色条一样高（BAR_H），不管这一年有没有记录都画在
     // PAD偏移的位置——"没有记录"时它就是唯一内容，"有记录"时它垫在
     // 第一条真实色条下面，两者高度、位置完全对齐，视觉上是同一根轨道。
@@ -3357,18 +3480,19 @@ const HorizontalTimeline = {
       }
       if(isSameDay){
         const dotLeft = ((leftR+rightR)/2)*100;
-        // 单天记录的竖条之前是纯色（100%不透明），比多天色条（22约13%不透明度）
-        // 深了一大截，两种在同一行并排出现时观感不统一。改成"CC"（约80%），
-        // 比色条深得多（毕竟只有5px宽，太淡了在轨道上会找不到），但不是
-        // 死黑一样刺眼的纯色块。
+        // 单天记录的竖条用"CC"（约80%不透明度）——只有5px宽，太淡了在轨道上会
+        // 找不到，但也不用实心那样刺眼。比多天色条（"59"约35%）深不少，同一行
+        // 并排出现时竖条比色条更醒目一些。
         inner += `<div class="tl-dot" style="left:${dotLeft}%;top:${bandTop}px;width:${DOT_W}px;height:${BAR_H}px;margin-left:${-DOT_W/2}px;background:${color}CC" title="${tip}"></div>`;
       } else {
         const left = leftR*100;
         const width = Math.max((rightR-leftR)*100, 0.4);
-        // 底色透明度用"22"（约13%），跟SpanRail圆环轨道底色（同样是"类目色+22"）
-        // 对齐——之前这里单独写的是"2E"（约18%），是同一种"类目色浅底"用法
-        // 却各写各的数值，现在统一到一个值上。
-        inner += `<div class="tl-bar" style="left:${left}%;width:${width}%;top:${bandTop}px;height:${BAR_H}px;background:${color}22" title="${tip}"><span class="tl-bar-label">${Utils.escapeHtml(it.title)}</span></div>`;
+        // 有数据的色条用类目色"59"（约35%）做中等色调底，空轨道底色是上面
+        // trackBase那层"10"（约6%）的浅底，两者差距够大，一眼分得清"有记录/
+        // 没记录"。之前用"22"（约13%）跟空轨道几乎分不出来（亮度对比只有1.09），
+        // 深色标题字压在上面反而显得飘；提到35%以后色条本身立得住了，深色字
+        // 对比度还有9:1以上。
+        inner += `<div class="tl-bar" style="left:${left}%;width:${width}%;top:${bandTop}px;height:${BAR_H}px;background:${color}59" title="${tip}"><span class="tl-bar-label">${Utils.escapeHtml(it.title)}</span></div>`;
       }
     });
     const trackHeight = PAD*2 + rowCount*BAR_H + Math.max(rowCount-1,0)*GAP;
@@ -3383,7 +3507,7 @@ const HorizontalTimeline = {
     document.getElementById('tlAxis').innerHTML = Array.from({length:12}, (_,i)=>`<div class="tl-axis-tick">${i+1}月</div>`).join('');
     const wrap = document.getElementById('tlRows');
     if(cats.length===0){
-      wrap.innerHTML = `<div class="media-empty-line">还没有登记任何「横向条目栏位」，去 settings 笔记加一个吧。</div>`;
+      wrap.innerHTML = `<div class="media-empty-line">还没有分类开了 Timeline，去 settings 笔记的「展示位」表里给分类的 Timeline 列打勾吧。</div>`;
       return;
     }
     wrap.innerHTML = cats.map(c=>this.rowHtml(c, year)).join('');
@@ -3408,6 +3532,10 @@ function renderWarnings(){
    12. 年份滑块 + 主渲染
    ========================================================= */
 function renderAll(){
+  // tab按钮和Year/Month切换的高亮以前只在点击时更新，页面一打开永远是HTML里写死的
+  // 那个；现在State可能是上次快照还原出来的，每次渲染都按State同步一遍。
+  [...document.querySelectorAll('.tabs-main .tab')].forEach(t=>t.classList.toggle('active', t.dataset.tab===State.tab));
+  [...document.querySelectorAll('#granSwitch .gran-tab')].forEach(t=>t.classList.toggle('active', t.dataset.gran===State.gran));
   document.getElementById('panel-map').classList.toggle('active', State.tab==='map');
   document.getElementById('panel-columns').classList.toggle('active', State.tab==='columns');
   document.getElementById('panel-media').classList.toggle('active', State.tab==='media');
@@ -3511,7 +3639,11 @@ async function connectVault(dirHandle){
   try{
     const files = await Parser.scanVaultFiles(dirHandle);
     deriveStore(Parser.buildStore(files));
-    State.categorySlots = Store.yearCategories.slice();
+    // 顺序有讲究：先按新Store把存下来的分栏对一遍，再钻地图（consume=true，用完
+    // 清掉，以后手动"重新选择"文件夹不会再把地图拉回去）；两步都要在renderAll之前
+    // 做完，这次渲染出来的就已经是还原后的样子。
+    UiSnapshot.reconcileSlots();
+    UiSnapshot.applyMapDrill(true);
     setConnected(true);
     renderAll();
   } catch(e){
@@ -3568,6 +3700,9 @@ if(!('showDirectoryPicker' in window)){
   })();
 }
 
+// 页面刚加载：Store还是demo数据，先试一次还原地图钻取（demo里恰好有这个国家才会
+// 成功）；这次不消耗，真实vault连上后connectVault里还会再钻一次（那次才消耗）。
+UiSnapshot.applyMapDrill(false);
 renderAll();
 </script>
 </body>
