@@ -255,13 +255,15 @@ body {
   }
 }
 
-/* 练习/编辑 模式标签 —— 手机端没有编辑模式，整排直接不出现 */
+/* 练习/编辑 模式标签：桌面手机都显示，手机端之前被一条 display:none 整排藏掉过，
+   现在打开手机端编辑入口，同时给标签按钮本身补上手机端最小点击区域 */
 .mode-tabs {
   display: flex;
   gap: 4px;
   background: var(--bg2);
   border-radius: 8px;
   padding: 3px;
+  flex-shrink: 0;
 }
 .tab {
   padding: 5px 14px;
@@ -276,7 +278,7 @@ body {
 }
 .tab.active { background: var(--surface); color: var(--text); font-weight: 500; box-shadow: var(--shadow-sm); }
 @media (max-width: 768px) {
-  .mode-tabs { display: none; }
+  .tab { padding: 8px 12px; font-size: 13px; min-height: var(--tap-min); }
 }
 
 /* 顶栏右侧这组：搜索框 + 返回主页/设置图标按钮，桌面手机共用同一个容器，
@@ -707,19 +709,31 @@ body {
   font-family: 'Inter', sans-serif;
   font-size: 11px; color: var(--text3); letter-spacing: 0.1em;
 }
-.round-actions { display: flex; align-items: center; gap: var(--sp-3); }
-.btn-sort-round {
-  background: none; border: none; cursor: pointer;
-  font-size: 12px; color: var(--text2); transition: color 0.15s;
-  font-family: 'Noto Sans SC', sans-serif;
+/* 轮次操作按钮（上移/下移/删除）：统一小圆形图标按钮外观，SVG图标替换原来裸文字/符号写法；
+   删除单独标红做区分；到头的上/下移按钮显示为禁用态而不是直接不渲染，避免布局跟着轮次位置跳动 */
+.round-actions { display: flex; align-items: center; gap: 6px; }
+.round-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text2);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
-.btn-sort-round:hover { color: var(--accent); }
-.btn-del-round {
-  background: none; border: none; cursor: pointer;
-  font-size: 12px; color: var(--text3); transition: color 0.15s;
-  font-family: 'Noto Sans SC', sans-serif;
+.round-icon-btn svg { width: 13px; height: 13px; }
+.round-icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+.round-icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.round-icon-btn:disabled:hover { border-color: var(--border); color: var(--text2); }
+.round-icon-btn.danger:hover { border-color: var(--red); color: var(--red); background: rgba(192, 57, 43, 0.08); }
+@media (max-width: 768px) {
+  /* 圆形图标按钮不能只吃通用的 min-height 规则（会被拉成竖椭圆），
+     宽高一起显式设成 tap-min，保持正圆 */
+  .round-icon-btn { width: var(--tap-min); height: var(--tap-min); min-width: var(--tap-min); }
+  .round-icon-btn svg { width: 16px; height: 16px; }
 }
-.btn-del-round:hover { color: var(--red); }
 /* 三列等宽，gap 是列间距 */
 .round-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin-bottom: 10px; }
 .round-col-label {
@@ -2036,9 +2050,9 @@ const App = {
             <span class="round-edit-num">ROUND ${String(i+1).padStart(2,'0')}</span>
             <input class="mini-input round-title-input" data-index="${i}" placeholder="轮次标题（选填）" value="${App.utils.esc(r.title||'')}" style="flex:1;margin:0 10px;font-size:12px;">
             <div class="round-actions">
-              ${showUp ? `<button class="btn-sort-round btn-round-up" data-index="${i}" title="上移">▲</button>` : ''}
-              ${showDown ? `<button class="btn-sort-round btn-round-down" data-index="${i}" title="下移">▼</button>` : ''}
-              <button class="btn-del-round btn-round-del" data-index="${i}" title="删除此轮">×</button>
+              <button class="round-icon-btn btn-round-up" data-index="${i}" title="上移"${showUp ? '' : ' disabled'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></button>
+              <button class="round-icon-btn btn-round-down" data-index="${i}" title="下移"${showDown ? '' : ' disabled'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+              <button class="round-icon-btn danger btn-round-del" data-index="${i}" title="删除此轮"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
           </div>
           <div class="round-grid">
@@ -2366,16 +2380,17 @@ const App = {
         }
         return;
       }
-      // 删除对话流
-      if (e.target.classList.contains('btn-round-del')) {
-        const idx = parseInt(e.target.dataset.index);
+      // 删除对话流（二次确认，避免误触删除；跟删除场景用的是同一套 confirm() 弹窗）
+      if (e.target.closest('.btn-round-del')) {
+        const idx = parseInt(e.target.closest('.btn-round-del').dataset.index);
         const s = App.scene.currentScene();
         if(s.rounds.length === 1) { alert('至少保留一轮对话'); return; }
+        if (!confirm('确定删除这一轮对话吗？')) return;
         s.rounds.splice(idx, 1); App.storage.autoSaveNow(); App.render.renderMain(); return;
       }
       // 上移轮次
-      if (e.target.classList.contains('btn-round-up')) {
-        const idx = parseInt(e.target.dataset.index);
+      if (e.target.closest('.btn-round-up')) {
+        const idx = parseInt(e.target.closest('.btn-round-up').dataset.index);
         const s = App.scene.currentScene();
         if(idx > 0) {
           [s.rounds[idx], s.rounds[idx-1]] = [s.rounds[idx-1], s.rounds[idx]];
@@ -2384,8 +2399,8 @@ const App = {
         return;
       }
       // 下移轮次
-      if (e.target.classList.contains('btn-round-down')) {
-        const idx = parseInt(e.target.dataset.index);
+      if (e.target.closest('.btn-round-down')) {
+        const idx = parseInt(e.target.closest('.btn-round-down').dataset.index);
         const s = App.scene.currentScene();
         if(idx < s.rounds.length - 1) {
           [s.rounds[idx], s.rounds[idx+1]] = [s.rounds[idx+1], s.rounds[idx]];
