@@ -255,30 +255,9 @@ body {
   }
 }
 
-/* 手机端专属工具条：练习/编辑 + 全部展开 共享一行，紧贴在顶栏下面。
-   桌面端不出现——桌面的 mode-tabs 还在顶栏里，全部展开也还在练习内容自己的位置里，
-   两边各自独立，互不影响 */
-.mobile-toolbar { display: none; }
-@media (max-width: 768px) {
-  .mobile-toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--sp-2) var(--sp-4);
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
-    position: sticky;
-    top: 60px; /* 紧贴手机端顶栏（60px 高）下面 */
-    z-index: 13;
-  }
-  /* 练习内容里原来那份"全部展开"手机端不再用，改用上面工具条里的那份，
-     避免同时出现两个 */
-  .practice-toolbar { display: none; }
-}
-
-/* 练习/编辑 模式标签：这套样式桌面手机共用（顶栏里的桌面版、mobile-toolbar 里的
-   手机版都是同一个 .mode-tabs/.tab），下面单独把顶栏里那份在手机端藏起来，
-   手机端只用 mobile-toolbar 里那份，避免同时出现两份 */
+/* 练习/编辑 模式标签：现在是 .topbar-controls 的子元素，天然排在搜索框和
+   "返回主页"图标之间——这正是手机端想要的位置，不用额外写规则。
+   桌面端用 order:-1 把它挪回最前面（搜索框之前），跟以前的视觉位置保持一致 */
 .mode-tabs {
   display: flex;
   gap: 4px;
@@ -301,15 +280,21 @@ body {
 .tab.active { background: var(--surface); color: var(--text); font-weight: 500; box-shadow: var(--shadow-sm); }
 @media (max-width: 768px) {
   .tab { padding: 8px 12px; font-size: 13px; min-height: var(--tap-min); }
-  .topbar .mode-tabs { display: none; }
+}
+@media (min-width: 769px) {
+  .topbar-controls .mode-tabs { order: -1; }
 }
 
 /* 顶栏右侧这组：搜索框 + 返回主页/设置图标按钮，桌面手机共用同一个容器，
-   手机端让它单独占一整行、内部横排 */
+   手机端让它单独占一整行、内部横排。mode-tabs 现在也在这个容器里，
+   margin-left:auto 保证不管容器里还剩几个可见的兄弟元素，桌面端整组始终贴右 */
 .topbar-controls {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
+}
+@media (min-width: 769px) {
+  .topbar-controls { margin-left: auto; }
 }
 @media (max-width: 768px) {
   .topbar-controls {
@@ -1229,31 +1214,20 @@ body {
   <div class="main">
     <div class="topbar">
       <select class="mobile-scene-select" id="mobileSceneSelect" data-dynamic=""></select>
-      <div class="mode-tabs">
-        <button class="tab active" data-tab="practice">练习</button>  <!-- ← 顶栏「练习」标签文字 -->
-        <button class="tab" data-tab="edit">编辑</button>  <!-- ← 顶栏「编辑」标签文字 -->
-      </div>
       <div class="topbar-controls">
         <img class="header-logo" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADRklEQVR4nO2XMW8cVRDHf/P27e2dz2fZZw4TI6IQEgnkxBTEUlBAQgiECyQaOsRX4NtQ5QtQUNCDiEQBCCp3UQIpCELYWAZbOta7b98bij3f+bIb+/YaU2TK3bczvzfzn9n35OjvXeUCzVxk8GcA/wsA++QDVUVEkDmczaPmJwCUOLK44HFzuLMIpiHIGCCo0k06fP/rDo/TI97fvMPRv0OMmS0XgmBFWFLTqK5jANWAtS2+e7hDq9ejEyf4JBDNACAIuXfkvsChtJGZs1ApAQILccKf/+xz996XxFFFJlNmREhdxjuvbfHG1RuELAeZXUEV74LgfMHq4jKf3PmQyJyfUFXotFrkhaPbIHgtgKKIGFKXcf+PR1gT1Xw2CSIChfdcGbzI+srzKH7qfWOA0qlQ+IK9wwNsVAUIGlAtgwtCVjgGS31EDKhvEr8KYDD44FnuLvHRrXeJ5FQJBDRAp5VgjEFHUjMipHnGcZGTSLPZVgHIvWPRROwd7vP511+MRKiAoKrELcPHW9sMuqsUoUBGijciiBhUBa3pApH6vrCTBYKGwMall9ktUvq9FT7b/nQ8BzRA0o64v3OA2V2mtd5D8qKi+AzIawIZo3QXjisgYwAjhuHxkO2N2xzmKSFNWcSMx1pQZcEYvvnqNz54r8vllyK8BGQG1auCc5DnlnY7R3XyzVQJTtj6SZeggbLoJ++EdgEUio0F5zzDoTt3UqoqcRxhbYTWqLO2CwoNlaUKqJRtGseWXx4ecO/bR7Q7Fn3K2BOB7Nhzc3ON229eRmsW1rfhGTsSEbKs4ObmGhs3BuesLiGc86Spp9OZMQNnmarSakU8eLDPjz88pt22Uzs7rQkRyHPP9eurbL6+PnsGzjIRwfvApbUet7bWiaJTfa+QZcVYSwJ4r/T7Hbyv/7E1BpiAlDBGRj2vSmQNV64OiKKJeBEoioDLtbZajQBk5EyM8NfekJ9/+p0kKUV4UprllXb5LEwCluereq3MDFAe1eCtt19Ag3Lt1ed45Vp/yrEqpKkra31KC4ogosS2qG6q6cXEWiHLhBCkVlRPmwvGBKJIKy3bWAPOKdYqTY+gqlI7L+boAkaO5jk3V+3C7wXPAC4c4D9a/U0rnFlEbgAAAABJRU5ErkJggg==">  <!-- ← 跟主页同一个App图标，手机端专属 -->
         <div class="search-box topbar-search-input">
           <span class="search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
           <input id="topbarSearch" type="text" placeholder="Search" autocomplete="off">
         </div>
+        <div class="mode-tabs">  <!-- ← 手机端排在搜索框和主页图标之间的自然位置；桌面端靠 order:-1 挪到最前面，见 CSS -->
+          <button class="tab active" data-tab="practice">练习</button>  <!-- ← 顶栏「练习」标签文字 -->
+          <button class="tab" data-tab="edit">编辑</button>  <!-- ← 顶栏「编辑」标签文字 -->
+        </div>
         <button class="icon-btn mobile-home-btn" onclick="App.scene.goHome()" title="返回主页"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
         <span class="save-msg" id="saveMsg">已保存 ✓</span>
         <button class="icon-btn" id="gistBtn" onclick="App.sync.openGistPanel()" title="设置（导出 / 导入 / 云同步）"><span class="gear-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="gear-label"> 设置</span></button>
       </div>
-    </div>
-    <!-- 手机端专属：练习/编辑切换 + 全部展开，共享一行，贴在顶栏下面。
-         这一行在两种模式下都存在（不会被 renderPractice/renderEdit 整块替换掉），
-         所以 mode-tabs 的手机端副本放在这里才能保证切到编辑模式后还能切回来；
-         全部展开只在练习模式显示，见 App.render.renderMain() 里的显示/重置逻辑 -->
-    <div class="mobile-toolbar">
-      <div class="mode-tabs">
-        <button class="tab active" data-tab="practice">练习</button>
-        <button class="tab" data-tab="edit">编辑</button>
-      </div>
-      <button class="expand-all-btn" id="expandAllBtnMobile" type="button" data-expanded="false" style="display:none;">全部展开</button>
     </div>
     <div class="content" id="mainContent" data-dynamic=""></div>
   </div>
@@ -1895,19 +1869,6 @@ const App = {
     // 主渲染函数：App.state.currentId 为 null 时渲染主页，否则渲染对应场景
     renderMain() {
       const root = document.getElementById('appRoot');
-
-      // 手机端 mobile-toolbar 里的"全部展开"：只在"正看着某个场景的练习模式"时显示，
-      // 且每次渲染都重置回"全部展开"的初始态——因为它现在待在共享工具条里，不会
-      // 跟着 renderPractice() 的内容一起重新生成，得手动保持跟回答气泡默认全收起同步
-      const mobileExpandBtn = document.getElementById('expandAllBtnMobile');
-      if (mobileExpandBtn) {
-        const showExpandAll = App.state.currentId !== null && App.state.currentMode === 'practice' && !!App.scene.currentScene();
-        mobileExpandBtn.style.display = showExpandAll ? '' : 'none';
-        if (showExpandAll) {
-          mobileExpandBtn.dataset.expanded = 'false';
-          mobileExpandBtn.textContent = '全部展开';
-        }
-      }
   
       if (App.state.currentId === null) { 
         // 主页模式
