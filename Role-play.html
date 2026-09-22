@@ -257,29 +257,35 @@ body {
 
 /* 练习/编辑 模式标签：现在是 .topbar-controls 的子元素，天然排在搜索框和
    "返回主页"图标之间——这正是手机端想要的位置，不用额外写规则。
-   桌面端用 order:-1 把它挪回最前面（搜索框之前），跟以前的视觉位置保持一致 */
+   桌面端用 order:-1 把它挪回最前面（搜索框之前），跟以前的视觉位置保持一致。
+   胶囊造型，垂直方向的padding（3px外层+6px按钮）跟旁边 .search-box 的
+   7px padding + 1px边框算下来的高度基本对齐，手机端不改这个垂直方向的量，
+   只收窄横向padding和字号，让它更紧凑、但高度依旧跟搜索框一致 */
 .mode-tabs {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 3px;
   background: var(--bg2);
-  border-radius: 8px;
+  border-radius: 999px;
   padding: 3px;
   flex-shrink: 0;
 }
 .tab {
-  padding: 5px 14px;
+  padding: 6px 14px;
   font-size: 12px;
-  border-radius: 6px;
+  line-height: 1.2;
+  border-radius: 999px;
   border: none;
   cursor: pointer;
   background: none;
   color: var(--text2);
   font-family: 'Noto Sans SC', sans-serif;
   transition: all 0.15s;
+  white-space: nowrap;
 }
 .tab.active { background: var(--surface); color: var(--text); font-weight: 500; box-shadow: var(--shadow-sm); }
 @media (max-width: 768px) {
-  .tab { padding: 8px 12px; font-size: 13px; min-height: var(--tap-min); }
+  .tab { padding: 6px 10px; font-size: 11px; }
 }
 @media (min-width: 769px) {
   .topbar-controls .mode-tabs { order: -1; }
@@ -1084,8 +1090,10 @@ body {
 @media (max-width: 768px) {
   /* 保证所有可点击元素有足够大的点击区域；.icon-btn 排除在外——它是仿
      Grain 的固定 30×30 正圆图标按钮，跟着这条规则被拉到 44px 高就会变成
-     竖椭圆（就是上一版实际发生的问题），所以单独摘出来 */
-  button:not(.icon-btn), .scene-item, .vocab-chip, .home-card, .gs-result-item {
+     竖椭圆（就是上一版实际发生的问题），所以单独摘出来。.tab（练习/编辑
+     切换）同理排除——它现在要跟旁边搜索框的胶囊高度对齐、做得紧凑，
+     不能被这条规则拉高 */
+  button:not(.icon-btn):not(.tab), .scene-item, .vocab-chip, .home-card, .gs-result-item {
     min-height: var(--tap-min);
   }
   /* 图标按钮维持固定 30×30，不受上面那条通用规则影响 */
