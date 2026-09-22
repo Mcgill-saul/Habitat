@@ -484,41 +484,43 @@ body {
   .practice-main { padding: var(--sp-5) var(--sp-4); order: 1; }
 }
 
-.p-header { margin-bottom: var(--sp-6); }
-.p-tag {
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  color: var(--accent);
-  text-transform: uppercase;
-  margin-bottom: 6px;
+/* p-header 现在是标题+全部展开同一行：标题占满剩余空间，按钮固定在右侧、
+   垂直居中对齐，不再单独占一整行；标签(tag)和场景说明(desc)不在练习页展示，
+   只在编辑模式的表单里维护 */
+.p-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-6);
 }
 .p-title {
   font-family: 'Inter', sans-serif;
   font-size: 26px;
   font-weight: 600;
   color: var(--text);
-  margin-bottom: 5px;
+  flex: 1;
+  min-width: 0;
 }
-.p-desc { font-size: 13px; color: var(--text2); line-height: 1.6; }
 @media (max-width: 768px) {
   .p-header { margin-bottom: var(--sp-5); }
   .p-title { font-size: 22px; }
-  .p-desc { font-size: 14px; line-height: 1.5; }
 }
 
-/* 全部展开/收起：一次性批量控制场景里所有回答气泡，用于轮次较多时快速通览，
+/* 全部展开/收起：现在跟标题同一行，靠 .p-header 的 flex 布局垂直居中，
+   按钮本身做得比较紧凑（不用像独立一行时那么宽松），手机端也不再撑到
+   44px 触屏高度——放在标题旁边寸土寸金，紧凑优先。
    跟逐条点击的 reveal-btn 是两套独立的按钮，不互相同步状态（纯批量操作，不追踪每条明细） */
-.practice-toolbar { display: flex; justify-content: flex-end; margin-bottom: var(--sp-4); margin-top: calc(-1 * var(--sp-4)); }
 .expand-all-btn {
+  flex-shrink: 0;
   background: none; border: 1px solid var(--border); border-radius: 999px;
-  padding: 6px 14px; font-size: 12px; color: var(--text2); cursor: pointer;
+  padding: 5px 12px; font-size: 12px; color: var(--text2); cursor: pointer;
   font-family: 'Noto Sans SC', sans-serif;
   transition: background 0.15s, border-color 0.15s;
 }
 .expand-all-btn:hover { background: var(--bg2); border-color: var(--border2); }
 @media (max-width: 768px) {
-  .expand-all-btn { padding: 8px 16px; font-size: 13px; min-height: var(--tap-min); }
+  .expand-all-btn { padding: 6px 12px; font-size: 12px; }
 }
 
 /* Round分界：像聊天记录里的时间分隔一样，居中悬浮一个小胶囊，
@@ -1097,8 +1099,9 @@ body {
      Grain 的固定 30×30 正圆图标按钮，跟着这条规则被拉到 44px 高就会变成
      竖椭圆（就是上一版实际发生的问题），所以单独摘出来。.tab（练习/编辑
      切换）同理排除——它现在要跟旁边搜索框的胶囊高度对齐、做得紧凑，
-     不能被这条规则拉高 */
-  button:not(.icon-btn):not(.tab), .scene-item, .vocab-chip, .home-card, .gs-result-item {
+     不能被这条规则拉高。.expand-all-btn 现在挪到跟标题同一行，寸土寸金，
+     也要紧凑、不能被拉到 44px */
+  button:not(.icon-btn):not(.tab):not(.expand-all-btn), .scene-item, .vocab-chip, .home-card, .gs-result-item {
     min-height: var(--tap-min);
   }
   /* 图标按钮维持固定 30×30，不受上面那条通用规则影响 */
@@ -2001,11 +2004,7 @@ const App = {
         <div class="practice">
           <div class="practice-main">
             <div class="p-header">
-              <div class="p-tag">${App.utils.esc(s.tag)}</div>
               <h1 class="p-title">${App.utils.esc(s.title)}</h1>
-              ${s.desc ? `<p class="p-desc">${App.utils.esc(s.desc)}</p>` : ''}
-            </div>
-            <div class="practice-toolbar">
               <button class="expand-all-btn" type="button" data-expanded="false">全部展开</button>
             </div>
             ${rounds}
