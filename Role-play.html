@@ -271,10 +271,11 @@ body {
   gap: 3px;
   background: var(--bg2);
   border-radius: 999px;
-  padding: 3px;
+  padding: 0;
   height: var(--pill-h);
   box-sizing: border-box;
   flex-shrink: 0;
+  overflow: hidden;
 }
 .tab {
   display: flex;
@@ -292,7 +293,7 @@ body {
   transition: all 0.15s;
   white-space: nowrap;
 }
-.tab.active { background: var(--surface); color: var(--text); font-weight: 500; box-shadow: var(--shadow-sm); }
+.tab.active { background: var(--accent); color: #fff; font-weight: 500; box-shadow: var(--shadow-sm); }
 @media (max-width: 768px) {
   .tab { padding: 0 10px; font-size: 11px; }
 }
@@ -300,12 +301,19 @@ body {
 /* 顶栏这组：搜索框 + 练习/编辑 + 返回主页/设置图标按钮，桌面手机共用同一个容器，
    手机端让它单独占一整行、内部横排。桌面端不再整组贴右——搜索框和练习/编辑
    现在贴在顶栏最左边（顺序跟手机端一致：搜索框在前，练习/编辑紧跟其后），
-   保存状态和设置按钮改成靠 .save-msg 的 margin-left:auto 单独推到最右边，
-   相当于在同一行里用一个"断点"把左右两组分开，而不是整组一起对齐 */
+   设置按钮改用它自己的 margin-left:auto 单独推到最右边，相当于在同一行里
+   用一个"断点"把左右两组分开，而不是整组一起对齐。
+   桌面端额外加了 flex:1——.topbar-controls 本来是"内容多宽它多宽"，不撑满
+   .topbar 整行，margin-left:auto 在它内部就没有多余空间可吃，设置按钮才
+   一直推不到最右边；flex:1 让它把 .topbar 里的剩余空间全占满，auto margin
+   才有真正的空间可以起作用 */
 .topbar-controls {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
+}
+@media (min-width: 769px) {
+  .topbar-controls { flex: 1; }
 }
 @media (max-width: 768px) {
   .topbar-controls {
@@ -376,7 +384,7 @@ body {
 @media (min-width: 769px) {
   /* 桌面端设置按钮：图标 + "设置"文字，胶囊形状，跟手机端的纯图标圆形区分开；
      margin-left:auto 直接锚定在它自己身上，保证不管前面还有哪些兄弟元素，
-     它始终贴在顶栏最右边——不再依赖平时看不见的 .save-msg 做间接锚点 */
+     它始终贴在顶栏最右边 */
   #gistBtn {
     width: auto;
     height: 36px;
@@ -396,17 +404,6 @@ body {
 .mobile-home-btn { display: none; }
 @media (max-width: 768px) {
   .mobile-home-btn { display: inline-flex; }
-}
-
-.save-msg {
-  font-size: 12px;
-  color: var(--q-accent);
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-.save-msg.show { opacity: 1; }
-@media (max-width: 768px) {
-  .save-msg { display: none; }
 }
 
 /* 顶栏搜索结果下拉（桌面端悬浮在顶栏下方） */
@@ -1241,7 +1238,6 @@ body {
           <button class="tab" data-tab="edit">编辑</button>  <!-- ← 顶栏「编辑」标签文字 -->
         </div>
         <button class="icon-btn mobile-home-btn" onclick="App.scene.goHome()" title="返回主页"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
-        <span class="save-msg" id="saveMsg">已保存 ✓</span>
         <button class="icon-btn" id="gistBtn" onclick="App.sync.openGistPanel()" title="设置（导出 / 导入 / 云同步）"><span class="gear-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="gear-label"> 设置</span></button>
       </div>
     </div>
@@ -1431,11 +1427,10 @@ const App = {
     },
 
     // 立即保存（结构性改动用，比如增删轮次/关键词、拖拽排序）：写入 localStorage
-    // 并闪一下"已保存"提示。跟 App.storage.autoSaveDebounced 是姐妹函数，
-    // 区别只是这个不等，敲键盘那种高频输入场景不要用这个，会写太勤
+    // 跟 App.storage.autoSaveDebounced 是姐妹函数，区别只是这个不等，
+    // 敲键盘那种高频输入场景不要用这个，会写太勤
     autoSaveNow() {
       App.storage.saveData(App.state.scenes);
-      App.storage.flashSaveMsg();
     },
 
     // 防抖版自动保存：文字类输入（标签/标题/对话文本/关键词……）专用，
@@ -1444,16 +1439,6 @@ const App = {
     autoSaveDebounced() {
       clearTimeout(App.storage.autoSaveDebounced._timer);
       App.storage.autoSaveDebounced._timer = setTimeout(App.storage.autoSaveNow, App.config.AUTOSAVE_DEBOUNCE_MS);
-    },
-
-    // 顶栏"已保存 ✓"提示：闪一下、1.8 秒后自动消失。被 autoSaveNow 调用，
-    // 不需要单独手动触发
-    flashSaveMsg() {
-      const msg = document.getElementById('saveMsg');
-      if (!msg) return;
-      msg.classList.add('show');
-      clearTimeout(App.storage.flashSaveMsg._timer);
-      App.storage.flashSaveMsg._timer = setTimeout(() => msg.classList.remove('show'), 1800);
     },
 
     // ── 导出：纯数据 JSON，不再克隆整个页面 ──
