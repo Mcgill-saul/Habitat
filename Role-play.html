@@ -93,6 +93,10 @@ input[type="text"], input[type="search"], select, textarea {
 
   /* 触屏最小点击区域（WCAG/iOS 建议 44px） */
   --tap-min: 44px;
+
+  /* 顶栏搜索框 / 练习-编辑胶囊统一用这个高度，两者数值上直接相等，
+     不再靠 padding+字号去估算凑出一样高 */
+  --pill-h: 32px;
 }
 
 body {
@@ -258,9 +262,9 @@ body {
 /* 练习/编辑 模式标签：现在是 .topbar-controls 的子元素，天然排在搜索框和
    "返回主页"图标之间——这正是手机端想要的位置，不用额外写规则。
    桌面端用 order:-1 把它挪回最前面（搜索框之前），跟以前的视觉位置保持一致。
-   胶囊造型，垂直方向的padding（3px外层+6px按钮）跟旁边 .search-box 的
-   7px padding + 1px边框算下来的高度基本对齐，手机端不改这个垂直方向的量，
-   只收窄横向padding和字号，让它更紧凑、但高度依旧跟搜索框一致 */
+   胶囊整体高度直接吃 --pill-h（跟旁边 .search-box 共用同一个变量，数值相等），
+   内部按钮 height:100% + flex 居中撑满，不再靠 padding/字号去估算凑高度——
+   手机端只收窄横向 padding 和字号做紧凑处理，垂直方向完全不变 */
 .mode-tabs {
   display: flex;
   align-items: center;
@@ -268,12 +272,17 @@ body {
   background: var(--bg2);
   border-radius: 999px;
   padding: 3px;
+  height: var(--pill-h);
+  box-sizing: border-box;
   flex-shrink: 0;
 }
 .tab {
-  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 14px;
   font-size: 12px;
-  line-height: 1.2;
   border-radius: 999px;
   border: none;
   cursor: pointer;
@@ -285,22 +294,18 @@ body {
 }
 .tab.active { background: var(--surface); color: var(--text); font-weight: 500; box-shadow: var(--shadow-sm); }
 @media (max-width: 768px) {
-  .tab { padding: 6px 10px; font-size: 11px; }
-}
-@media (min-width: 769px) {
-  .topbar-controls .mode-tabs { order: -1; }
+  .tab { padding: 0 10px; font-size: 11px; }
 }
 
-/* 顶栏右侧这组：搜索框 + 返回主页/设置图标按钮，桌面手机共用同一个容器，
-   手机端让它单独占一整行、内部横排。mode-tabs 现在也在这个容器里，
-   margin-left:auto 保证不管容器里还剩几个可见的兄弟元素，桌面端整组始终贴右 */
+/* 顶栏这组：搜索框 + 练习/编辑 + 返回主页/设置图标按钮，桌面手机共用同一个容器，
+   手机端让它单独占一整行、内部横排。桌面端不再整组贴右——搜索框和练习/编辑
+   现在贴在顶栏最左边（顺序跟手机端一致：搜索框在前，练习/编辑紧跟其后），
+   保存状态和设置按钮改成靠 .save-msg 的 margin-left:auto 单独推到最右边，
+   相当于在同一行里用一个"断点"把左右两组分开，而不是整组一起对齐 */
 .topbar-controls {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-}
-@media (min-width: 769px) {
-  .topbar-controls { margin-left: auto; }
 }
 @media (max-width: 768px) {
   .topbar-controls {
@@ -341,7 +346,7 @@ body {
 
 /* 顶栏搜索框：桌面端固定宽度（持续显示在顶栏里，不需要太宽）；
    手机端占这一行大部分宽度，图标按钮挤在右边 */
-.topbar-search-input { width: 220px; }
+.topbar-search-input { width: 220px; height: var(--pill-h); box-sizing: border-box; }
 @media (max-width: 768px) {
   .topbar-search-input { flex: 1; min-width: 0; width: auto; }
 }
@@ -369,13 +374,16 @@ body {
 .icon-btn .gear-icon { display: inline-flex; align-items: center; justify-content: center; }
 .icon-btn .gear-label { display: none; }
 @media (min-width: 769px) {
-  /* 桌面端设置按钮：图标 + "设置"文字，胶囊形状，跟手机端的纯图标圆形区分开 */
+  /* 桌面端设置按钮：图标 + "设置"文字，胶囊形状，跟手机端的纯图标圆形区分开；
+     margin-left:auto 直接锚定在它自己身上，保证不管前面还有哪些兄弟元素，
+     它始终贴在顶栏最右边——不再依赖平时看不见的 .save-msg 做间接锚点 */
   #gistBtn {
     width: auto;
     height: 36px;
     padding: 0 var(--sp-4);
     border-radius: 999px;
     gap: 6px;
+    margin-left: auto;
   }
   #gistBtn .gear-label {
     display: inline;
