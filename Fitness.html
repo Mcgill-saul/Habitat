@@ -537,6 +537,61 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
 .mdp-cell.mdp-today{box-shadow:inset 0 0 0 1.5px var(--brand);}
 .mdp-cell.mdp-selected{background:var(--brand);color:#fff;font-weight:700;}
 
+/* ── 现代化「起始月份」选择器（月度柱状图卡片用）：胶囊触发按钮 + 年份翻页 + 3×4 月份网格 ── */
+.mp-group{display:inline-flex;align-items:center;gap:2px;}
+.mp-trigger{
+  appearance:none;-webkit-appearance:none;
+  display:inline-flex;align-items:center;gap:6px;
+  height:30px;padding:0 10px 0 10px;margin:0;
+  background:var(--bg2);border:1px solid var(--border);border-radius:999px;
+  color:var(--text2);font:500 var(--fs-xs)/1 var(--font);font-variant-numeric:tabular-nums;
+  cursor:pointer;white-space:nowrap;
+  transition:border-color .15s,background .15s,color .15s,box-shadow .15s;
+}
+.mp-trigger svg{width:13px;height:13px;flex-shrink:0;color:var(--text3);transition:color .15s,transform .2s;}
+.mp-trigger .mp-chev{width:11px;height:11px;}
+.mp-trigger:hover{border-color:var(--border2);background:var(--bg3);}
+.mp-trigger:focus{outline:none;}
+.mp-trigger:focus-visible,.mp-trigger[aria-expanded="true"]{border-color:var(--brand);background:var(--bg2);color:var(--brand-dk);box-shadow:0 0 0 3px var(--brand-lt);}
+.mp-trigger[aria-expanded="true"] .mp-chev{transform:rotate(180deg);color:var(--brand);}
+.mp-group:not(.is-default) .mp-trigger{background:var(--brand-lt);border-color:transparent;color:var(--brand-dk);}
+.mp-group:not(.is-default) .mp-trigger svg{color:var(--brand);}
+.mp-reset{
+  appearance:none;-webkit-appearance:none;
+  display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:26px;padding:0;border:none;border-radius:50%;
+  background:transparent;color:var(--text3);cursor:pointer;
+  transition:background .15s,color .15s;
+}
+.mp-reset svg{width:13px;height:13px;}
+.mp-reset:hover{background:var(--bg3);color:var(--text);}
+.mp-group.is-default .mp-reset{display:none;}
+
+.mini-date-popup.mp-popup{width:236px;padding:12px;border-radius:18px;}
+.mp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.mp-year{font-size:var(--fs-sm);font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;}
+.mp-nav{
+  appearance:none;-webkit-appearance:none;
+  display:inline-flex;align-items:center;justify-content:center;
+  width:28px;height:28px;padding:0;border:none;border-radius:50%;
+  background:var(--bg3);color:var(--text2);cursor:pointer;
+  transition:background .15s,color .15s;
+}
+.mp-nav svg{width:14px;height:14px;}
+.mp-nav:hover:not(:disabled){background:var(--brand-lt);color:var(--brand-dk);}
+.mp-nav:disabled{opacity:.35;cursor:not-allowed;}
+.mp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.mp-cell{
+  appearance:none;-webkit-appearance:none;position:relative;
+  height:38px;padding:0;border:none;border-radius:12px;background:transparent;
+  color:var(--text);font:500 var(--fs-sm)/1 var(--font);cursor:pointer;
+  transition:background .15s,color .15s;
+}
+.mp-cell:hover:not(:disabled):not(.mp-selected){background:var(--bg3);}
+.mp-cell.mp-current:not(.mp-selected)::after{content:'';position:absolute;left:50%;bottom:6px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--brand);}
+.mp-cell.mp-selected{background:var(--brand);color:#fff;font-weight:700;}
+.mp-cell:disabled{color:var(--border2);cursor:not-allowed;}
+
 /* Checkbox pill */
 .check-row{display:flex;align-items:center;gap:var(--space-6);font-size:var(--fs-sm);color:var(--text2);}
 .check-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--green);}
@@ -796,8 +851,9 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
 .mdist-row{display:flex;align-items:center;gap:var(--space-8);}
 .mdist-month{width:40px;font-size:var(--fs-xs);color:var(--text3);flex-shrink:0;}
 .mdist-bar-wrap{flex:1;height:22px;background:var(--bg3);border-radius:4px;overflow:hidden;min-width:0;position:relative;}
-.mdist-bar{height:100%;border-radius:4px;background:var(--green);}
+.mdist-bar{height:100%;border-radius:4px;background:var(--green);position:relative;overflow:hidden;}
 .mdist-val{position:absolute;top:0;left:8px;bottom:0;display:flex;align-items:center;font-size:var(--fs-xs);color:#fff;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.35);}
+.mdist-val-dark{color:var(--text2);text-shadow:none;}
 
 
 /* ── Anaerobic: yearly report ── */
@@ -1731,10 +1787,6 @@ function durationToSecs(s){
   if(parts.length===2) return parts[0]*60+parts[1];
   return null;
 }
-function secsToDuration(s){
-  const h=Math.floor(s/3600); const m=Math.floor((s%3600)/60); const ss=s%60;
-  return h+':'+String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');
-}
 function badgeClass(sport){
   return {'Run':'badge-run','Strength':'badge-ana','Jump Rope':'badge-jump','Badminton':'badge-badminton','Hike':'badge-hike','Walk':'badge-walk'}[sport]||'badge-walk';
 }
@@ -1874,7 +1926,7 @@ function makeAvgBandPlugin(getTotals, unit){
       ctx.fillStyle='rgba(36,31,26,0.55)';
       ctx.font='10px system-ui';
       ctx.textAlign='right';
-      ctx.fillText(`月均 ${avg.toFixed(1)}${unit}`, chartArea.right-2, yPos-5);
+      ctx.fillText(`Avg ${avg.toFixed(1)} ${unit}`, chartArea.right-2, yPos-5);
       ctx.restore();
     }
   }];
@@ -1884,23 +1936,26 @@ function makeAvgBandPlugin(getTotals, unit){
 // 统一生成。图例的具体内容不在这里管——因为「月度运动构成」是多类型堆叠、需要图例，
 // 「月度里程」是单一数值、不需要图例，两边数据结构差太多硬塞一个函数反而难维护；
 // 折中方案：容器"有没有、放哪"由模板决定，容器"里面填什么"留给调用方各自负责。
-function renderMonthlyBarCard({containerId, title, subtitle, chartId, startInputId, onStartChange, resetOnClick, legendId, chartWrapClass='', extraHtml=''}){
+function renderMonthlyBarCard({containerId, title, subtitle='', chartId, startInputId, onStartChange, resetOnClick, legendId, chartWrapClass='', extraHtml=''}){
   const host = document.getElementById(containerId);
   if(host && !host.dataset.built){
     host.innerHTML = `
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-8);flex-wrap:wrap">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-8);flex-wrap:wrap">
         <div>
           <div class="chart-title">${escapeHtml(title)}</div>
-          <div class="chart-sub">${escapeHtml(subtitle)}</div>
+          ${subtitle ? `<div class="chart-sub">${escapeHtml(subtitle)}</div>` : ''}
         </div>
-        <div style="display:flex;align-items:center;gap:var(--space-6);flex-wrap:wrap">
-          <span class="mini-date-label">起始月份</span>
-          <span class="mini-date-group">
-            <input type="date" id="${startInputId}" class="mini-date-input-plain" onchange="${onStartChange}">
-            <button type="button" class="mini-date-trigger placeholder" data-for="${startInputId}" onclick="toggleMiniDatePicker(this)" title="选择起始月份">年/月/日</button>
-            <span class="mini-reset-link-plain" onclick="${resetOnClick}" title="重置为最早日期">↺</span>
-          </span>
-        </div>
+        <span class="mp-group is-default">
+          <input type="date" id="${startInputId}" class="mini-date-input-plain" onchange="${onStartChange}">
+          <button type="button" class="mp-trigger" data-for="${startInputId}" onclick="toggleMonthPicker(this)" title="Start month" aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span class="mp-text">All time</span>
+            <svg class="mp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <button type="button" class="mp-reset" onclick="${resetOnClick}" title="Reset to first record" aria-label="Reset start month">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 10 9 10"/></svg>
+          </button>
+        </span>
       </div>
       ${legendId ? `<div class="legend" id="${legendId}"></div>` : ''}
       <div class="${chartWrapClass}" style="position:relative;height:220px;margin-top:${legendId?'0':'var(--space-10)'}"><canvas id="${chartId}"></canvas></div>
@@ -1909,6 +1964,11 @@ function renderMonthlyBarCard({containerId, title, subtitle, chartId, startInput
     host.dataset.built = '1';
   }
 }
+
+// Run「月度跑量」文字格式（手机条形列表 + 桌面柱状图共用）：12.5 km · 3 runs
+function fmtRunKm(v){ const r=Math.round((v||0)*10)/10; return r%1===0 ? String(r) : r.toFixed(1); }
+function fmtRunCount(n){ return `${n} ${n===1?'run':'runs'}`; }
+function fmtRunMonthLabel(dist,count){ return `${fmtRunKm(dist)} km · ${fmtRunCount(count)}`; }
 
 // 模板 2b：柱状图「白字数值标签」工厂函数——formatFn 决定文字内容，
 // 返回字符串就画一行居中，返回 {top,bottom} 就画两行（用于「里程+次数」这种双数值场景）
@@ -2267,14 +2327,6 @@ function addDeviceFromInput(){
   document.getElementById('r-devices').value=vals.join(',');
   inp.value='';
 }
-function removePill(xEl,groupId,hiddenId){
-  const pill=xEl.closest('.pill'); if(!pill) return;
-  pill.remove();
-  const g=document.getElementById(groupId);
-  const vals=[...g.querySelectorAll('.pill.sel')].map(p=>p.dataset.val);
-  document.getElementById(hiddenId).value=vals.join(',');
-}
-
 // ══════════════════════════════════════
 //  自定义运动类型
 // ══════════════════════════════════════
@@ -2836,10 +2888,22 @@ function formatMiniDate(v){ return v ? v.replaceAll('-','/') : '年/月/日'; }
 
 // 每次某个起始日期 input 的 value/min/max 被程序设置后，调用这个把对应的
 // 触发按钮文字刷新成一致的显示（renderDashboard / syncStartInput 里都会调用）
+const MP_MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function syncMiniDateTrigger(inputId){
   const input = document.getElementById(inputId);
+  if(!input) return;
+  // 月份选择器（.mp-trigger）：显示 "From Mar 2025"；等于最早月份（未自定义）时隐藏重置按钮
+  const mp = document.querySelector('.mp-trigger[data-for="'+inputId+'"]');
+  if(mp){
+    const v = input.value;
+    mp.querySelector('.mp-text').textContent = v ? `From ${MP_MONTHS[parseInt(v.slice(5,7),10)-1]} ${v.slice(0,4)}` : 'All time';
+    const isDefault = !v || (input.min && v.slice(0,7) <= input.min.slice(0,7));
+    const grp = mp.closest('.mp-group');
+    if(grp) grp.classList.toggle('is-default', !!isDefault);
+    return;
+  }
   const btn = document.querySelector('.mini-date-trigger[data-for="'+inputId+'"]');
-  if(!input || !btn) return;
+  if(!btn) return;
   btn.textContent = formatMiniDate(input.value);
   btn.classList.toggle('placeholder', !input.value);
 }
@@ -2850,11 +2914,12 @@ let miniDatePickerFor = null;
 function closeMiniDatePicker(){
   if(miniDatePickerEl){ miniDatePickerEl.remove(); miniDatePickerEl = null; }
   miniDatePickerFor = null;
+  document.querySelectorAll('.mp-trigger[aria-expanded]').forEach(b=>b.removeAttribute('aria-expanded'));
   document.removeEventListener('mousedown', onMiniDatePickerOutsideClick, true);
   document.removeEventListener('keydown', onMiniDatePickerKeydown, true);
 }
 function onMiniDatePickerOutsideClick(e){
-  if(miniDatePickerEl && !miniDatePickerEl.contains(e.target) && !(e.target.closest && e.target.closest('.mini-date-trigger'))){
+  if(miniDatePickerEl && !miniDatePickerEl.contains(e.target) && !(e.target.closest && e.target.closest('.mini-date-trigger, .mp-trigger'))){
     closeMiniDatePicker();
   }
 }
@@ -2866,6 +2931,81 @@ function toggleMiniDatePicker(btn){
   const inputId = btn.dataset.for;
   if(miniDatePickerFor === inputId){ closeMiniDatePicker(); return; }
   openMiniDatePicker(btn, inputId);
+}
+
+// 月份选择器（月度柱状图卡片的「起始月份」）：年份翻页 + 3×4 月份网格，点一下直接生效。
+// 写回隐藏 input 的值：选到最早月份时写 min（保持"未自定义"），其余写 YYYY-MM-01。
+function toggleMonthPicker(btn){
+  const inputId = btn.dataset.for;
+  if(miniDatePickerFor === inputId){ closeMiniDatePicker(); return; }
+  openMonthPicker(btn, inputId);
+}
+function openMonthPicker(btn, inputId){
+  closeMiniDatePicker();
+  const input = document.getElementById(inputId);
+  if(!input) return;
+  miniDatePickerFor = inputId;
+  btn.setAttribute('aria-expanded','true');
+
+  const min = input.min || '', max = input.max || '', val = input.value || '';
+  const minYM = min.slice(0,7), maxYM = max.slice(0,7), valYM = val.slice(0,7);
+  const nowYM = localDateStr().slice(0,7);
+  const minY = minYM ? parseInt(minYM.slice(0,4),10) : -Infinity;
+  const maxY = maxYM ? parseInt(maxYM.slice(0,4),10) : Infinity;
+  let viewYear = parseInt((valYM || maxYM || nowYM).slice(0,4),10);
+  const pad = n => String(n).padStart(2,'0');
+  const chevron = dir => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="${dir<0?'15 6 9 12 15 18':'9 6 15 12 9 18'}"/></svg>`;
+
+  const pop = document.createElement('div');
+  pop.className = 'mini-date-popup mp-popup';
+  pop.setAttribute('role','dialog');
+  pop.setAttribute('aria-label','Select start month');
+  document.body.appendChild(pop);
+  miniDatePickerEl = pop;
+
+  function render(){
+    let cells = '';
+    for(let m=0; m<12; m++){
+      const ym = `${viewYear}-${pad(m+1)}`;
+      const disabled = (minYM && ym<minYM) || (maxYM && ym>maxYM);
+      cells += `<button type="button" class="mp-cell${ym===valYM?' mp-selected':''}${ym===nowYM?' mp-current':''}" ${disabled?'disabled':''} data-m="${m}">${MP_MONTHS[m]}</button>`;
+    }
+    pop.innerHTML = `
+      <div class="mp-head">
+        <button type="button" class="mp-nav" data-nav="-1" aria-label="Previous year" ${viewYear<=minY?'disabled':''}>${chevron(-1)}</button>
+        <div class="mp-year">${viewYear}</div>
+        <button type="button" class="mp-nav" data-nav="1" aria-label="Next year" ${viewYear>=maxY?'disabled':''}>${chevron(1)}</button>
+      </div>
+      <div class="mp-grid">${cells}</div>`;
+    pop.querySelectorAll('.mp-nav').forEach(b=>{
+      b.onclick = ()=>{ viewYear += parseInt(b.dataset.nav,10); render(); };
+    });
+    pop.querySelectorAll('.mp-cell').forEach(c=>{
+      c.onclick = ()=>{
+        if(c.disabled) return;
+        const ym = `${viewYear}-${pad(parseInt(c.dataset.m,10)+1)}`;
+        input.value = (minYM && ym===minYM && min) ? min : ym+'-01';
+        input.dispatchEvent(new Event('change', {bubbles:true}));
+        closeMiniDatePicker();
+      };
+    });
+  }
+  render();
+
+  const r = btn.getBoundingClientRect();
+  pop.style.top = (r.bottom + 8) + 'px';
+  pop.style.left = r.left + 'px';
+  requestAnimationFrame(()=>{
+    const pr = pop.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    const vh = document.documentElement.clientHeight;
+    if(pr.right > vw - 8) pop.style.left = Math.max(8, vw - pr.width - 8) + 'px';
+    if(pr.bottom > vh - 8) pop.style.top = Math.max(8, r.top - pr.height - 8) + 'px';
+  });
+  setTimeout(()=>{
+    document.addEventListener('mousedown', onMiniDatePickerOutsideClick, true);
+    document.addEventListener('keydown', onMiniDatePickerKeydown, true);
+  }, 0);
 }
 
 function openMiniDatePicker(btn, inputId){
@@ -2994,10 +3134,6 @@ const LS_DASH_MONTHLY_START='fitness_dash_monthly_start';
 let dashStatStart = localStorage.getItem(LS_DASH_STAT_START) || '';
 let dashMonthlyStart = localStorage.getItem(LS_DASH_MONTHLY_START) || '';
 
-function earliestRecordDate(){
-  const dates=records.filter(r=>r.date).map(r=>r.date).sort();
-  return dates.length ? dates[0] : '';
-}
 function onDashStatStartChange(){
   dashStatStart = document.getElementById('dash-stat-start').value || '';
   localStorage.setItem(LS_DASH_STAT_START, dashStatStart);
@@ -3191,7 +3327,7 @@ function renderDashboard(){
       }
     },
     plugins:[
-      ...makeAvgBandPlugin(()=>months.map(m=>records.filter(r=>r.date?.startsWith(m)).length), '次'),
+      ...makeAvgBandPlugin(()=>months.map(m=>records.filter(r=>r.date?.startsWith(m)).length), 'sessions'),
       makeBarValueLabelPlugin(val=>String(val), 16)
     ]
   });
@@ -3939,7 +4075,7 @@ function renderRunAnalysis(){
 
   // 月度跑量：自定义起始月份
   renderMonthlyBarCard({
-    containerId:'run-mdist-card', title:'月度跑量', subtitle:'月度累计距离 (km)',
+    containerId:'run-mdist-card', title:'Monthly Distance',
     chartId:'monthlyDistChart', startInputId:'run-mdist-start', onStartChange:'onRunMDistStartChange()', resetOnClick:'resetRunMDistStart()',
     chartWrapClass:'mdist-chart-wrap', extraHtml:'<div class="mdist-list" id="monthlyDistList"></div>'
   });
@@ -3954,13 +4090,15 @@ function renderRunAnalysis(){
   if(mdistListEl){
     const maxDist=Math.max(1,...mDist);
     mdistListEl.innerHTML=months.map((m,i)=>{
-      const km=mDist[i]%1===0?mDist[i]:mDist[i].toFixed(1);
       const pct=(mDist[i]/maxDist*100).toFixed(1);
+      const label=fmtRunMonthLabel(mDist[i], mCount[i]);
+      // 文字画两层：底层深色铺满整条轨道；上层白字放进进度条内部（overflow:hidden 裁切）。
+      // 进度条覆盖到的部分显示白字，没覆盖到的部分显示深色字，短条/0 跑量月份也看得清。
       return `<div class="mdist-row">
         <div class="mdist-month">${m.slice(2).replace('-','/')}</div>
         <div class="mdist-bar-wrap">
-          <div class="mdist-bar" style="width:${pct}%"></div>
-          <div class="mdist-val">${km}km · ${mCount[i]}次</div>
+          <div class="mdist-val mdist-val-dark">${label}</div>
+          <div class="mdist-bar" style="width:${pct}%"><div class="mdist-val" aria-hidden="true">${label}</div></div>
         </div>
       </div>`;
     }).join('');
@@ -3974,7 +4112,7 @@ function renderRunAnalysis(){
       ...makeAvgBandPlugin(()=>mDist, 'km'),
       makeBarValueLabelPlugin((val,i,di,chart)=>{
         const counts = chart.$aux || [];
-        return {top: val+'km', bottom: (counts[i]||0)+'次'};
+        return {top: fmtRunKm(val)+' km', bottom: fmtRunCount(counts[i]||0)};
       }, 28)
     ]
   }, mCount);
