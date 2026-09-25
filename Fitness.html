@@ -416,111 +416,70 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
 .ff.span2{grid-column:span 2;}
 .ff.span4{grid-column:1/-1;}
 
-.mini-date-label{font-size:var(--fs-xs);color:var(--text3);white-space:nowrap;}
-
-/* 迷你日期选择器——用于统计/图表卡片顶部的"起始日期"筛选。
-   原生 <input type="date"> 各浏览器/系统的弹出日历长得完全不一样、没法用 CSS
-   改样式，所以这里把它完全隐藏，只当"数据容器"用（保留 value/min/max，方便
-   其它代码原样读写、照常触发 onchange）；用户实际看到、点击的是一个自适应
-   宽度的按钮(.mini-date-trigger)，点击后弹出下面自己画的日历面板(.mini-date-popup)，
-   配色、圆角、选中态都跟随全站主题，不再是浏览器默认的原生控件长相。
-   .mini-date-group 是按钮 + 重置按钮共用的胶囊外壳：静止状态就带浅色背景和
-   细边框，一眼能看出是可点击控件；日历图标画在胶囊最前面的伪元素上；
-   悬停/聚焦时用 :focus-within 统一整个胶囊一起高亮。 */
-.mini-date-group{
-  display:inline-flex;
-  align-items:center;
-  gap:1px;
-  background:var(--bg3);
-  border:1px solid var(--border);
-  border-radius:999px;
-  padding:3px 4px 3px 8px;
-  transition:border-color .15s,background .15s,box-shadow .15s;
-}
-.mini-date-group::before{
-  content:'';
-  flex-shrink:0;
-  width:11px;height:11px;
-  margin-right:5px;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A39A8C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cline x1='16' y1='3' x2='16' y2='7'/%3E%3Cline x1='8' y1='3' x2='8' y2='7'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;
-  background-size:contain;
-  transition:opacity .15s;
-}
-.mini-date-group:hover{border-color:var(--brand);background:var(--brand-lt);}
-.mini-date-group:focus-within{border-color:var(--brand);background:#fff;box-shadow:0 0 0 3px var(--brand-lt);}
-
-/* 原生日期输入框：彻底隐藏，纯粹当 value/min/max 的数据容器用，
-   不再依赖它自己的宽度/图标——这两样是之前"文字和重置按钮之间空一大截"的根源 */
+/* ── 统一的「起始日期/起始月份」筛选器——用于各统计/图表卡片顶部。
+   原生 <input type="date"> 完全隐藏，只当 value/min/max 的数据容器用；
+   用户看到、点击的是一个胶囊触发按钮(.dp-trigger)，点击后弹出自绘日历面板
+   （日精度用 .mdp-popup 的日历网格，月精度用 .mp-popup 的年份+月份网格）。
+   没有自定义筛选时按钮显示"All time"；自定义后按钮变浅绿色作为提示——
+   要清除筛选，在弹层里重新选中最早的日期/月份即可，不再需要单独的重置按钮。 */
 .mini-date-input-plain{ display:none; }
-
-.mini-date-trigger{
+.dp-trigger{
   appearance:none;-webkit-appearance:none;
-  background:transparent;
-  border:none;
-  padding:1px 2px;
-  margin:0;
-  color:var(--text2);
-  font-size:var(--fs-xs);
-  font-family:var(--font);
-  font-variant-numeric:tabular-nums;
-  cursor:pointer;
-  line-height:1.3;
+  display:inline-flex;align-items:center;gap:6px;
+  height:30px;padding:0 10px;margin:0;
+  background:var(--bg2);border:1px solid var(--border);border-radius:999px;
+  color:var(--text2);font:500 var(--fs-xs)/1 var(--font);font-variant-numeric:tabular-nums;
+  cursor:pointer;white-space:nowrap;
+  transition:border-color .15s,background .15s,color .15s,box-shadow .15s;
 }
-.mini-date-group:hover .mini-date-trigger,
-.mini-date-group:focus-within .mini-date-trigger{color:var(--brand-dk);}
-.mini-date-trigger:focus{outline:none;}
-.mini-date-trigger.placeholder{color:var(--text3);}
+.dp-trigger svg{width:13px;height:13px;flex-shrink:0;color:var(--text3);transition:color .15s,transform .2s;}
+.dp-trigger .dp-chev{width:11px;height:11px;}
+.dp-trigger:hover{border-color:var(--border2);background:var(--bg3);}
+.dp-trigger:focus{outline:none;}
+.dp-trigger:focus-visible,.dp-trigger[aria-expanded="true"]{border-color:var(--brand);background:var(--bg2);color:var(--brand-dk);box-shadow:0 0 0 3px var(--brand-lt);}
+.dp-trigger[aria-expanded="true"] .dp-chev{transform:rotate(180deg);color:var(--brand);}
+.dp-trigger.dp-active{background:var(--brand-lt);border-color:transparent;color:var(--brand-dk);}
+.dp-trigger.dp-active svg{color:var(--brand);}
 
-.mini-reset-link-plain{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:16px;height:16px;
-  flex-shrink:0;
-  border-radius:50%;
-  color:var(--text3);
-  opacity:.55;
-  font-size:var(--icon-xs);
-  line-height:1;
-  cursor:pointer;
-  user-select:none;
-  transition:all .2s;
-}
-.mini-reset-link-plain:hover{opacity:1;background:var(--coral);color:#fff;transform:rotate(-75deg);}
-
-/* 自绘日历弹层——替代浏览器原生日期选择器，点击 .mini-date-trigger 后弹出 */
+/* 自绘弹层公共外壳 */
 .mini-date-popup{
   position:fixed;
   z-index:1000;
   background:#fff;
   border:1px solid var(--border);
-  border-radius:var(--radius-lg);
+  border-radius:18px;
   box-shadow:var(--shadow);
-  padding:10px;
-  width:224px;
+  padding:12px;
+  width:236px;
   font-family:var(--font);
   animation:mdpIn .12s ease-out;
 }
 @keyframes mdpIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
-.mdp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding:0 2px;}
-.mdp-month{font-size:var(--fs-sm);font-weight:700;color:var(--text);cursor:pointer;border-radius:6px;padding:2px 6px;transition:background .15s;}
+
+/* 日精度弹层（.mdp-popup）：年月标题（点击切到月份速选） + 星期表头 + 日期网格 */
+.mdp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding:0 2px;}
+.mdp-month{font-size:var(--fs-sm);font-weight:700;color:var(--text);cursor:pointer;border-radius:8px;padding:3px 8px;transition:background .15s;}
 .mdp-month:hover{background:var(--brand-lt);color:var(--brand-dk);}
-.mdp-month-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;}
+.mdp-month-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
 .mdp-month-cell{
   appearance:none;-webkit-appearance:none;border:none;background:transparent;
-  padding:8px 0;border-radius:8px;
+  padding:9px 0;border-radius:10px;
   font-size:var(--fs-xs);color:var(--text);font-family:var(--font);
   cursor:pointer;transition:background .15s,color .15s;
 }
-.mdp-month-cell:hover:not(.mdp-disabled):not(.mdp-selected){background:var(--brand-lt);color:var(--brand-dk);}
+.mdp-month-cell:hover:not(.mdp-disabled):not(.mdp-selected){background:var(--bg3);}
 .mdp-month-cell.mdp-disabled{color:var(--border2);cursor:not-allowed;}
 .mdp-month-cell.mdp-selected{background:var(--brand);color:#fff;font-weight:700;}
 .mdp-nav{
+  appearance:none;-webkit-appearance:none;
   display:inline-flex;align-items:center;justify-content:center;
-  width:22px;height:22px;border-radius:50%;
-  color:var(--text2);cursor:pointer;user-select:none;font-size:14px;line-height:1;
+  width:28px;height:28px;padding:0;border:none;border-radius:50%;
+  background:var(--bg3);color:var(--text2);cursor:pointer;user-select:none;
   transition:background .15s,color .15s;
 }
-.mdp-nav:hover{background:var(--brand-lt);color:var(--brand-dk);}
+.mdp-nav svg{width:14px;height:14px;}
+.mdp-nav:hover:not(:disabled){background:var(--brand-lt);color:var(--brand-dk);}
+.mdp-nav:disabled{opacity:.35;cursor:not-allowed;}
 .mdp-weekdays{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:2px;}
 .mdp-weekdays span{text-align:center;font-size:var(--fs-micro);color:var(--text3);font-weight:700;}
 .mdp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
@@ -537,37 +496,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
 .mdp-cell.mdp-today{box-shadow:inset 0 0 0 1.5px var(--brand);}
 .mdp-cell.mdp-selected{background:var(--brand);color:#fff;font-weight:700;}
 
-/* ── 现代化「起始月份」选择器（月度柱状图卡片用）：胶囊触发按钮 + 年份翻页 + 3×4 月份网格 ── */
-.mp-group{display:inline-flex;align-items:center;gap:2px;}
-.mp-trigger{
-  appearance:none;-webkit-appearance:none;
-  display:inline-flex;align-items:center;gap:6px;
-  height:30px;padding:0 10px 0 10px;margin:0;
-  background:var(--bg2);border:1px solid var(--border);border-radius:999px;
-  color:var(--text2);font:500 var(--fs-xs)/1 var(--font);font-variant-numeric:tabular-nums;
-  cursor:pointer;white-space:nowrap;
-  transition:border-color .15s,background .15s,color .15s,box-shadow .15s;
-}
-.mp-trigger svg{width:13px;height:13px;flex-shrink:0;color:var(--text3);transition:color .15s,transform .2s;}
-.mp-trigger .mp-chev{width:11px;height:11px;}
-.mp-trigger:hover{border-color:var(--border2);background:var(--bg3);}
-.mp-trigger:focus{outline:none;}
-.mp-trigger:focus-visible,.mp-trigger[aria-expanded="true"]{border-color:var(--brand);background:var(--bg2);color:var(--brand-dk);box-shadow:0 0 0 3px var(--brand-lt);}
-.mp-trigger[aria-expanded="true"] .mp-chev{transform:rotate(180deg);color:var(--brand);}
-.mp-group:not(.is-default) .mp-trigger{background:var(--brand-lt);border-color:transparent;color:var(--brand-dk);}
-.mp-group:not(.is-default) .mp-trigger svg{color:var(--brand);}
-.mp-reset{
-  appearance:none;-webkit-appearance:none;
-  display:inline-flex;align-items:center;justify-content:center;
-  width:26px;height:26px;padding:0;border:none;border-radius:50%;
-  background:transparent;color:var(--text3);cursor:pointer;
-  transition:background .15s,color .15s;
-}
-.mp-reset svg{width:13px;height:13px;}
-.mp-reset:hover{background:var(--bg3);color:var(--text);}
-.mp-group.is-default .mp-reset{display:none;}
-
-.mini-date-popup.mp-popup{width:236px;padding:12px;border-radius:18px;}
+/* 月精度弹层（.mp-popup）：年份翻页 + 3×4 月份网格 */
 .mp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
 .mp-year{font-size:var(--fs-sm);font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;}
 .mp-nav{
@@ -591,6 +520,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
 .mp-cell.mp-current:not(.mp-selected)::after{content:'';position:absolute;left:50%;bottom:6px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--brand);}
 .mp-cell.mp-selected{background:var(--brand);color:#fff;font-weight:700;}
 .mp-cell:disabled{color:var(--border2);cursor:not-allowed;}
+
 
 /* Checkbox pill */
 .check-row{display:flex;align-items:center;gap:var(--space-6);font-size:var(--fs-sm);color:var(--text2);}
@@ -847,7 +777,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
 
 
 /* ── 月度跑量：手机端横向条形列表 ── */
-.mdist-list{flex-direction:column;gap:var(--space-8);}
+.mdist-list{flex-direction:column;gap:var(--space-8);margin-top:var(--space-10);}
 .mdist-row{display:flex;align-items:center;gap:var(--space-8);}
 .mdist-month{width:40px;font-size:var(--fs-xs);color:var(--text3);flex-shrink:0;}
 .mdist-bar-wrap{flex:1;height:22px;background:var(--bg3);border-radius:4px;overflow:hidden;min-width:0;position:relative;}
@@ -1050,11 +980,12 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
       <!-- 第一行：累计训练（窄卡，宽度=上方两张小卡之和）+ 类型占比 + 分类速览 -->
       <div class="chart-card span2" style="display:flex;flex-direction:column;height:100%;position:relative">
         <div style="display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:wrap;font-size:var(--fs-xs);color:var(--text3)">
-          <span class="mini-date-group">
-            <input type="date" id="dash-stat-start" class="mini-date-input-plain" onchange="onDashStatStartChange()">
-            <button type="button" class="mini-date-trigger placeholder" data-for="dash-stat-start" onclick="toggleMiniDatePicker(this)" title="选择统计起始日期">年/月/日</button>
-            <span class="mini-reset-link-plain" onclick="resetDashStatStart()" title="重置为最早日期">↺</span>
-          </span>
+          <input type="date" id="dash-stat-start" class="mini-date-input-plain" onchange="onDashStatStartChange()">
+          <button type="button" class="dp-trigger" data-for="dash-stat-start" data-mode="day" onclick="toggleMiniDatePicker(this)" title="Start date" aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span class="dp-text">All time</span>
+            <svg class="dp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
           <span>至今</span>
         </div>
         <div class="dash-total-block" style="position:absolute;left:0;right:0;bottom:50%;margin-bottom:4px;display:flex;justify-content:center">
@@ -1228,11 +1159,12 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
           <div>
             <div style="font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-6);text-transform:uppercase;letter-spacing:.04em">起始日期</div>
             <div style="display:flex;align-items:center;gap:var(--space-6)">
-              <span class="mini-date-group">
-                <input type="date" id="run-combined-start" class="mini-date-input-plain" onchange="onRunCombinedStartChange()">
-                <button type="button" class="mini-date-trigger placeholder" data-for="run-combined-start" onclick="toggleMiniDatePicker(this)" title="选择起始日期">年/月/日</button>
-                <span class="mini-reset-link-plain" onclick="resetRunCombinedStart()" title="重置为最早日期">↺</span>
-              </span>
+              <input type="date" id="run-combined-start" class="mini-date-input-plain" onchange="onRunCombinedStartChange()">
+              <button type="button" class="dp-trigger" data-for="run-combined-start" data-mode="day" onclick="toggleMiniDatePicker(this)" title="Start date" aria-haspopup="dialog">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span class="dp-text">All time</span>
+                <svg class="dp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
             </div>
           </div>
         </div>
@@ -1945,17 +1877,12 @@ function renderMonthlyBarCard({containerId, title, subtitle='', chartId, startIn
           <div class="chart-title">${escapeHtml(title)}</div>
           ${subtitle ? `<div class="chart-sub">${escapeHtml(subtitle)}</div>` : ''}
         </div>
-        <span class="mp-group is-default">
-          <input type="date" id="${startInputId}" class="mini-date-input-plain" onchange="${onStartChange}">
-          <button type="button" class="mp-trigger" data-for="${startInputId}" onclick="toggleMonthPicker(this)" title="Start month" aria-haspopup="dialog">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            <span class="mp-text">All time</span>
-            <svg class="mp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <button type="button" class="mp-reset" onclick="${resetOnClick}" title="Reset to first record" aria-label="Reset start month">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 10 9 10"/></svg>
-          </button>
-        </span>
+        <input type="date" id="${startInputId}" class="mini-date-input-plain" onchange="${onStartChange}">
+        <button type="button" class="dp-trigger" data-for="${startInputId}" data-mode="month" onclick="toggleMonthPicker(this)" title="Start month" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span class="dp-text">All time</span>
+          <svg class="dp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
       </div>
       ${legendId ? `<div class="legend" id="${legendId}"></div>` : ''}
       <div class="${chartWrapClass}" style="position:relative;height:220px;margin-top:${legendId?'0':'var(--space-10)'}"><canvas id="${chartId}"></canvas></div>
@@ -2017,12 +1944,12 @@ function renderLineChartCard({containerId, title, subtitle, chartId, startInputI
         </div>
         <div style="display:flex;align-items:center;gap:var(--space-6);flex-wrap:wrap">
           ${extraControlsHtml}
-          <span class="mini-date-label">起始日期</span>
-          <span class="mini-date-group">
-            <input type="date" id="${startInputId}" class="mini-date-input-plain" onchange="${onStartChange}">
-            <button type="button" class="mini-date-trigger placeholder" data-for="${startInputId}" onclick="toggleMiniDatePicker(this)" title="选择起始日期">年/月/日</button>
-            <span class="mini-reset-link-plain" onclick="${resetOnClick}" title="重置为最早日期">↺</span>
-          </span>
+          <input type="date" id="${startInputId}" class="mini-date-input-plain" onchange="${onStartChange}">
+          <button type="button" class="dp-trigger" data-for="${startInputId}" data-mode="day" onclick="toggleMiniDatePicker(this)" title="Start date" aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span class="dp-text">All time</span>
+            <svg class="dp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
         </div>
       </div>
       <div style="position:relative;height:${chartHeight}px;margin-top:var(--space-10)"><canvas id="${chartId}"></canvas></div>
@@ -2884,28 +2811,23 @@ function upsertChart(id, canvas, config, aux){
 // 用户点的是 .mini-date-trigger 按钮，弹出下面这个自己画的日历，选中某天后
 // 把值写回隐藏的 input 并 dispatch 一个 change 事件，触发原有逻辑。
 // ═══════════════════════════════════════════════════════
-function formatMiniDate(v){ return v ? v.replaceAll('-','/') : '年/月/日'; }
-
-// 每次某个起始日期 input 的 value/min/max 被程序设置后，调用这个把对应的
-// 触发按钮文字刷新成一致的显示（renderDashboard / syncStartInput 里都会调用）
 const MP_MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// 统一的触发按钮文案/高亮同步：day 模式显示 "From Mar 15, 2025"，month 模式显示 "From Mar 2025"；
+// 未自定义（值等于/早于 min）时显示 "All time" 且按钮恢复默认底色——这就是现在唯一的"重置"提示方式。
 function syncMiniDateTrigger(inputId){
   const input = document.getElementById(inputId);
-  if(!input) return;
-  // 月份选择器（.mp-trigger）：显示 "From Mar 2025"；等于最早月份（未自定义）时隐藏重置按钮
-  const mp = document.querySelector('.mp-trigger[data-for="'+inputId+'"]');
-  if(mp){
-    const v = input.value;
-    mp.querySelector('.mp-text').textContent = v ? `From ${MP_MONTHS[parseInt(v.slice(5,7),10)-1]} ${v.slice(0,4)}` : 'All time';
-    const isDefault = !v || (input.min && v.slice(0,7) <= input.min.slice(0,7));
-    const grp = mp.closest('.mp-group');
-    if(grp) grp.classList.toggle('is-default', !!isDefault);
-    return;
-  }
-  const btn = document.querySelector('.mini-date-trigger[data-for="'+inputId+'"]');
-  if(!btn) return;
-  btn.textContent = formatMiniDate(input.value);
-  btn.classList.toggle('placeholder', !input.value);
+  const btn = document.querySelector('.dp-trigger[data-for="'+inputId+'"]');
+  if(!input || !btn) return;
+  const mode = btn.dataset.mode || 'day';
+  const v = input.value, min = input.min || '';
+  const cmpV = mode==='month' ? v.slice(0,7) : v;
+  const cmpMin = mode==='month' ? min.slice(0,7) : min;
+  const isDefault = !v || (cmpMin && cmpV<=cmpMin);
+  const label = !v ? 'All time'
+    : mode==='month' ? `From ${MP_MONTHS[parseInt(v.slice(5,7),10)-1]} ${v.slice(0,4)}`
+    : `From ${MP_MONTHS[parseInt(v.slice(5,7),10)-1]} ${parseInt(v.slice(8,10),10)}, ${v.slice(0,4)}`;
+  btn.querySelector('.dp-text').textContent = isDefault ? 'All time' : label;
+  btn.classList.toggle('dp-active', !isDefault);
 }
 
 let miniDatePickerEl = null;
@@ -2914,12 +2836,12 @@ let miniDatePickerFor = null;
 function closeMiniDatePicker(){
   if(miniDatePickerEl){ miniDatePickerEl.remove(); miniDatePickerEl = null; }
   miniDatePickerFor = null;
-  document.querySelectorAll('.mp-trigger[aria-expanded]').forEach(b=>b.removeAttribute('aria-expanded'));
+  document.querySelectorAll('.dp-trigger[aria-expanded]').forEach(b=>b.removeAttribute('aria-expanded'));
   document.removeEventListener('mousedown', onMiniDatePickerOutsideClick, true);
   document.removeEventListener('keydown', onMiniDatePickerKeydown, true);
 }
 function onMiniDatePickerOutsideClick(e){
-  if(miniDatePickerEl && !miniDatePickerEl.contains(e.target) && !(e.target.closest && e.target.closest('.mini-date-trigger, .mp-trigger'))){
+  if(miniDatePickerEl && !miniDatePickerEl.contains(e.target) && !(e.target.closest && e.target.closest('.dp-trigger'))){
     closeMiniDatePicker();
   }
 }
@@ -2932,6 +2854,7 @@ function toggleMiniDatePicker(btn){
   if(miniDatePickerFor === inputId){ closeMiniDatePicker(); return; }
   openMiniDatePicker(btn, inputId);
 }
+
 
 // 月份选择器（月度柱状图卡片的「起始月份」）：年份翻页 + 3×4 月份网格，点一下直接生效。
 // 写回隐藏 input 的值：选到最早月份时写 min（保持"未自定义"），其余写 YYYY-MM-01。
@@ -3013,6 +2936,7 @@ function openMiniDatePicker(btn, inputId){
   const input = document.getElementById(inputId);
   if(!input) return;
   miniDatePickerFor = inputId;
+  btn.setAttribute('aria-expanded','true');
 
   const min = input.min || '';
   const max = input.max || '';
