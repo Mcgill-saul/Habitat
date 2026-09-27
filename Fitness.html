@@ -780,7 +780,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
 /* ── 月度跑量：手机端横向条形列表 ── */
 .mdist-list{flex-direction:column;gap:var(--space-8);margin-top:var(--space-10);}
 .mdist-row{display:flex;align-items:center;gap:var(--space-8);}
-.mdist-month{width:40px;font-size:var(--fs-xs);color:var(--text3);flex-shrink:0;}
+.mdist-month{width:46px;font-size:var(--fs-xs);color:var(--text3);flex-shrink:0;}
 .mdist-bar-wrap{flex:1;height:22px;background:var(--bg3);border-radius:4px;overflow:hidden;min-width:0;position:relative;}
 .mdist-bar{height:100%;border-radius:4px;background:var(--green);position:relative;overflow:hidden;}
 .mdist-val{position:absolute;top:0;left:8px;bottom:0;display:flex;align-items:center;font-size:var(--fs-xs);color:#fff;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.35);}
@@ -1102,7 +1102,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
         </div>
         <div style="display:flex;gap:var(--space-8)">
           <button class="btn btn-secondary btn-sm" id="run-cycle-toggle" onclick="toggleRunCycleHistory()" style="display:none">View Past Cycles</button>
-          <button class="btn btn-secondary btn-sm" onclick="addRunCycle()">＋ Add Cycle</button>
+          <button class="btn btn-secondary btn-sm" onclick="addRunCycle()">+ Add Cycle</button>
         </div>
       </div>
       <div class="cycle-layout">
@@ -2803,6 +2803,8 @@ function upsertChart(id, canvas, config, aux){
 // 把值写回隐藏的 input 并 dispatch 一个 change 事件，触发原有逻辑。
 // ═══════════════════════════════════════════════════════
 const MP_MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// 'YYYY-MM' -> 'Sep 25' 这类地道的英文月份短标签，图表 X 轴和月度列表统一用这个
+function fmtMonthLabel(m){ return `${MP_MONTHS[parseInt(m.slice(5,7),10)-1]} ${m.slice(2,4)}`; }
 // 统一的触发按钮文案/高亮同步：day 模式显示 "From Mar 15, 2025"，month 模式显示 "From Mar 2025"；
 // 未自定义（值等于/早于 min）时显示 "All time" 且按钮恢复默认底色——这就是现在唯一的"重置"提示方式。
 function syncMiniDateTrigger(inputId){
@@ -3222,7 +3224,7 @@ function renderDashboard(){
   const monthlyInput = document.getElementById('dash-monthly-start');
   if(monthlyInput){ monthlyInput.min=earliest; monthlyInput.max=latest; monthlyInput.value=dashMonthlyStart||earliest; monthlyInput.placeholder=earliest; syncMiniDateTrigger('dash-monthly-start'); }
   upsertChart('monthlyChart', document.getElementById('monthlyChart'), {type:'bar',
-    data:{labels:months.map(m=>m.slice(2).replace('-','/')),
+    data:{labels:months.map(fmtMonthLabel),
       datasets:types.map(t=>({
         label:t,
         data:months.map(m=>records.filter(r=>r.date?.startsWith(m)&&r.sport===t).length),
@@ -3431,7 +3433,7 @@ function toggleCycleHistory(){
 function renderCycleCard({id, label, isActive, startDate, endDate, stats, onEdit, onDelete, extraContentHtml='', accent='var(--green)', accentLt='var(--green-lt)', accentDk='var(--green-dk)'}){
   const statusBadge = isActive
     ? `<span style="font-size:var(--fs-xs);background:${accentLt};color:${accentDk};border:1px solid ${accent};padding:2px 8px;border-radius:10px;font-weight:600">Active</span>`
-    : `<span style="font-size:var(--fs-xs);background:var(--bg3);color:var(--text3);border:1px solid var(--border);padding:2px 8px;border-radius:10px">Completed</span>`;
+    : `<span style="font-size:var(--fs-xs);background:var(--bg3);color:var(--text3);border:1px solid var(--border);padding:2px 8px;border-radius:10px">Ended</span>`;
   const statsHtml = stats.map((s,i)=>`${i>0?'<div class="cycle-divider"></div>':''}
       <div class="cycle-stat"><span class="cycle-stat-val"${s.highlight?` style="color:${accent}"`:''}>${s.val}</span><span class="cycle-stat-label">${escapeHtml(s.label)}</span></div>`).join('');
   return `<div class="cycle-card${isActive?' active':''}" ${isActive?`style="--cycle-accent:${accent};--cycle-accent-lt:${accentLt}"`:''}>
@@ -3631,7 +3633,7 @@ function renderAnaerobic(){
   upsertChart('anaMonthlyChart', document.getElementById('anaMonthlyChart'),{
     type:'line',
     data:{
-      labels:months.map(m=>m.slice(2).replace('-','/')),
+      labels:months.map(fmtMonthLabel),
       datasets:[lineDS(months.map(m=>ana.filter(r=>r.date?.startsWith(m)).length), THEME.blue)]
     },
     options:{...CHART_OPT, plugins:{legend:{display:false}}}
@@ -4010,7 +4012,7 @@ function renderRunAnalysis(){
       // 文字画两层：底层深色铺满整条轨道；上层白字放进进度条内部（overflow:hidden 裁切）。
       // 进度条覆盖到的部分显示白字，没覆盖到的部分显示深色字，短条/0 跑量月份也看得清。
       return `<div class="mdist-row">
-        <div class="mdist-month">${m.slice(2).replace('-','/')}</div>
+        <div class="mdist-month">${fmtMonthLabel(m)}</div>
         <div class="mdist-bar-wrap">
           <div class="mdist-val mdist-val-dark">${label}</div>
           <div class="mdist-bar" style="width:${pct}%"><div class="mdist-val" aria-hidden="true">${label}</div></div>
@@ -4021,7 +4023,7 @@ function renderRunAnalysis(){
 
   upsertChart('monthlyDistChart', document.getElementById('monthlyDistChart'),{
     type:'bar',
-    data:{labels:months.map(m=>m.slice(2).replace('-','/')),datasets:[{data:mDist,backgroundColor:THEME.green,borderRadius:4,hoverBackgroundColor:'#22d6a0'}]},
+    data:{labels:months.map(fmtMonthLabel),datasets:[{data:mDist,backgroundColor:THEME.green,borderRadius:4,hoverBackgroundColor:'#22d6a0'}]},
     options:CHART_OPT,
     plugins:[
       ...makeAvgBandPlugin(()=>mDist, 'km'),
