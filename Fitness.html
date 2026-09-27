@@ -151,7 +151,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
 /* metrics */
 .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--space-12);margin-bottom:1.5rem;}
 .metric{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;box-shadow:var(--shadow);}
-.metric-label{font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-8);text-transform:uppercase;letter-spacing:.06em;}
+.metric-label{font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-8);}
 .metric-value{font-size:var(--fs-stat);font-weight:700;line-height:1;}
 .metric-unit{font-size:var(--fs-sm);font-weight:400;color:var(--text2);margin-left:2px;}
 .metric-sub{font-size:var(--fs-xs);color:var(--text3);margin-top:var(--space-5);}
@@ -173,7 +173,6 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
 .chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;box-shadow:var(--shadow);min-width:0;}
 .chart-card.full{grid-column:1/-1;}
 .chart-title{font-size:var(--fs-base);font-weight:700;color:var(--text);margin-bottom:var(--space-3);}
-.chart-sub{font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-14);}
 .legend{display:flex;flex-wrap:wrap;gap:var(--space-8);margin-bottom:var(--space-14);}
 .legend-item{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-xs);font-weight:600;padding:4px 10px 4px 8px;border-radius:12px;}
 .legend-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
@@ -316,6 +315,8 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
     gap: 10px;
   }
   .cycle-card-stats .cycle-stat{ min-width: 0; }
+  /* 注：微型标签的全大写与字距已在全局（.metric-label / .cycle-stat-label）统一去掉，
+     这里不再单独覆盖——桌面端与手机端共用同一套规则，避免样式随视口漂移 */
   /* ── 跑步总览：手机端「平均配速/心率/最快配速/总次数」四项之前用
      flex:1 + min-width:0 会无限收缩挤成一团，而不是换行。改成两列网格，
      「累计跑量」hero 区块单独占一整行 ── */
@@ -392,7 +393,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
 
 /* Uniform field */
 .ff{display:flex;flex-direction:column;gap:var(--space-5);}
-.ff label{font-size:var(--fs-xs);font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;}
+.ff label{font-size:var(--fs-xs);font-weight:600;color:var(--text3);}
 .ff input,.ff select,.ff textarea{
   background:var(--bg3);
   border:1.5px solid var(--border);
@@ -576,7 +577,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
 .records-title{font-size:var(--fs-base);font-weight:600;color:var(--text2);}
 .record-list{display:flex;flex-direction:column;gap:0;border:1.5px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;overflow-x:auto;}
 .record-list-header{display:flex;align-items:center;background:var(--bg3);border-bottom:1.5px solid var(--border);padding:7px 14px;white-space:nowrap;min-width:max-content;}
-.rh{flex-shrink:0;font-size:var(--fs-xs);font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;padding-right:12px;white-space:nowrap;}
+.rh{flex-shrink:0;font-size:var(--fs-xs);font-weight:700;color:var(--text3);padding-right:12px;white-space:nowrap;}
 
 .record-item{background:var(--bg2);border-bottom:1px solid var(--border);padding:9px 14px;display:flex;align-items:center;cursor:pointer;transition:background .1s;min-width:max-content;}
 .record-item:last-child{border-bottom:none;}
@@ -664,7 +665,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
 
 /* Dashboard 顶部：本周速览 + 同比趋势 + 连续周数 + 7天色块条（网格轨道已并入 .dash-grid） */
 .dash-overview-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:16px 22px;min-width:150px;}
-.dash-overview-label{font-size:var(--fs-xs);color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+.dash-overview-label{font-size:var(--fs-xs);color:var(--text3);margin-bottom:6px;}
 .dash-overview-value{font-size:var(--fs-display-sm);font-weight:800;color:var(--text);line-height:1;font-variant-numeric:tabular-nums;}
 .dash-overview-trend{font-size:var(--fs-xs);margin-top:7px;min-height:15px;}
 .dash-badges{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;min-height:26px;align-items:center;}
@@ -705,7 +706,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
 .cycle-card-stats{display:flex;align-items:center;gap:var(--space-10);}
 .cycle-stat{display:flex;flex-direction:column;gap:var(--space-2);min-width:0;flex:1;}
 .cycle-stat-val{font-size:var(--fs-stat);font-weight:700;color:var(--text);line-height:1;white-space:nowrap;}
-.cycle-stat-label{font-size:var(--fs-xs);color:var(--text3);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
+.cycle-stat-label{font-size:var(--fs-xs);color:var(--text3);white-space:nowrap;}
 .cycle-divider{width:1px;height:36px;background:var(--border);flex-shrink:0;}
 .run-overview-divider{width:1px;height:44px;background:var(--border);flex-shrink:0;}
 .cycle-extra{border-top:1px solid var(--border);padding-top:var(--space-12);}
@@ -1005,7 +1006,6 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
       <!-- 卡片 3：分类速览 -->
       <div class="chart-card" id="dash-summary-card">
         <div class="chart-title">分类速览</div>
-        <div class="chart-sub">各运动类型次数与累计量</div>
         <div id="sport-summary-list" style="margin-top:var(--space-10)"></div>
       </div>
     </div>
@@ -1024,7 +1024,6 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-16);flex-wrap:wrap;gap:var(--space-8)">
         <div>
           <div class="chart-title">无氧坚持周期</div>
-          <div class="chart-sub">记录每个阶段的起止日期，统计坚持天数与训练频率</div>
         </div>
         <div style="display:flex;gap:var(--space-8)">
           <button class="btn btn-secondary btn-sm" id="ana-cycle-toggle" onclick="toggleCycleHistory()" style="display:none">查看历史周期</button>
@@ -1054,7 +1053,6 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:var(--space-4)">
         <div>
           <div class="chart-title">年度战报</div>
-          <div class="chart-sub">各部位各年度训练次数对比 · 点击年份可排除/恢复</div>
         </div>
         <div id="ana-yearly-legend" style="display:flex;gap:var(--space-8);flex-wrap:wrap"></div>
       </div>
@@ -1078,8 +1076,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
         <div style="display:flex;align-items:center;gap:9px;margin-bottom:var(--space-16)">
           <span style="width:34px;height:34px;border-radius:10px;background:var(--green-lt);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🏃</span>
           <div>
-            <div class="chart-title" style="margin-bottom:1px">跑步总览</div>
-            <div class="chart-sub" style="margin-bottom:0">全部跑步记录汇总</div>
+            <div class="chart-title" style="margin-bottom:1px">Running Overview</div>
           </div>
         </div>
         <div id="run-overview-stats" style="flex:1;display:flex;align-items:flex-end;gap:var(--space-20);flex-wrap:wrap"></div>
@@ -1087,13 +1084,12 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
 
       <!-- 跑鞋里程（没有跑鞋数据时整卡隐藏） -->
       <div class="chart-card" id="run-shoe-card" style="grid-column:1;grid-row:2;display:none">
-        <div class="chart-title" style="margin-bottom:var(--space-12)">跑鞋里程</div>
+        <div class="chart-title" style="margin-bottom:var(--space-12)">Distance by Shoe</div>
         <div id="run-shoe-list"></div>
       </div>
 
       <div class="chart-card" id="run-dist-card" style="grid-column:2;grid-row:1 / span 2">
-        <div class="chart-title" style="margin-bottom:2px">距离分布</div>
-        <div class="chart-sub" style="margin-bottom:0">各距离出现次数，按里程从小到大排列</div>
+        <div class="chart-title" style="margin-bottom:2px">Distance Breakdown</div>
         <div id="run-dist-chart-wrap" style="position:relative;height:280px;margin-top:var(--space-14)"><canvas id="runDistBarChart"></canvas></div>
       </div>
     </div>
@@ -1102,12 +1098,11 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
     <div class="chart-card full" style="margin-bottom:var(--space-14)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-16);flex-wrap:wrap;gap:var(--space-8)">
         <div>
-          <div class="chart-title">跑步周期</div>
-          <div class="chart-sub">记录每个阶段的起止日期，统计周期内跑步数据</div>
+          <div class="chart-title">Training Cycles</div>
         </div>
         <div style="display:flex;gap:var(--space-8)">
-          <button class="btn btn-secondary btn-sm" id="run-cycle-toggle" onclick="toggleRunCycleHistory()" style="display:none">查看历史周期</button>
-          <button class="btn btn-secondary btn-sm" onclick="addRunCycle()">＋ 添加周期</button>
+          <button class="btn btn-secondary btn-sm" id="run-cycle-toggle" onclick="toggleRunCycleHistory()" style="display:none">View Past Cycles</button>
+          <button class="btn btn-secondary btn-sm" onclick="addRunCycle()">＋ Add Cycle</button>
         </div>
       </div>
       <div class="cycle-layout">
@@ -1131,33 +1126,32 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
       <div class="chart-card">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:var(--space-12);margin-bottom:var(--space-14)">
           <div>
-            <div class="chart-title">配速 / 心率 / 步频</div>
-            <div class="chart-sub">多维度趋势，可按训练类型和距离筛选</div>
+            <div class="chart-title">Pace · Heart Rate · Cadence</div>
           </div>
           <!-- 线条开关 + 目标线设置 -->
           <div style="display:flex;gap:var(--space-8);flex-wrap:wrap;align-items:center">
-            <span style="font-size:var(--fs-xs);color:var(--text3)">显示：</span>
-            <label class="line-toggle" style="--c:var(--blue)"><input type="checkbox" id="lt-pace" checked onchange="renderCombinedChart()"><span>配速</span></label>
-            <label class="line-toggle" style="--c:var(--coral)"><input type="checkbox" id="lt-hr" checked onchange="renderCombinedChart()"><span>平均心率</span></label>
-            <label class="line-toggle" style="--c:var(--amber)"><input type="checkbox" id="lt-maxhr" checked onchange="renderCombinedChart()"><span>最大心率</span></label>
-            <label class="line-toggle" style="--c:var(--purple)"><input type="checkbox" id="lt-cadence" onchange="renderCombinedChart()"><span>步频</span></label>
+            <span style="font-size:var(--fs-xs);color:var(--text3)">Show:</span>
+            <label class="line-toggle" style="--c:var(--blue)"><input type="checkbox" id="lt-pace" checked onchange="renderCombinedChart()"><span>Pace</span></label>
+            <label class="line-toggle" style="--c:var(--coral)"><input type="checkbox" id="lt-hr" checked onchange="renderCombinedChart()"><span>Avg HR</span></label>
+            <label class="line-toggle" style="--c:var(--amber)"><input type="checkbox" id="lt-maxhr" checked onchange="renderCombinedChart()"><span>Max HR</span></label>
+            <label class="line-toggle" style="--c:var(--purple)"><input type="checkbox" id="lt-cadence" onchange="renderCombinedChart()"><span>Cadence</span></label>
             <div style="width:1px;height:20px;background:var(--border);margin:0 4px"></div>
-            <button class="btn btn-secondary btn-sm" onclick="openTargetModal()" style="font-size:var(--fs-xs)">⚑ 目标线</button>
-            <button class="btn btn-secondary btn-sm landscape-btn" onclick="openLandscapeChart()" style="font-size:var(--fs-xs)">⤢ 横屏查看</button>
+            <button class="btn btn-secondary btn-sm" onclick="openTargetModal()" style="font-size:var(--fs-xs)">⚑ Targets</button>
+            <button class="btn btn-secondary btn-sm landscape-btn" onclick="openLandscapeChart()" style="font-size:var(--fs-xs)">⤢ Fullscreen</button>
           </div>
         </div>
         <!-- 筛选条件 -->
         <div style="display:flex;gap:var(--space-12);flex-wrap:wrap;margin-bottom:var(--space-14);padding-bottom:12px;border-bottom:1px solid var(--border)">
           <div>
-            <div style="font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-6);text-transform:uppercase;letter-spacing:.04em">训练类型</div>
+            <div style="font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-6)">Workout Type</div>
             <div id="filter-subtype" style="display:flex;gap:var(--space-6);flex-wrap:wrap"></div>
           </div>
           <div>
-            <div style="font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-6);text-transform:uppercase;letter-spacing:.04em">距离</div>
+            <div style="font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-6)">Distance</div>
             <div id="filter-dist" style="display:flex;gap:var(--space-6);flex-wrap:wrap"></div>
           </div>
           <div>
-            <div style="font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-6);text-transform:uppercase;letter-spacing:.04em">起始日期</div>
+            <div style="font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-6)">From</div>
             <div style="display:flex;align-items:center;gap:var(--space-6)">
               <input type="date" id="run-combined-start" class="mini-date-input-plain" onchange="onRunCombinedStartChange()">
               <button type="button" class="dp-trigger" data-for="run-combined-start" data-mode="day" onclick="toggleMiniDatePicker(this)" title="Start date" aria-haspopup="dialog">
@@ -1567,22 +1561,22 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
 <!-- 目标线设置 Modal -->
 <div id="targetModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:300;display:none;align-items:center;justify-content:center" onclick="if(event.target===this)closeTargetModal()">
   <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:28px;width:360px;box-shadow:var(--shadow)">
-    <div style="font-size:var(--fs-base);font-weight:700;margin-bottom:var(--space-20);color:var(--text)">⚑ 目标线设置</div>
+    <div style="font-size:var(--fs-base);font-weight:700;margin-bottom:var(--space-20);color:var(--text)">⚑ Set Targets</div>
     <div style="display:flex;flex-direction:column;gap:var(--space-16)">
       <div class="ff">
-        <label>配速目标 (分:秒，如 6:00)</label>
+        <label>Pace target (min:sec, e.g. 6:00)</label>
         <input type="text" id="target-pace-input" placeholder="6:00" pattern="\d+:\d{2}">
-        <div style="font-size:var(--fs-xs);color:var(--text3);margin-top:var(--space-4)">留空则不显示目标线</div>
+        <div style="font-size:var(--fs-xs);color:var(--text3);margin-top:var(--space-4)">Leave blank to hide the target line</div>
       </div>
       <div class="ff">
-        <label>平均心率目标 (bpm)</label>
+        <label>Avg HR target (bpm)</label>
         <input type="number" id="target-hr-input" placeholder="150" min="60" max="220">
-        <div style="font-size:var(--fs-xs);color:var(--text3);margin-top:var(--space-4)">留空则不显示目标线</div>
+        <div style="font-size:var(--fs-xs);color:var(--text3);margin-top:var(--space-4)">Leave blank to hide the target line</div>
       </div>
     </div>
     <div style="display:flex;gap:var(--space-10);margin-top:var(--space-22);justify-content:flex-end">
-      <button class="btn btn-secondary" onclick="closeTargetModal()">取消</button>
-      <button class="btn btn-primary" onclick="saveTargetLines()">保存</button>
+      <button class="btn btn-secondary" onclick="closeTargetModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTargetLines()">Save</button>
     </div>
   </div>
 </div>
@@ -1590,9 +1584,9 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
 <!-- 横屏查看 配速/心率/步频 弹层 -->
 <div id="landscapeOverlay" class="landscape-overlay" style="display:none">
   <div class="landscape-header">
-    <span class="landscape-title">配速 / 心率 / 步频</span>
-    <span class="landscape-hint">请将手机横向以获得更宽视图</span>
-    <button class="landscape-close" onclick="closeLandscapeChart()" aria-label="关闭">✕</button>
+    <span class="landscape-title">Pace · Heart Rate · Cadence</span>
+    <span class="landscape-hint">Rotate your phone for a wider view</span>
+    <button class="landscape-close" onclick="closeLandscapeChart()" aria-label="Close">✕</button>
   </div>
   <div class="landscape-canvas-wrap"><canvas id="combinedChartLandscape"></canvas></div>
 </div>
@@ -1741,14 +1735,13 @@ function hexToRgba(hex, alpha){
 // 全部由这里统一生成，调用方只传文字内容和数据，不能单独改某一处布局。
 // 外壳只在容器第一次渲染时生成一次（用 dataset.built 标记），避免每次刷新数据都
 // 重建 DOM 导致"显示数字"开关的勾选状态被强制重置。
-function renderDonutCard({containerId, title, subtitle, chartId, legendId, toggleId, onToggle, labels, values, colorFn, unit='次', toggleColor='var(--brand)'}){
+function renderDonutCard({containerId, title, chartId, legendId, toggleId, onToggle, labels, values, colorFn, unit='次', toggleColor='var(--brand)'}){
   const host = document.getElementById(containerId);
   if(host && !host.dataset.built){
     host.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-10)">
         <div>
           <div class="chart-title">${escapeHtml(title)}</div>
-          <div class="chart-sub">${escapeHtml(subtitle)}</div>
         </div>
         <label class="line-toggle pill-30" style="width:auto;padding:0 8px"><input type="checkbox" id="${toggleId}" checked onchange="${onToggle}"><span>显示数字</span></label>
       </div>
@@ -1868,14 +1861,13 @@ function makeAvgBandPlugin(getTotals, unit){
 // 统一生成。图例的具体内容不在这里管——因为「月度运动构成」是多类型堆叠、需要图例，
 // 「月度里程」是单一数值、不需要图例，两边数据结构差太多硬塞一个函数反而难维护；
 // 折中方案：容器"有没有、放哪"由模板决定，容器"里面填什么"留给调用方各自负责。
-function renderMonthlyBarCard({containerId, title, subtitle='', chartId, startInputId, onStartChange, resetOnClick, legendId, chartWrapClass='', extraHtml=''}){
+function renderMonthlyBarCard({containerId, title, chartId, startInputId, onStartChange, resetOnClick, legendId, chartWrapClass='', extraHtml=''}){
   const host = document.getElementById(containerId);
   if(host && !host.dataset.built){
     host.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-8);flex-wrap:wrap">
         <div>
           <div class="chart-title">${escapeHtml(title)}</div>
-          ${subtitle ? `<div class="chart-sub">${escapeHtml(subtitle)}</div>` : ''}
         </div>
         <input type="date" id="${startInputId}" class="mini-date-input-plain" onchange="${onStartChange}">
         <button type="button" class="dp-trigger" data-for="${startInputId}" data-mode="month" onclick="toggleMonthPicker(this)" title="Start month" aria-haspopup="dialog">
@@ -1933,14 +1925,13 @@ function makeBarValueLabelPlugin(formatFn, minHeight=16){
 // 模板 4：整张「折线图卡片」外壳——标题行/日期筛选器位置(含"起始日期"标签)/canvas容器，
 // 统一生成，思路跟 renderMonthlyBarCard 一样。以 Anaerobic「月度无氧训练频次」为参照实例，
 // 之前这类卡片的日期选择器前面没有文字标签，跟柱状图模板（"起始月份"）不一致，这里补上。
-function renderLineChartCard({containerId, title, subtitle, chartId, startInputId, onStartChange, resetOnClick, extraControlsHtml='', chartHeight=220}){
+function renderLineChartCard({containerId, title, chartId, startInputId, onStartChange, resetOnClick, extraControlsHtml='', chartHeight=220}){
   const host = document.getElementById(containerId);
   if(host && !host.dataset.built){
     host.innerHTML = `
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-8);flex-wrap:wrap">
         <div>
           <div class="chart-title">${escapeHtml(title)}</div>
-          <div class="chart-sub">${escapeHtml(subtitle)}</div>
         </div>
         <div style="display:flex;align-items:center;gap:var(--space-6);flex-wrap:wrap">
           ${extraControlsHtml}
@@ -3214,7 +3205,7 @@ function renderDashboard(){
   const months=getMonthRange(dashMonthlyStart);
   const types=['Strength','Run','Jump Rope','Badminton','Hike','Walk'];
   renderMonthlyBarCard({
-    containerId:'dash-monthly-card', title:'月度运动构成', subtitle:'每月各运动类型次数',
+    containerId:'dash-monthly-card', title:'月度运动构成',
     chartId:'monthlyChart', startInputId:'dash-monthly-start', onStartChange:'onDashMonthlyStartChange()', resetOnClick:'resetDashMonthlyStart()',
     legendId:'dash-monthly-legend'
   });
@@ -3259,7 +3250,7 @@ function renderDashboard(){
   // 训练类型占比甜甜圈 — 调用共享模板（跟 Anaerobic「肌群训练分布」共用同一份函数）
   const tc={};records.forEach(r=>{const s=r.sport||'其他';tc[s]=(tc[s]||0)+1;});
   const tcLabels=getSportDisplayOrder(tc); const tcVals=tcLabels.map(l=>tc[l]);
-  renderDonutCard({containerId:'dash-donut-card', title:'类型占比', subtitle:'所有记录分布', chartId:'typeChart', legendId:'typeChart-legend', toggleId:'dash-pie-labels', onToggle:'renderDashboard()', labels:tcLabels, values:tcVals, colorFn:getSportColor, toggleColor:'var(--brand)'});
+  renderDonutCard({containerId:'dash-donut-card', title:'类型占比', chartId:'typeChart', legendId:'typeChart-legend', toggleId:'dash-pie-labels', onToggle:'renderDashboard()', labels:tcLabels, values:tcVals, colorFn:getSportColor, toggleColor:'var(--brand)'});
 
   renderSportSummary();
   renderDashboardOverview();
@@ -3439,8 +3430,8 @@ function toggleCycleHistory(){
 // 不再写死绿色——不然无氧页面里"进行中"这种状态色会跟 Strength 自己的蓝不一致。
 function renderCycleCard({id, label, isActive, startDate, endDate, stats, onEdit, onDelete, extraContentHtml='', accent='var(--green)', accentLt='var(--green-lt)', accentDk='var(--green-dk)'}){
   const statusBadge = isActive
-    ? `<span style="font-size:var(--fs-xs);background:${accentLt};color:${accentDk};border:1px solid ${accent};padding:2px 8px;border-radius:10px;font-weight:600">进行中</span>`
-    : `<span style="font-size:var(--fs-xs);background:var(--bg3);color:var(--text3);border:1px solid var(--border);padding:2px 8px;border-radius:10px">已结束</span>`;
+    ? `<span style="font-size:var(--fs-xs);background:${accentLt};color:${accentDk};border:1px solid ${accent};padding:2px 8px;border-radius:10px;font-weight:600">Active</span>`
+    : `<span style="font-size:var(--fs-xs);background:var(--bg3);color:var(--text3);border:1px solid var(--border);padding:2px 8px;border-radius:10px">Completed</span>`;
   const statsHtml = stats.map((s,i)=>`${i>0?'<div class="cycle-divider"></div>':''}
       <div class="cycle-stat"><span class="cycle-stat-val"${s.highlight?` style="color:${accent}"`:''}>${s.val}</span><span class="cycle-stat-label">${escapeHtml(s.label)}</span></div>`).join('');
   return `<div class="cycle-card${isActive?' active':''}" ${isActive?`style="--cycle-accent:${accent};--cycle-accent-lt:${accentLt}"`:''}>
@@ -3449,13 +3440,13 @@ function renderCycleCard({id, label, isActive, startDate, endDate, stats, onEdit
         <div style="display:flex;align-items:center;gap:var(--space-8);flex-wrap:wrap">
           <span style="font-size:var(--fs-sm);font-weight:700;color:var(--text)">${escapeHtml(label)}</span>${statusBadge}
         </div>
-        <div style="font-size:var(--fs-sm);color:var(--text3)">${startDate} — ${endDate||'至今'}</div>
+        <div style="font-size:var(--fs-sm);color:var(--text3)">${startDate} — ${endDate||'Present'}</div>
       </div>
       <div class="cycle-menu-wrap">
-        <span class="cycle-menu-btn" onclick="toggleCycleMenu(event,'cyclemenu-${id}')" title="操作">&#8942;</span>
+        <span class="cycle-menu-btn" onclick="toggleCycleMenu(event,'cyclemenu-${id}')" title="Actions">&#8942;</span>
         <div class="cycle-menu-panel" id="cyclemenu-${id}" style="display:none">
-          <div class="cycle-menu-item" onclick="closeCycleMenus();${onEdit}">编辑</div>
-          <div class="cycle-menu-item danger" onclick="closeCycleMenus();${onDelete}">删除</div>
+          <div class="cycle-menu-item" onclick="closeCycleMenus();${onEdit}">Edit</div>
+          <div class="cycle-menu-item danger" onclick="closeCycleMenus();${onDelete}">Delete</div>
         </div>
       </div>
     </div>
@@ -3559,7 +3550,7 @@ function renderAnaerobic(){
   const PARTS_ORDER = ['Chest','Back','Legs','Delts','Core','Bis','Tris'];
   const mmLabels = PARTS_ORDER.filter(p=>mm[p]);
   const mmVals = mmLabels.map(p=>mm[p]);
-  renderDonutCard({containerId:'ana-donut-card', title:'肌群训练分布', subtitle:'各部位占比（复合日取第一个部位）', chartId:'muscleChart', legendId:'muscleChart-legend', toggleId:'ana-pie-labels', onToggle:'renderAnaerobic()', labels:mmLabels, values:mmVals, colorFn:l=>MUSCLE_COLORS[l]||'#9ba3b5', toggleColor:'var(--blue)'});
+  renderDonutCard({containerId:'ana-donut-card', title:'肌群训练分布', chartId:'muscleChart', legendId:'muscleChart-legend', toggleId:'ana-pie-labels', onToggle:'renderAnaerobic()', labels:mmLabels, values:mmVals, colorFn:l=>MUSCLE_COLORS[l]||'#9ba3b5', toggleColor:'var(--blue)'});
 
   // ── 年度战报（分组柱状图，可点击图例排除某年）──
   const YEAR_COLORS = [THEME.blue, THEME.green, THEME.amber, THEME.purple, THEME.coral];
@@ -3628,7 +3619,7 @@ function renderAnaerobic(){
 
   // ── 月度频次（可自定义起始日期）──
   renderLineChartCard({
-    containerId:'ana-monthly-line-card', title:'月度无氧训练频次', subtitle:'每月无氧训练次数趋势',
+    containerId:'ana-monthly-line-card', title:'月度无氧训练频次',
     chartId:'anaMonthlyChart', startInputId:'ana-monthly-start', onStartChange:'onAnaMonthlyStartChange()', resetOnClick:'resetAnaMonthlyStart()'
   });
   const anaDates = ana.map(r=>r.date).sort();
@@ -3713,15 +3704,15 @@ function loadShoeRetire(){ try{ const r=localStorage.getItem(LS_SHOE_RETIRE); if
 function saveShoeRetire(d){ localStorage.setItem(LS_SHOE_RETIRE,JSON.stringify(d)); }
 
 function editShoeRetire(name, current){
-  const val = prompt(`「${name}」的退役里程（km）：`, current);
+  const val = prompt(`Retirement distance for "${name}" (km):`, current);
   if(val===null) return;
   const n = parseInt(val);
-  if(isNaN(n)||n<1){ showToast('请输入有效的公里数'); return; }
+  if(isNaN(n)||n<1){ showToast('Please enter a valid distance'); return; }
   const d = loadShoeRetire();
   d[name] = n;
   saveShoeRetire(d);
   renderRunAnalysis();
-  showToast(`已设置「${name}」退役里程 ${n}km ✓`);
+  showToast(`"${name}" retirement distance set to ${n} km ✓`);
 }
 
 // ══════════════════════════════════════
@@ -3733,25 +3724,25 @@ function saveRunCycles(c){ localStorage.setItem(LS_RUN_CYCLES,JSON.stringify(c))
 let runCycles = loadRunCycles();
 
 function addRunCycle(){
-  const label=prompt('周期名称（如：系统备战期）：',''); if(label===null) return;
-  const start=prompt('开始日期（格式 YYYY-MM-DD）：',localDateStr()); if(!start||!/^\d{4}-\d{2}-\d{2}$/.test(start)){showToast('日期格式不正确');return;}
-  const endStr=prompt('结束日期（进行中请留空，直接回车）：','');
+  const label=prompt('Cycle name (e.g. Base Building):',''); if(label===null) return;
+  const start=prompt('Start date (YYYY-MM-DD):',localDateStr()); if(!start||!/^\d{4}-\d{2}-\d{2}$/.test(start)){showToast('Invalid date format');return;}
+  const endStr=prompt('End date (leave blank if still in progress):','');
   const end=(endStr&&/^\d{4}-\d{2}-\d{2}$/.test(endStr.trim()))?endStr.trim():null;
-  runCycles.push({id:genId(),label:label||'无名周期',start,end});
+  runCycles.push({id:genId(),label:label||'Untitled Cycle',start,end});
   runCycles.sort((a,b)=>a.start.localeCompare(b.start));
   saveRunCycles(runCycles); renderRunAnalysis();
 }
 function editRunCycle(id){
   const c=runCycles.find(x=>x.id===id); if(!c) return;
-  const label=prompt('周期名称：',c.label); if(label===null) return;
-  const start=prompt('开始日期：',c.start); if(!start) return;
-  const endStr=prompt('结束日期（进行中留空）：',c.end||'');
+  const label=prompt('Cycle name:',c.label); if(label===null) return;
+  const start=prompt('Start date:',c.start); if(!start) return;
+  const endStr=prompt('End date (leave blank if still in progress):',c.end||'');
   c.label=label||c.label; c.start=start;
   c.end=(endStr&&/^\d{4}-\d{2}-\d{2}$/.test(endStr.trim()))?endStr.trim():null;
   saveRunCycles(runCycles); renderRunAnalysis();
 }
 function deleteRunCycle(id){
-  if(!confirm('确认删除此跑步周期？')) return;
+  if(!confirm('Delete this training cycle?')) return;
   runCycles=runCycles.filter(x=>x.id!==id);
   saveRunCycles(runCycles); renderRunAnalysis();
 }
@@ -3760,7 +3751,7 @@ function toggleRunCycleHistory(){
   runCycleHistoryOpen=!runCycleHistoryOpen;
   document.getElementById('run-cycle-history-wrap').style.display=runCycleHistoryOpen?'':'none';
   document.getElementById('run-cycle-history').style.display=runCycleHistoryOpen?'flex':'none';
-  document.getElementById('run-cycle-toggle').textContent=runCycleHistoryOpen?'收起历史周期':'查看历史周期';
+  document.getElementById('run-cycle-toggle').textContent=runCycleHistoryOpen?'Hide Past Cycles':'View Past Cycles';
 }
 
 function runCycleStats(c){
@@ -3780,20 +3771,20 @@ function renderRunCycleCard(c,isActive){
   const s=runCycleStats(c);
   const avgDist=s.count>0?(s.totalDist/s.count).toFixed(1):'—';
   const extraContentHtml = `<div class="metrics" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr));margin-bottom:0">
-    <div class="metric green"><div class="metric-label">累计跑量</div><div class="metric-value" style="white-space:nowrap">${Math.round(s.totalDist)}<span class="metric-unit"> km · ${s.count} 次</span></div></div>
-    <div class="metric blue"><div class="metric-label">平均配速</div><div class="metric-value" style="font-size:var(--fs-xl)">${fmtPace(s.avgP)}</div></div>
-    <div class="metric amber"><div class="metric-label">平均心率</div><div class="metric-value">${s.avgHr||'—'}<span class="metric-unit">${s.avgHr?' bpm':''}</span></div></div>
-    <div class="metric coral"><div class="metric-label">最快配速</div><div class="metric-value" style="font-size:var(--fs-xl)">${s.best?fmtPace(s.best):'—'}</div></div>
+    <div class="metric green"><div class="metric-label">Total Distance</div><div class="metric-value" style="white-space:nowrap">${Math.round(s.totalDist)}<span class="metric-unit"> km</span></div></div>
+    <div class="metric blue"><div class="metric-label">Avg Pace</div><div class="metric-value" style="font-size:var(--fs-xl)">${fmtPace(s.avgP)}</div></div>
+    <div class="metric amber"><div class="metric-label">Avg HR</div><div class="metric-value">${s.avgHr||'—'}<span class="metric-unit">${s.avgHr?' bpm':''}</span></div></div>
+    <div class="metric coral"><div class="metric-label">Best Pace</div><div class="metric-value" style="font-size:var(--fs-xl)">${s.best?fmtPace(s.best):'—'}</div></div>
   </div>`;
   return renderCycleCard({
     id:c.id, label:c.label, isActive, startDate:c.start, endDate:c.end,
     onEdit:`editRunCycle('${c.id}')`, onDelete:`deleteRunCycle('${c.id}')`,
     accent:'var(--green)', accentLt:'var(--green-lt)', accentDk:'var(--green-dk)',
     stats:[
-      {val:s.totalDays, label:'坚持天数', highlight:isActive},
-      {val:s.count, label:'训练次数'},
-      {val:s.avgDays, label:'平均天/次'},
-      {val:avgDist, label:'平均公里/次'},
+      {val:s.totalDays, label:'Days', highlight:isActive},
+      {val:s.count, label:'Runs'},
+      {val:s.avgDays, label:'Days/Run'},
+      {val:avgDist, label:'Km/Run'},
     ],
     extraContentHtml
   });
@@ -3805,7 +3796,7 @@ function renderRunCycleCard(c,isActive){
 // ══════════════════════════════════════
 function renderHikeAnalysis(){
   renderLineChartCard({
-    containerId:'hike-dist-line-card', title:'步数趋势', subtitle:'每次步数记录',
+    containerId:'hike-dist-line-card', title:'步数趋势',
     chartId:'hikeDistChart', startInputId:'hike-start', onStartChange:'onHikeStartChange()', resetOnClick:'resetHikeStart()',
     chartHeight:320,
     extraControlsHtml:`
@@ -3892,15 +3883,15 @@ function renderRunAnalysis(){
     const limit = shoeRetire[name] || 500; // ← 跑鞋默认退役里程（km），没有单独设置时使用此值
     const pct=Math.min(100,Math.round(stat.km/limit*100));
     const bar=pct>=90?'var(--coral)':pct>=70?'var(--amber)':'var(--green)';
-    const warn=pct>=90?'⚠️ 接近退役':'';
+    const warn=pct>=90?'⚠️ Near retirement':'';
     return `<div style="padding:9px 0;border-bottom:1px solid var(--border)">
       <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-8);margin-bottom:var(--space-6)">
         <div style="display:flex;align-items:baseline;gap:var(--space-8);min-width:0;flex-wrap:wrap">
           <span style="font-size:var(--fs-sm);font-weight:600;color:var(--text);white-space:nowrap">${name}</span>
-          <span style="font-size:var(--fs-xs);color:var(--text3);white-space:nowrap">${stat.km.toFixed(0)}km / ${limit}km · ${stat.cnt} 次</span>
+          <span style="font-size:var(--fs-xs);color:var(--text3);white-space:nowrap">${stat.km.toFixed(0)} / ${limit} km · ${stat.cnt} ${stat.cnt===1?'run':'runs'}</span>
           ${warn?`<span style="font-size:var(--fs-xs);color:var(--coral);white-space:nowrap">${warn}</span>`:''}
         </div>
-        <button onclick="editShoeRetire('${name.replace(/'/g,"\\'")}',${limit})" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:var(--fs-xs);color:var(--text2);cursor:pointer;flex-shrink:0">设置</button>
+        <button onclick="editShoeRetire('${name.replace(/'/g,"\\'")}',${limit})" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:var(--fs-xs);color:var(--text2);cursor:pointer;flex-shrink:0">Edit</button>
       </div>
       <div style="position:relative;height:20px;background:var(--bg3);border-radius:10px;overflow:hidden">
         <div style="width:${pct}%;height:100%;background:${bar};border-radius:10px;transition:width .3s"></div>
@@ -3913,20 +3904,20 @@ function renderRunAnalysis(){
   // 统计条（复用周期卡片的 .cycle-stat 样式），不再是一排各自独立的方块卡片
   document.getElementById('run-overview-stats').innerHTML=`
     <div style="display:flex;flex-direction:column;gap:3px">
-      <span class="metric-label" style="margin-bottom:0">累计跑量</span>
+      <span class="metric-label" style="margin-bottom:0">Total Distance</span>
       <div style="display:flex;align-items:flex-end;gap:5px;line-height:1">
         <span style="font-size:var(--fs-display);font-weight:800;color:var(--green);line-height:1;font-variant-numeric:tabular-nums">${totalDist.toFixed(0)}</span>
-        <span style="font-size:var(--fs-sm);color:var(--text3);padding-bottom:5px;white-space:nowrap">km · ${runs.length} 次</span>
+        <span style="font-size:var(--fs-sm);color:var(--text3);padding-bottom:5px;white-space:nowrap">km</span>
       </div>
     </div>
     <div class="run-overview-divider"></div>
-    <div class="cycle-stat"><span class="cycle-stat-label">平均配速</span><span class="cycle-stat-val">${fmtPace(avgP)}</span></div>
+    <div class="cycle-stat"><span class="cycle-stat-label">Avg Pace</span><span class="cycle-stat-val">${fmtPace(avgP)}</span></div>
     <div class="cycle-divider"></div>
-    <div class="cycle-stat"><span class="cycle-stat-label">平均心率</span><span class="cycle-stat-val">${avgHr||'—'}</span></div>
+    <div class="cycle-stat"><span class="cycle-stat-label">Avg HR</span><span class="cycle-stat-val">${avgHr||'—'}</span></div>
     <div class="cycle-divider"></div>
-    <div class="cycle-stat"><span class="cycle-stat-label">最快配速</span><span class="cycle-stat-val">${best===Infinity?'—':fmtPace(best)}</span></div>
+    <div class="cycle-stat"><span class="cycle-stat-label">Best Pace</span><span class="cycle-stat-val">${best===Infinity?'—':fmtPace(best)}</span></div>
     <div class="cycle-divider"></div>
-    <div class="cycle-stat"><span class="cycle-stat-label">总次数</span><span class="cycle-stat-val">${runs.length}</span></div>
+    <div class="cycle-stat"><span class="cycle-stat-label">Total Runs</span><span class="cycle-stat-val">${runs.length}</span></div>
   `;
 
   // 距离分布：桌面端维持竖向柱状图；手机端屏幕窄，分类一多每根柱子会被压得
@@ -3957,7 +3948,7 @@ function renderRunAnalysis(){
         indexAxis: distIsMobile ? 'y' : 'x',
         plugins:{legend:{display:false}}
       },
-      plugins:[ makeBarValueLabelPlugin(val=>String(val)+'次', 16) ]
+      plugins:[ makeBarValueLabelPlugin(val=>fmtRunCount(val), 16) ]
     });
   }
 
@@ -3977,7 +3968,7 @@ function renderRunAnalysis(){
   const history=runCycles.filter(c=>c.end).sort((a,b)=>b.start.localeCompare(a.start));
   const activeEl=document.getElementById('run-cycle-active');
   activeEl.innerHTML=active.length===0
-    ?`<div style="color:var(--text3);font-size:var(--fs-sm);padding:12px 0">暂无进行中的周期，点右上角「+ 添加周期」开始记录</div>`
+    ?`<div style="color:var(--text3);font-size:var(--fs-sm);padding:12px 0">No active cycle yet — tap "+ Add Cycle" in the top right to start logging.</div>`
     :active.map(c=>renderRunCycleCard(c,true)).join('');
 
   const histWrap=document.getElementById('run-cycle-history-wrap');
@@ -4043,7 +4034,7 @@ function renderRunAnalysis(){
 
   // 单次距离图：自定义起始日期
   renderLineChartCard({
-    containerId:'run-dist-line-card', title:'单次距离', subtitle:'每次跑步距离 (km)',
+    containerId:'run-dist-line-card', title:'Distance per Run (km)',
     chartId:'distChart', startInputId:'run-dist-start', onStartChange:'onRunDistStartChange()', resetOnClick:'resetRunDistStart()'
   });
   syncStartInput('run-dist-start', runDistStart, runEarliest, runLatest);
@@ -4061,10 +4052,10 @@ function renderRunAnalysis(){
   const distEl=document.getElementById('filter-dist');
   // Only rebuild if pills don't exist yet (avoid resetting on re-render)
   if(!stEl.children.length){
-    stEl.innerHTML=['全部',...subtypes].map((s,i)=>`<span class="filter-pill${i===0?' on':''}" data-val="${escapeHtml(s)}" onclick="toggleFilterPill(this,'filter-subtype');renderCombinedChart()">${escapeHtml(s||'无类型')}</span>`).join('');
+    stEl.innerHTML=['All',...subtypes].map((s,i)=>`<span class="filter-pill${i===0?' on':''}" data-val="${escapeHtml(s)}" onclick="toggleFilterPill(this,'filter-subtype');renderCombinedChart()">${escapeHtml(s||'Untagged')}</span>`).join('');
   }
   if(!distEl.children.length){
-    distEl.innerHTML=['全部',...dists.map(d=>d+'km')].map((s,i)=>`<span class="filter-pill${i===0?' on':''}" data-val="${escapeHtml(s)}" onclick="toggleFilterPill(this,'filter-dist');renderCombinedChart()">${escapeHtml(s)}</span>`).join('');
+    distEl.innerHTML=['All',...dists.map(d=>d+'km')].map((s,i)=>`<span class="filter-pill${i===0?' on':''}" data-val="${escapeHtml(s)}" onclick="toggleFilterPill(this,'filter-dist');renderCombinedChart()">${escapeHtml(s)}</span>`).join('');
   }
 
   renderCombinedChart();
@@ -4491,7 +4482,7 @@ function saveTargetLines(){
   saveTargetStorage(runTargets);
   closeTargetModal();
   renderCombinedChart();
-  showToast('目标线已保存 ✓');
+  showToast('Targets saved ✓');
 }
 
 // ══════════════════════════════════════
@@ -4499,8 +4490,8 @@ function saveTargetLines(){
 // ══════════════════════════════════════
 function toggleFilterPill(el, groupId){
   const group = document.getElementById(groupId);
-  const allPill = group.querySelector('[data-val="全部"]');
-  if(el.dataset.val === '全部'){
+  const allPill = group.querySelector('[data-val="All"]');
+  if(el.dataset.val === 'All'){
     group.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('on'));
     el.classList.add('on');
   } else {
@@ -4527,8 +4518,8 @@ function getFilteredRuns(){
   if(!stEl||!distEl) return dateFiltered;
   const selSub = [...stEl.querySelectorAll('.filter-pill.on')].map(p=>p.dataset.val);
   const selDist = [...distEl.querySelectorAll('.filter-pill.on')].map(p=>p.dataset.val);
-  const allSub = selSub.includes('全部');
-  const allDist = selDist.includes('全部');
+  const allSub = selSub.includes('All');
+  const allDist = selDist.includes('All');
   return dateFiltered.filter(r=>{
     const subOk = allSub || selSub.includes(r.sub||'');
     const distOk = allDist || selDist.includes((r.dist||'')+'km');
@@ -4547,22 +4538,22 @@ function renderCombinedChart(){
   const datasets = [];
 
   if(showPace) datasets.push({
-    label:'配速', data: runs.map(r=>r.pace||null),
+    label:'Pace', data: runs.map(r=>r.pace||null),
     borderColor:THEME.blue, backgroundColor:hexToRgba(THEME.blue,0.06),
     borderWidth:2, pointRadius:3, fill:false, tension:0.3, yAxisID:'yPace', spanGaps:true,
   });
   if(showHr) datasets.push({
-    label:'平均心率', data: runs.map(r=>r.hr||null),
+    label:'Avg HR', data: runs.map(r=>r.hr||null),
     borderColor:THEME.coral, backgroundColor:hexToRgba(THEME.coral,0.06),
     borderWidth:2, pointRadius:3, fill:false, tension:0.3, yAxisID:'yHr', spanGaps:true,
   });
   if(showMaxHr) datasets.push({
-    label:'最大心率', data: runs.map(r=>r.maxhr||null),
+    label:'Max HR', data: runs.map(r=>r.maxhr||null),
     borderColor:THEME.amber, borderWidth:1.5, borderDash:[4,3],
     pointRadius:2, fill:false, tension:0.3, yAxisID:'yHr', spanGaps:true,
   });
   if(showCadence) datasets.push({
-    label:'步频', data: runs.map(r=>r.cadence||null),
+    label:'Cadence', data: runs.map(r=>r.cadence||null),
     borderColor:THEME.purple, backgroundColor:hexToRgba(THEME.purple,0.06),
     borderWidth:2, pointRadius:3, fill:false, tension:0.3, yAxisID:'yHr', spanGaps:true,
   });
@@ -4582,7 +4573,7 @@ function renderCombinedChart(){
           ctx.setLineDash([6,4]);
           ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(right,y); ctx.stroke();
           ctx.fillStyle=THEME.blue; ctx.font='bold 11px system-ui'; ctx.textAlign='right'; ctx.textBaseline='bottom';
-          ctx.fillText('目标 '+fmtPace(runTargets.pace), right-4, y-3);
+          ctx.fillText('Target '+fmtPace(runTargets.pace), right-4, y-3);
           ctx.restore();
         }
       }
@@ -4595,7 +4586,7 @@ function renderCombinedChart(){
           ctx.setLineDash([6,4]);
           ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(right,y); ctx.stroke();
           ctx.fillStyle=THEME.coral; ctx.font='bold 11px system-ui'; ctx.textAlign='left'; ctx.textBaseline='bottom';
-          ctx.fillText('目标 '+runTargets.hr+' bpm', left+4, y-3);
+          ctx.fillText('Target '+runTargets.hr+' bpm', left+4, y-3);
           ctx.restore();
         }
       }
@@ -4606,8 +4597,8 @@ function renderCombinedChart(){
   const hint = document.getElementById('target-hint');
   if(hint){
     const parts=[];
-    if(runTargets.pace) parts.push(`<span style="color:var(--blue)">⚑ 配速目标 ${fmtPace(runTargets.pace)}/km</span>`);
-    if(runTargets.hr) parts.push(`<span style="color:var(--coral)">⚑ 心率目标 ${runTargets.hr} bpm</span>`);
+    if(runTargets.pace) parts.push(`<span style="color:var(--blue)">⚑ Pace target ${fmtPace(runTargets.pace)}/km</span>`);
+    if(runTargets.hr) parts.push(`<span style="color:var(--coral)">⚑ HR target ${runTargets.hr} bpm</span>`);
     hint.innerHTML=parts.join('<span style="color:var(--border2)"> · </span>');
     hint.style.display=parts.length?'flex':'none';
   }
@@ -4622,10 +4613,10 @@ function renderCombinedChart(){
           legend:{display:false},
           tooltip:{callbacks:{label(ctx){
             const v=ctx.parsed.y; if(v===null||v===undefined) return null;
-            if(ctx.dataset.label==='配速') return ' 配速 '+fmtPace(v)+'/km';
-            if(ctx.dataset.label==='平均心率') return ' 平均心率 '+Math.round(v)+' bpm';
-            if(ctx.dataset.label==='最大心率') return ' 最大心率 '+Math.round(v)+' bpm';
-            if(ctx.dataset.label==='步频') return ' 步频 '+Math.round(v)+' spm';
+            if(ctx.dataset.label==='Pace') return ' Pace '+fmtPace(v)+'/km';
+            if(ctx.dataset.label==='Avg HR') return ' Avg HR '+Math.round(v)+' bpm';
+            if(ctx.dataset.label==='Max HR') return ' Max HR '+Math.round(v)+' bpm';
+            if(ctx.dataset.label==='Cadence') return ' Cadence '+Math.round(v)+' spm';
             return v;
           }}}
         },
