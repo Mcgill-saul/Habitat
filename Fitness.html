@@ -120,8 +120,15 @@
   --space-24: 24px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-html{background:var(--bg);color:var(--text);font-family:var(--font);font-size:var(--fs-base);overflow-x:hidden;}
-body{min-height:100vh;padding-bottom:4rem;overflow-x:hidden;}
+/* overflow-x 用 clip 而不是 hidden：hidden 会触发 CSS 的一条隐藏规则——
+   只要 overflow-x 不是 visible，浏览器就会把没显式设置的 overflow-y 强制
+   计算成 auto，等于让 html/body 自己也变成一个滚动容器。这会让 .sidebar
+   的 position:sticky 失效（左侧导航栏一滚动页面就整个跟着滚走，而不是钉在
+   顶部），表现出来就是内容很长、出现滚动条时，导航栏底部早早就跟丢了，
+   不会跟着正文一路撑到真正的内容底部。clip 单纯裁掉横向溢出，不会连带
+   影响 overflow-y，两个效果都保留，sticky 也能正常工作。 */
+html{background:var(--bg);color:var(--text);font-family:var(--font);font-size:var(--fs-base);overflow-x:clip;}
+body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 
 /* app shell：左侧竖直导航栏 + 右侧内容区 */
 .app-shell{display:flex;align-items:stretch;min-height:100vh;}
@@ -3948,6 +3955,19 @@ function renderRunAnalysis(){
       options:{
         ...CHART_OPT,
         indexAxis: distIsMobile ? 'y' : 'x',
+        // 这张图会在横向/纵向之间切换 indexAxis（x/y 轴角色对调），不能像别的图那样
+        // 直接 {...CHART_OPT.scales.x} 复用共享对象：Chart.js 会把解析后的 type、
+        // 完整 ticks 配置等直接写回它拿到的这个 options 对象本身（原地修改，不是
+        // 只读取）。CHART_OPT.scales.x/y 是全文件所有图表共用的同一个对象，一旦被
+        // 某张图（比如主页月度构成，indexAxis 固定是'x'）这样"写脏"，别的图再拿
+        // ...CHART_OPT.scales.x 出来用，就会连着这些脏数据一起继承。平时大多数图
+        // 轴角色固定，脏了也看不出来；这张图会换角色，就会表现成切走 Run 页再切
+        // 回来后坐标轴错位、柱子消失。所以这里不复用 CHART_OPT.scales，自己重新
+        // 写两个全新对象，跟其它图表彻底不共享引用。
+        scales:{
+          x:{ grid:{display:false}, ticks:{color:'#9ba3b5',font:{size:11}}, type: distIsMobile ? 'linear' : 'category' },
+          y:{ grid:{color:'rgba(0,0,0,0.05)'}, ticks:{color:'#9ba3b5',font:{size:11}}, type: distIsMobile ? 'category' : 'linear' }
+        },
         plugins:{legend:{display:false}}
       },
       plugins:[ makeBarValueLabelPlugin(val=>fmtRunCount(val), 16) ]
