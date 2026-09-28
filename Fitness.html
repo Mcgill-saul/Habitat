@@ -427,7 +427,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 /* ── 统一的「起始日期/起始月份」筛选器——用于各统计/图表卡片顶部。
    原生 <input type="date"> 完全隐藏，只当 value/min/max 的数据容器用；
    用户看到、点击的是一个胶囊触发按钮(.dp-trigger)，点击后弹出自绘日历面板
-   （日精度用 .mdp-popup 的日历网格，月精度用 .mp-popup 的年份+月份网格）。
+   （日精度弹出日历网格，月精度弹出年份+月份网格，共用 .mini-date-popup 外壳）。
    没有自定义筛选时按钮显示"All time"；自定义后按钮变浅绿色作为提示——
    要清除筛选，在弹层里重新选中最早的日期/月份即可，不再需要单独的重置按钮。 */
 .mini-date-input-plain{ display:none; }
@@ -504,7 +504,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 .mdp-cell.mdp-today{box-shadow:inset 0 0 0 1.5px var(--brand);}
 .mdp-cell.mdp-selected{background:var(--brand);color:#fff;font-weight:700;}
 
-/* 月精度弹层（.mp-popup）：年份翻页 + 3×4 月份网格 */
+/* 月精度弹层：年份翻页 + 3×4 月份网格 */
 .mp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
 .mp-year{font-size:var(--fs-sm);font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;}
 .mp-nav{
@@ -1630,6 +1630,10 @@ function escapeHtml(v){
   if(v===null||v===undefined) return '';
   return String(v).replace(/[&<>"']/g, ch=>_escMap[ch]);
 }
+// 生成"可以安全放进双引号 HTML 属性里的 JS 字符串字面量"，用于内联 onclick 传参：
+// 先 JSON.stringify 处理引号/反斜杠/换行，再 HTML 转义。escapeHtml 只是 HTML 转义，
+// 不能代替它（比如 ' 会变成 &#39;，浏览器解析属性时又还原成 '，照样截断 JS 字符串）
+function jsArg(v){ return escapeHtml(JSON.stringify(String(v==null?'':v))); }
 
 // ══════════════════════════════════════
 //  性能工具：防抖
@@ -1655,14 +1659,113 @@ function debounce(fn, delay){
 // =====================================================
 const LS = 'fitness_v5';
 
-function load(){
+// =====================================================
+//  本地存储安全读写 + 外部数据规范化
+//  - lsGet / lsGetJSON：读取失败（存储被禁用、JSON 损坏）时返回兜底值，不会让脚本在加载阶段直接崩掉
+//  - lsSet：写入失败（空间已满、隐私模式等）时提示用户，而不是悄悄丢数据
+//  - sanitizeRecords / sanitizeCycles：来自本地、云端 Gist、JSON 导入的数据，进入内存前统一校验，
+//    保证后面排序（a.date.localeCompare）、渲染依赖的字段类型正确，一条坏数据不至于让整个页面起不来
+// =====================================================
+function lsGet(key){ try{ return localStorage.getItem(key); }catch(e){ return null; } }
+function lsGetJSON(key, fallback){
   try{
-    const r=localStorage.getItem(LS);
-    if(r){
-      const parsed=JSON.parse(r);
-      if(Array.isArray(parsed)&&parsed.length>0) return parsed;
+    const r = localStorage.getItem(key);
+    if(r!==null && r!=='') return JSON.parse(r);
+  }catch(e){ console.warn('读取本地数据失败：'+key, e); }
+  return fallback;
+}
+function lsSet(key, value){
+  try{ localStorage.setItem(key, value); return true; }
+  catch(e){
+    console.warn('写入本地存储失败：'+key, e);
+    if(!lsSet._warned){
+      lsSet._warned = true;
+      setTimeout(()=>{ lsSet._warned = false; }, 8000);
+      try{ showToast('⚠️ Could not save to local storage (full or blocked)', 4500); }catch(_){}
     }
-  }catch(e){}
+    return false;
+  }
+}
+
+const _DATE_RE = /^\d{4}-\d{2}-\d{2}/;
+// id 只保留 字母/数字/下划线/点/短横线，这样无论出现在 HTML 属性还是 DOM id 里都是安全的。
+// 其它字符不是统一换成下划线，而是换成 _<Unicode 码点十六进制>_（如 "跑步" → "_8dd1__6b65_"），
+// 这样不同的原 id 基本不会撞成同一个，而且同一个原 id 在任何设备上转换结果都一样，跨设备同步不会分叉
+function safeId(v){
+  const s = (typeof v==='string' || typeof v==='number')
+    ? String(v).replace(/[^\w.-]/gu, ch => '_' + ch.codePointAt(0).toString(16) + '_')
+    : '';
+  return s || genId();
+}
+// 兜底去重：转换后仍然重复的 id（极端情况，或原数据本来就有重复 id）按出现顺序保留第一条，
+// 后面的依次加 _2、_3 后缀；后缀保证不会跟数据里任何已有 id 冲突。
+// 重复 id 会让"编辑/删除"操作到别的记录上，所以必须保证唯一
+function uniqueIds(list){
+  const bases = list.map(x=>x.id);
+  const all = new Set(bases), used = new Set();
+  list.forEach((x,i)=>{
+    let id = bases[i];
+    if(used.has(id)){ let n=2; do{ id = bases[i]+'_'+(n++); }while(used.has(id) || all.has(id)); }
+    used.add(id); x.id = id;
+  });
+  return list;
+}
+function sanitizeRecords(arr){
+  if(!Array.isArray(arr)) return [];
+  const out = [];
+  for(const r of arr){
+    if(!r || typeof r!=='object' || Array.isArray(r)) continue;
+    if(typeof r.date!=='string' || !_DATE_RE.test(r.date)) continue;
+    if(typeof r.sport!=='string' || !r.sport.trim()) continue;
+    const rec = {...r, id: safeId(r.id)};
+    if(rec.muscles!=null && typeof rec.muscles!=='string'){
+      rec.muscles = Array.isArray(rec.muscles) ? rec.muscles.join(',') : String(rec.muscles);
+    }
+    out.push(rec);
+  }
+  return uniqueIds(out);
+}
+function sanitizeCycles(arr){
+  if(!Array.isArray(arr)) return [];
+  const out = [];
+  for(const c of arr){
+    if(!c || typeof c!=='object' || Array.isArray(c)) continue;
+    if(typeof c.start!=='string' || !_DATE_RE.test(c.start)) continue;
+    out.push({...c, id: safeId(c.id), label: typeof c.label==='string' ? c.label : String(c.label ?? ''), end: c.end ? String(c.end) : null});
+  }
+  return uniqueIds(out);
+}
+
+// 读取训练周期：规范化后如果 id 有变化就写回存储，保证 id 稳定
+function _loadCyclesFrom(key){
+  const raw = lsGetJSON(key, []);
+  const clean = sanitizeCycles(raw);
+  if(Array.isArray(raw) && clean.length===raw.length && clean.some((c,i)=>c.id !== raw[i].id)) lsSet(key, JSON.stringify(clean));
+  return clean;
+}
+
+function load(){
+  const raw = lsGet(LS);
+  if(!raw) return [];
+  try{
+    const parsed = JSON.parse(raw);
+    if(Array.isArray(parsed) && parsed.length>0){
+      const clean = sanitizeRecords(parsed);
+      if(clean.length !== parsed.length){
+        // 有格式异常的记录被忽略：把原始数据留一份备份，之后 save() 覆盖主存储也不会丢
+        console.warn(`本地记录中有 ${parsed.length-clean.length} 条格式异常，已忽略（原始数据备份在 ${LS}_dropped_backup）`);
+        if(lsGet(LS+'_dropped_backup')===null) lsSet(LS+'_dropped_backup', raw);
+      } else if(clean.some((r,i)=>r.id !== parsed[i].id)){
+        // 没有记录被丢弃，但有 id 被规范化 / 去重 / 补全：把结果写回存储，之后每次加载 id 都一致
+        // （否则补全的随机 id 每次刷新都会变，跨设备同步也对不上）
+        lsSet(LS, JSON.stringify(clean));
+      }
+      return clean;
+    }
+  }catch(e){
+    console.warn('本地记录解析失败，已忽略（原始数据备份在 '+LS+'_corrupt_backup）', e);
+    if(lsGet(LS+'_corrupt_backup')===null) lsSet(LS+'_corrupt_backup', raw);
+  }
   return [];
 }
 let records=load();
@@ -1671,7 +1774,7 @@ let records=load();
 //  一次性数据迁移：中文运动名 → English
 // ══════════════════════════════════════
 function migrateToEnglish(){
-  if(localStorage.getItem('fitness_migrated_en_v1')) return;
+  if(lsGet('fitness_migrated_en_v1')) return;
   const SM={跑步:'Run',无氧:'Strength',跳绳:'Jump Rope',羽毛球:'Badminton',徒步:'Hike',散步:'Walk'};
   const MM={胸:'Chest',背:'Back',腿:'Legs',肩:'Delts',核心:'Core',二头:'Bis',三头:'Tris',全身:'Full'};
   records.forEach(r=>{
@@ -1680,8 +1783,7 @@ function migrateToEnglish(){
       r.muscles=r.muscles.split(',').map(p=>MM[p.trim()]||p.trim()).join(',');
     }
   });
-  localStorage.setItem(LS, JSON.stringify(records));
-  localStorage.setItem('fitness_migrated_en_v1','1');
+  if(lsSet(LS, JSON.stringify(records))) lsSet('fitness_migrated_en_v1','1');
 }
 migrateToEnglish();
 
@@ -1689,7 +1791,7 @@ migrateToEnglish();
 //  工具函数（格式化、辅助计算）
 // ══════════════════════════════════════
 function genId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
-function showToast(m,d=2400){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),d); }
+function showToast(m,d=2400){ const t=document.getElementById('toast'); if(!t) return; t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),d); }
 
 // Use local date to avoid UTC offset shifting the date in eastern timezones
 function localDateStr(date){
@@ -1868,7 +1970,7 @@ function makeAvgBandPlugin(getTotals, unit){
 // 统一生成。图例的具体内容不在这里管——因为「月度运动构成」是多类型堆叠、需要图例，
 // 「月度里程」是单一数值、不需要图例，两边数据结构差太多硬塞一个函数反而难维护；
 // 折中方案：容器"有没有、放哪"由模板决定，容器"里面填什么"留给调用方各自负责。
-function renderMonthlyBarCard({containerId, title, chartId, startInputId, onStartChange, resetOnClick, legendId, chartWrapClass='', extraHtml=''}){
+function renderMonthlyBarCard({containerId, title, chartId, startInputId, onStartChange, legendId, chartWrapClass='', extraHtml=''}){
   const host = document.getElementById(containerId);
   if(host && !host.dataset.built){
     host.innerHTML = `
@@ -1932,7 +2034,7 @@ function makeBarValueLabelPlugin(formatFn, minHeight=16){
 // 模板 4：整张「折线图卡片」外壳——标题行/日期筛选器位置(含"起始日期"标签)/canvas容器，
 // 统一生成，思路跟 renderMonthlyBarCard 一样。以 Anaerobic「月度无氧训练频次」为参照实例，
 // 之前这类卡片的日期选择器前面没有文字标签，跟柱状图模板（"起始月份"）不一致，这里补上。
-function renderLineChartCard({containerId, title, chartId, startInputId, onStartChange, resetOnClick, extraControlsHtml='', chartHeight=220}){
+function renderLineChartCard({containerId, title, chartId, startInputId, onStartChange, extraControlsHtml='', chartHeight=220}){
   const host = document.getElementById(containerId);
   if(host && !host.dataset.built){
     host.innerHTML = `
@@ -1967,9 +2069,9 @@ const GIST_PUSH_DEBOUNCE_MS = 8000;
 const GIST_PUSH_MIN_INTERVAL_MS = 10000;
 
 function save(d){
-  localStorage.setItem(LS, JSON.stringify(d));
+  lsSet(LS, JSON.stringify(d));
   // 配置了 Gist 则 8 秒后自动推送；推送前会先与云端版本比对，若检测到云端已被其他设备更新，会弹出冲突提示而不是直接覆盖
-  if(localStorage.getItem(LS_GIST_TOKEN) && localStorage.getItem(LS_GIST_ID)){
+  if(lsGet(LS_GIST_TOKEN) && lsGet(LS_GIST_ID)){
     save._dirty = true;
     clearTimeout(save._timer);
     save._timer = setTimeout(()=>pushToGist(false), GIST_PUSH_DEBOUNCE_MS);
@@ -1980,8 +2082,8 @@ function saveGistConfig(){
   const token  = document.getElementById('gistToken').value.trim();
   const gistId = document.getElementById('gistId').value.trim();
   if(!token){ setGistStatus('请填写 Token','error'); return; }
-  localStorage.setItem(LS_GIST_TOKEN, token);
-  if(gistId){ localStorage.setItem(LS_GIST_ID, gistId); setGistStatus('配置已保存 ✓','ok'); updateGistBtn(true); }
+  if(!lsSet(LS_GIST_TOKEN, token)){ setGistStatus('保存失败：浏览器本地存储不可用','error'); return; }
+  if(gistId){ lsSet(LS_GIST_ID, gistId); setGistStatus('配置已保存 ✓','ok'); updateGistBtn(true); }
   else createGist(token);
 }
 
@@ -1996,8 +2098,8 @@ async function createGist(token){
     });
     if(!res.ok) throw new Error('HTTP '+res.status);
     const data = await res.json();
-    localStorage.setItem(LS_GIST_ID, data.id);
-    if(data.updated_at) localStorage.setItem(LS_GIST_KNOWN_VERSION, data.updated_at);
+    lsSet(LS_GIST_ID, data.id);
+    if(data.updated_at) lsSet(LS_GIST_KNOWN_VERSION, data.updated_at);
     document.getElementById('gistId').value = data.id;
     setGistStatus('Gist 创建成功，ID 已自动填入 ✓','ok');
     updateGistBtn(true);
@@ -2005,8 +2107,8 @@ async function createGist(token){
 }
 
 async function pushToGist(manual){
-  const token  = localStorage.getItem(LS_GIST_TOKEN);
-  const gistId = localStorage.getItem(LS_GIST_ID);
+  const token  = lsGet(LS_GIST_TOKEN);
+  const gistId = lsGet(LS_GIST_ID);
   if(!token||!gistId){ if(manual) setGistStatus('请先配置 Token 和 Gist ID','error'); return; }
   if(pushToGist._busy){ if(manual) setGistStatus('同步正在进行中，请稍候…',''); return; }
   if(!manual && (Date.now() - (pushToGist._lastPush||0) < GIST_PUSH_MIN_INTERVAL_MS)) return;
@@ -2017,7 +2119,7 @@ async function pushToGist(manual){
     const res = await fetch('https://api.github.com/gists/'+gistId,{headers:{Authorization:'token '+token}});
     if(!res.ok) throw new Error('HTTP '+res.status);
     const remote = await res.json();
-    const known = localStorage.getItem(LS_GIST_KNOWN_VERSION);
+    const known = lsGet(LS_GIST_KNOWN_VERSION);
     if(known && remote.updated_at && known !== remote.updated_at){
       pushToGist._busy = false;
       if(manual) setGistStatus('检测到云端有更新，请先处理冲突','error');
@@ -2042,7 +2144,7 @@ async function doPushGist(token, gistId, manual){
     const data = await res.json();
     pushToGist._lastPush = Date.now();
     save._dirty = false;
-    if(data.updated_at) localStorage.setItem(LS_GIST_KNOWN_VERSION, data.updated_at);
+    if(data.updated_at) lsSet(LS_GIST_KNOWN_VERSION, data.updated_at);
     if(manual){ setGistStatus('上传成功 ✓ '+new Date().toLocaleTimeString(),'ok'); updateGistBtn(true); }
   }catch(e){ if(manual) setGistStatus('上传失败：'+e.message,'error'); }
   finally{ pushToGist._busy = false; }
@@ -2068,7 +2170,7 @@ function resolveGistConflict(action){
   const banner = document.getElementById('gistConflictBanner');
   if(banner) banner.remove();
   if(action === 'overwrite'){
-    const token = localStorage.getItem(LS_GIST_TOKEN), gistId = localStorage.getItem(LS_GIST_ID);
+    const token = lsGet(LS_GIST_TOKEN), gistId = lsGet(LS_GIST_ID);
     pushToGist._busy = true;
     doPushGist(token, gistId, true);
   } else if(action === 'pull'){
@@ -2078,8 +2180,8 @@ function resolveGistConflict(action){
 }
 
 async function pullFromGist(manual){
-  const token  = localStorage.getItem(LS_GIST_TOKEN);
-  const gistId = localStorage.getItem(LS_GIST_ID);
+  const token  = lsGet(LS_GIST_TOKEN);
+  const gistId = lsGet(LS_GIST_ID);
   if(!token||!gistId){ if(manual) setGistStatus('请先配置 Token 和 Gist ID','error'); return; }
   if(manual) setGistStatus('下载中…','');
   try{
@@ -2089,24 +2191,29 @@ async function pullFromGist(manual){
     const file = data.files && data.files[GIST_FILENAME];
     if(!file) throw new Error('Gist 中没有找到数据文件');
     const content = JSON.parse(file.content);
+    // 先校验云端记录再覆盖本地：格式完全认不出来就直接放弃，保留本地数据；
+    // 个别格式异常的记录只跳过，不影响其它记录
+    const cloudRecords = Array.isArray(content) ? content : (content && typeof content==='object' ? content.records : undefined);
+    let skipped = 0;
+    if(Array.isArray(cloudRecords)){
+      const clean = sanitizeRecords(cloudRecords);
+      if(cloudRecords.length>0 && clean.length===0) throw new Error('云端数据格式无法识别，已保留本地数据');
+      skipped = cloudRecords.length - clean.length;
+      records = clean;
+      lsSet(LS, JSON.stringify(records));
+    }
     if(Array.isArray(content)){
       // 旧格式：纯 records 数组
-      records = content;
-      localStorage.setItem(LS, JSON.stringify(records));
       renderDashboard();
     } else if(content && typeof content==='object'){
       // 新格式：{records, runCycles, anaCycles}
-      if(Array.isArray(content.records)){
-        records = content.records;
-        localStorage.setItem(LS, JSON.stringify(records));
-      }
       if(Array.isArray(content.runCycles)){
-        runCycles = content.runCycles;
-        localStorage.setItem(LS_RUN_CYCLES, JSON.stringify(runCycles));
+        runCycles = sanitizeCycles(content.runCycles);
+        lsSet(LS_RUN_CYCLES, JSON.stringify(runCycles));
       }
       if(Array.isArray(content.anaCycles)){
-        anaCycles = content.anaCycles;
-        localStorage.setItem(LS_CYCLES, JSON.stringify(anaCycles));
+        anaCycles = sanitizeCycles(content.anaCycles);
+        lsSet(LS_CYCLES, JSON.stringify(anaCycles));
       }
       applyFilterPrefs(content.filterPrefs);
       // 刷新各页面
@@ -2116,8 +2223,8 @@ async function pullFromGist(manual){
       renderHikeAnalysis();
       renderCalendar();
     }
-    if(data.updated_at) localStorage.setItem(LS_GIST_KNOWN_VERSION, data.updated_at);
-    if(manual){ setGistStatus('从云端刷新成功 ✓ '+new Date().toLocaleTimeString(),'ok'); updateGistBtn(true); }
+    if(data.updated_at) lsSet(LS_GIST_KNOWN_VERSION, data.updated_at);
+    if(manual){ setGistStatus('从云端刷新成功 ✓ '+new Date().toLocaleTimeString()+(skipped?`（已忽略 ${skipped} 条格式异常的记录）`:''),'ok'); updateGistBtn(true); }
   }catch(e){ if(manual) setGistStatus('失败：'+e.message,'error'); }
 }
 
@@ -2134,7 +2241,7 @@ function updateGistBtn(connected){
   btn.style.background = connected ? 'var(--green)' : '';
 }
 function initGistBtn(){
-  const connected = !!(localStorage.getItem(LS_GIST_TOKEN) && localStorage.getItem(LS_GIST_ID));
+  const connected = !!(lsGet(LS_GIST_TOKEN) && lsGet(LS_GIST_ID));
   if(connected){
     updateGistBtn(true);
     const badge = document.getElementById('gist-connected-badge');
@@ -2256,8 +2363,8 @@ function addDeviceFromInput(){
 //  自定义运动类型
 // ══════════════════════════════════════
 const LS_CUSTOM_SPORTS = 'fitness_custom_sports_v1';
-function loadCustomSports(){ try{ const r=localStorage.getItem(LS_CUSTOM_SPORTS); if(r) return JSON.parse(r); }catch(e){} return []; }
-function saveCustomSports(s){ localStorage.setItem(LS_CUSTOM_SPORTS,JSON.stringify(s)); }
+function loadCustomSports(){ const v=lsGetJSON(LS_CUSTOM_SPORTS, []); return Array.isArray(v) ? v : []; }
+function saveCustomSports(s){ lsSet(LS_CUSTOM_SPORTS,JSON.stringify(s)); }
 let customSports = loadCustomSports();
 
 function renderCustomSportBtns(){
@@ -2639,7 +2746,7 @@ function renderRecordPage(){
         if(r.body) row3.push(`<span class="mobile-record-chip"><span class="k">身体感受</span> ${escapeHtml(r.body)}</span>`);
         if(r.note) row3.push(`<span class="mobile-record-chip"><span class="k">备注</span> ${escapeHtml(r.note)}</span>`);
 
-        return `<div class="record-item" onclick="editRecord('${r.id}')">
+        return `<div class="record-item" onclick="editRecord(${jsArg(r.id)})">
           <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
             <span style="font-size:var(--fs-sm);color:var(--text3)">${r.date}</span>
             <span class="record-badge ${badgeClass(r.sport)}">${badgeTxt}</span>
@@ -2665,7 +2772,7 @@ function renderRecordPage(){
         if(r.feel)   chips.push(`<span class="feel-badge">${escapeHtml(r.feel)}</span>`);
       }
       const hasNote = r.note||r.body;
-      return `<div class="record-item" onclick="editRecord('${r.id}')">
+      return `<div class="record-item" onclick="editRecord(${jsArg(r.id)})">
         <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
           <span style="font-size:var(--fs-sm);color:var(--text3)">${r.date}</span>
           <span class="record-badge ${badgeClass(r.sport)}">${badgeTxt}</span>
@@ -2712,7 +2819,7 @@ function renderRecordPage(){
       if(r.sport==='Strength') badgeTxt+=' · '+escapeHtml((r.muscles||r.sub||'').split(',').join(' · '));
       if(r.sport==='Hike'&&r.sub) badgeTxt+=' · '+escapeHtml(r.sub);
       const isSelected = selectedIds.has(r.id);
-      const clickAttr = batchMode ? '' : `onclick="editRecord('${r.id}')"`;
+      const clickAttr = batchMode ? '' : `onclick="editRecord(${jsArg(r.id)})"`;
 
       let cols = '';
       cols += `<span class="rc rc-date col-date">${r.date}</span>`;
@@ -2736,15 +2843,15 @@ function renderRecordPage(){
       if(hasHike) cols += `<span class="rc col-location">${em(r.location)}</span>`;
       cols += `<span class="rc rc-note col-note" title="${escapeHtml(r.note||'')}">${em(r.note)}</span>`;
       cols += `<span class="rc-actions">
-        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();editRecord('${r.id}')">编辑</button>
-        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();delRecord('${r.id}')">删除</button>
+        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();editRecord(${jsArg(r.id)})">编辑</button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();delRecord(${jsArg(r.id)})">删除</button>
       </span>`;
 
       const itemHtml = `<div class="record-item${isSelected?' selected':''}" ${clickAttr}>${cols}</div>`;
 
       if(batchMode){
         return `<div class="record-item-wrap">
-          <div class="check-col"><input type="checkbox" class="record-check" data-id="${r.id}" ${isSelected?'checked':''} onchange="toggleRecordSelect(this,'${r.id}')"></div>
+          <div class="check-col"><input type="checkbox" class="record-check" data-id="${escapeHtml(r.id)}" ${isSelected?'checked':''} onchange="toggleRecordSelect(this,${jsArg(r.id)})"></div>
           ${itemHtml}
         </div>`;
       }
@@ -2880,7 +2987,7 @@ function openMonthPicker(btn, inputId){
   const chevron = dir => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="${dir<0?'15 6 9 12 15 18':'9 6 15 12 9 18'}"/></svg>`;
 
   const pop = document.createElement('div');
-  pop.className = 'mini-date-popup mp-popup';
+  pop.className = 'mini-date-popup';
   pop.setAttribute('role','dialog');
   pop.setAttribute('aria-label','Select start month');
   document.body.appendChild(pop);
@@ -3055,43 +3162,28 @@ function openMiniDatePicker(btn, inputId){
 
 const LS_DASH_STAT_START='fitness_dash_stat_start';
 const LS_DASH_MONTHLY_START='fitness_dash_monthly_start';
-let dashStatStart = localStorage.getItem(LS_DASH_STAT_START) || '';
-let dashMonthlyStart = localStorage.getItem(LS_DASH_MONTHLY_START) || '';
+let dashStatStart = lsGet(LS_DASH_STAT_START) || '';
+let dashMonthlyStart = lsGet(LS_DASH_MONTHLY_START) || '';
 
 function onDashStatStartChange(){
   dashStatStart = document.getElementById('dash-stat-start').value || '';
-  localStorage.setItem(LS_DASH_STAT_START, dashStatStart);
-  renderDashboard();
-}
-function resetDashStatStart(){
-  dashStatStart='';
-  localStorage.removeItem(LS_DASH_STAT_START);
+  lsSet(LS_DASH_STAT_START, dashStatStart);
   renderDashboard();
 }
 function onDashMonthlyStartChange(){
   dashMonthlyStart = document.getElementById('dash-monthly-start').value || '';
-  localStorage.setItem(LS_DASH_MONTHLY_START, dashMonthlyStart);
-  renderDashboard();
-}
-function resetDashMonthlyStart(){
-  dashMonthlyStart='';
-  localStorage.removeItem(LS_DASH_MONTHLY_START);
+  lsSet(LS_DASH_MONTHLY_START, dashMonthlyStart);
   renderDashboard();
 }
 
 // 💾 各分析页图表的自定义起始日期（每张图独立，用法同 Dashboard）
-// 通用工厂：生成一对 on/reset 回调 + 读取当前值的 getter，减少重复代码。
-// name 用于生成全局函数名 on<Name>Change / reset<Name>，供 HTML onchange/onclick 直接调用。
+// 通用工厂：生成 on<Name>Change 回调 + 读取当前值的 state，减少重复代码。
+// name 用于生成全局函数名 on<Name>Change，供 HTML onchange 直接调用。
 function makeChartStartFilter(name, lsKey, inputId, rerenderFn){
-  const state = { value: localStorage.getItem(lsKey) || '' };
+  const state = { value: lsGet(lsKey) || '' };
   window['on'+name+'Change'] = function(){
     state.value = document.getElementById(inputId).value || '';
-    localStorage.setItem(lsKey, state.value);
-    rerenderFn();
-  };
-  window['reset'+name] = function(){
-    state.value = '';
-    localStorage.removeItem(lsKey);
+    lsSet(lsKey, state.value);
     rerenderFn();
   };
   return state;
@@ -3121,31 +3213,31 @@ const FILTER_PREF_KEYS = [
 ];
 function collectFilterPrefs(){
   const out = {};
-  FILTER_PREF_KEYS.forEach(k=>{ const v=localStorage.getItem(k); if(v) out[k]=v; });
+  FILTER_PREF_KEYS.forEach(k=>{ const v=lsGet(k); if(v) out[k]=v; });
   return out;
 }
 function applyFilterPrefs(prefs){
   if(!prefs || typeof prefs!=='object') return;
   FILTER_PREF_KEYS.forEach(k=>{
     const v = prefs[k];
-    if(v){ localStorage.setItem(k, v); } else { localStorage.removeItem(k); }
+    if(typeof v==='string' && v){ lsSet(k, v); } else { localStorage.removeItem(k); }
   });
   // 同步内存中的状态，不用刷新页面就能立即生效
-  dashStatStart = localStorage.getItem(LS_DASH_STAT_START) || '';
-  dashMonthlyStart = localStorage.getItem(LS_DASH_MONTHLY_START) || '';
-  runMDistStart.value    = localStorage.getItem('fitness_run_mdist_start') || '';
-  runCombinedStart.value = localStorage.getItem('fitness_run_combined_start') || '';
-  runDistStart.value     = localStorage.getItem('fitness_run_dist_start') || '';
-  anaMonthlyStart.value  = localStorage.getItem('fitness_ana_monthly_start') || '';
-  hikeStart.value        = localStorage.getItem('fitness_hike_start') || '';
+  dashStatStart = lsGet(LS_DASH_STAT_START) || '';
+  dashMonthlyStart = lsGet(LS_DASH_MONTHLY_START) || '';
+  runMDistStart.value    = lsGet('fitness_run_mdist_start') || '';
+  runCombinedStart.value = lsGet('fitness_run_combined_start') || '';
+  runDistStart.value     = lsGet('fitness_run_dist_start') || '';
+  anaMonthlyStart.value  = lsGet('fitness_ana_monthly_start') || '';
+  hikeStart.value        = lsGet('fitness_hike_start') || '';
 }
 
 // 💾 年度战报：可勾选/排除年份（默认全部包含）
 const LS_ANA_YEARLY_EXCLUDED = 'fitness_ana_yearly_excluded';
-let anaYearlyExcluded = new Set(JSON.parse(localStorage.getItem(LS_ANA_YEARLY_EXCLUDED) || '[]'));
+let anaYearlyExcluded = new Set((()=>{ const v=lsGetJSON(LS_ANA_YEARLY_EXCLUDED, []); return Array.isArray(v) ? v.map(String) : []; })());
 function toggleAnaYear(yr){
   if(anaYearlyExcluded.has(yr)) anaYearlyExcluded.delete(yr); else anaYearlyExcluded.add(yr);
-  localStorage.setItem(LS_ANA_YEARLY_EXCLUDED, JSON.stringify([...anaYearlyExcluded]));
+  lsSet(LS_ANA_YEARLY_EXCLUDED, JSON.stringify([...anaYearlyExcluded]));
   renderAnaerobic();
 }
 
@@ -3215,7 +3307,7 @@ function renderDashboard(){
   const types=['Strength','Run','Jump Rope','Badminton','Hike','Walk'];
   renderMonthlyBarCard({
     containerId:'dash-monthly-card', title:'月度运动构成',
-    chartId:'monthlyChart', startInputId:'dash-monthly-start', onStartChange:'onDashMonthlyStartChange()', resetOnClick:'resetDashMonthlyStart()',
+    chartId:'monthlyChart', startInputId:'dash-monthly-start', onStartChange:'onDashMonthlyStartChange()',
     legendId:'dash-monthly-legend'
   });
   // 图例内容：id 特意保留跟以前一样（legend-dot-Strength 等），因为 syncSportColorUI()
@@ -3392,8 +3484,8 @@ function renderDashboardOverview(){
 //  无氧训练周期（存储）
 // ══════════════════════════════════════
 const LS_CYCLES = 'fitness_ana_cycles_v1';
-function loadCycles(){ try{ const r=localStorage.getItem(LS_CYCLES); if(r) return JSON.parse(r); }catch(e){} return []; }
-function saveCycles(c){ localStorage.setItem(LS_CYCLES,JSON.stringify(c)); }
+function loadCycles(){ return _loadCyclesFrom(LS_CYCLES); }
+function saveCycles(c){ lsSet(LS_CYCLES,JSON.stringify(c)); }
 let anaCycles = loadCycles();
 
 function addCycle(){
@@ -3452,8 +3544,8 @@ function renderCycleCard({id, label, isActive, startDate, endDate, stats, onEdit
         <div style="font-size:var(--fs-sm);color:var(--text3)">${startDate} — ${endDate||'Present'}</div>
       </div>
       <div class="cycle-menu-wrap">
-        <span class="cycle-menu-btn" onclick="toggleCycleMenu(event,'cyclemenu-${id}')" title="Actions">&#8942;</span>
-        <div class="cycle-menu-panel" id="cyclemenu-${id}" style="display:none">
+        <span class="cycle-menu-btn" onclick="toggleCycleMenu(event,${jsArg('cyclemenu-'+id)})" title="Actions">&#8942;</span>
+        <div class="cycle-menu-panel" id="cyclemenu-${escapeHtml(id)}" style="display:none">
           <div class="cycle-menu-item" onclick="closeCycleMenus();${onEdit}">Edit</div>
           <div class="cycle-menu-item danger" onclick="closeCycleMenus();${onDelete}">Delete</div>
         </div>
@@ -3498,7 +3590,7 @@ function renderCycleCard_ana(c, isActive){
   const avgDays = count > 0 ? (totalDays / count).toFixed(1) : '—';
   return renderCycleCard({
     id:c.id, label:c.label, isActive, startDate:c.start, endDate:c.end,
-    onEdit:`editCycle('${c.id}')`, onDelete:`deleteCycle('${c.id}')`,
+    onEdit:`editCycle(${jsArg(c.id)})`, onDelete:`deleteCycle(${jsArg(c.id)})`,
     accent:'var(--blue)', accentLt:'var(--blue-lt)', accentDk:'var(--blue-dk)',
     stats:[
       {val:totalDays, label:'坚持天数', highlight:isActive},
@@ -3587,7 +3679,7 @@ function renderAnaerobic(){
   if(legendEl) legendEl.innerHTML = allYears.map((yr,yi)=>{
     const excluded = anaYearlyExcluded.has(yr);
     const color = YEAR_COLORS[yi]||'#9ba3b5';
-    return `<span onclick="toggleAnaYear('${yr}')" title="${excluded?'点击恢复':'点击排除'}"
+    return `<span onclick="toggleAnaYear(${jsArg(yr)})" title="${excluded?'点击恢复':'点击排除'}"
       style="display:flex;align-items:center;gap:var(--space-5);font-size:var(--fs-sm);cursor:pointer;user-select:none;padding:3px 9px;border-radius:12px;border:1.5px solid ${excluded?'var(--border2)':color};color:${excluded?'var(--text3)':color};background:${excluded?'var(--bg3)':color+'18'};transition:all .15s;${excluded?'text-decoration:line-through;opacity:.6':''}">
       <span style="width:10px;height:10px;border-radius:2px;background:${color};flex-shrink:0;opacity:${excluded?'.4':'1'}"></span>${yr}年
     </span>`;
@@ -3629,7 +3721,7 @@ function renderAnaerobic(){
   // ── 月度频次（可自定义起始日期）──
   renderLineChartCard({
     containerId:'ana-monthly-line-card', title:'月度无氧训练频次',
-    chartId:'anaMonthlyChart', startInputId:'ana-monthly-start', onStartChange:'onAnaMonthlyStartChange()', resetOnClick:'resetAnaMonthlyStart()'
+    chartId:'anaMonthlyChart', startInputId:'ana-monthly-start', onStartChange:'onAnaMonthlyStartChange()'
   });
   const anaDates = ana.map(r=>r.date).sort();
   const anaEarliest = anaDates.length?anaDates[0]:'';
@@ -3697,7 +3789,7 @@ function renderSportSummary(){
     }
     const barPct = maxCount>0 ? Math.max((count/maxCount)*100, 3) : 0; // 至少留 3% 让色条可见
     return `<div class="sport-summary-row">
-      <span class="sport-summary-icon" style="background:${hexToRgba(getSportColor(sport),0.14)}" onclick="showToast('${escapeHtml(sport)}',1500)">${icon}</span>
+      <span class="sport-summary-icon" style="background:${hexToRgba(getSportColor(sport),0.14)}" onclick="showToast(${jsArg(sport)},1500)">${icon}</span>
       <span class="sport-summary-name">${escapeHtml(sport)}</span>
       <span class="sport-summary-stat">${count} 次${extra?`<span class="sport-summary-extra"> · ${extra}</span>`:''}</span>
       <div class="sport-summary-bar-wrap"><div class="sport-summary-bar" style="width:${barPct}%;background:${getSportColor(sport)}"></div></div>
@@ -3709,8 +3801,9 @@ function renderSportSummary(){
 //  跑鞋退役里程
 // ══════════════════════════════════════
 const LS_SHOE_RETIRE = 'fitness_shoe_retire_v1';
-function loadShoeRetire(){ try{ const r=localStorage.getItem(LS_SHOE_RETIRE); if(r) return JSON.parse(r); }catch(e){} return {}; }
-function saveShoeRetire(d){ localStorage.setItem(LS_SHOE_RETIRE,JSON.stringify(d)); }
+// 用无原型对象：鞋名恰好叫 constructor / __proto__ 时也不会取到 Object 原型上的东西
+function loadShoeRetire(){ const v=lsGetJSON(LS_SHOE_RETIRE, {}); return Object.assign(Object.create(null), (v && typeof v==='object' && !Array.isArray(v)) ? v : {}); }
+function saveShoeRetire(d){ lsSet(LS_SHOE_RETIRE,JSON.stringify(d)); }
 
 function editShoeRetire(name, current){
   const val = prompt(`Retirement distance for "${name}" (km):`, current);
@@ -3728,8 +3821,8 @@ function editShoeRetire(name, current){
 //  跑步训练周期（存储）
 // ══════════════════════════════════════
 const LS_RUN_CYCLES = 'fitness_run_cycles_v1';
-function loadRunCycles(){ try{ const r=localStorage.getItem(LS_RUN_CYCLES); if(r) return JSON.parse(r); }catch(e){} return []; }
-function saveRunCycles(c){ localStorage.setItem(LS_RUN_CYCLES,JSON.stringify(c)); }
+function loadRunCycles(){ return _loadCyclesFrom(LS_RUN_CYCLES); }
+function saveRunCycles(c){ lsSet(LS_RUN_CYCLES,JSON.stringify(c)); }
 let runCycles = loadRunCycles();
 
 function addRunCycle(){
@@ -3787,7 +3880,7 @@ function renderRunCycleCard(c,isActive){
   </div>`;
   return renderCycleCard({
     id:c.id, label:c.label, isActive, startDate:c.start, endDate:c.end,
-    onEdit:`editRunCycle('${c.id}')`, onDelete:`deleteRunCycle('${c.id}')`,
+    onEdit:`editRunCycle(${jsArg(c.id)})`, onDelete:`deleteRunCycle(${jsArg(c.id)})`,
     accent:'var(--green)', accentLt:'var(--green-lt)', accentDk:'var(--green-dk)',
     stats:[
       {val:s.totalDays, label:'Days', highlight:isActive},
@@ -3806,7 +3899,7 @@ function renderRunCycleCard(c,isActive){
 function renderHikeAnalysis(){
   renderLineChartCard({
     containerId:'hike-dist-line-card', title:'步数趋势',
-    chartId:'hikeDistChart', startInputId:'hike-start', onStartChange:'onHikeStartChange()', resetOnClick:'resetHikeStart()',
+    chartId:'hikeDistChart', startInputId:'hike-start', onStartChange:'onHikeStartChange()',
     chartHeight:320,
     extraControlsHtml:`
       <span style="font-size:var(--fs-xs);color:var(--text3)">显示：</span>
@@ -3876,7 +3969,7 @@ function renderRunAnalysis(){
   const distEntries=Object.entries(distMap).sort((a,b)=>Number(a[0])-Number(b[0]));
 
   // 跑鞋里程统计
-  const shoeMap={};
+  const shoeMap=Object.create(null);
   runs.filter(r=>r.shoe).forEach(r=>{
     if(!shoeMap[r.shoe]) shoeMap[r.shoe]={km:0,cnt:0};
     shoeMap[r.shoe].km+=r.dist||0;
@@ -3889,18 +3982,18 @@ function renderRunAnalysis(){
     // 如果某双鞋没有手动设置退役里程，就用这个默认值
     // 改这里的数字即可，单位：km
     // =====================================================
-    const limit = shoeRetire[name] || 500; // ← 跑鞋默认退役里程（km），没有单独设置时使用此值
+    const limit = Number(shoeRetire[name])>0 ? Number(shoeRetire[name]) : 500; // ← 跑鞋默认退役里程（km），没有单独设置时使用此值
     const pct=Math.min(100,Math.round(stat.km/limit*100));
     const bar=pct>=90?'var(--coral)':pct>=70?'var(--amber)':'var(--green)';
     const warn=pct>=90?'⚠️ Near retirement':'';
     return `<div style="padding:9px 0;border-bottom:1px solid var(--border)">
       <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-8);margin-bottom:var(--space-6)">
         <div style="display:flex;align-items:baseline;gap:var(--space-8);min-width:0;flex-wrap:wrap">
-          <span style="font-size:var(--fs-sm);font-weight:600;color:var(--text);white-space:nowrap">${name}</span>
+          <span style="font-size:var(--fs-sm);font-weight:600;color:var(--text);white-space:nowrap">${escapeHtml(name)}</span>
           <span style="font-size:var(--fs-xs);color:var(--text3);white-space:nowrap">${stat.km.toFixed(0)} / ${limit} km · ${stat.cnt} ${stat.cnt===1?'run':'runs'}</span>
           ${warn?`<span style="font-size:var(--fs-xs);color:var(--coral);white-space:nowrap">${warn}</span>`:''}
         </div>
-        <button onclick="editShoeRetire('${name.replace(/'/g,"\\'")}',${limit})" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:var(--fs-xs);color:var(--text2);cursor:pointer;flex-shrink:0">Edit</button>
+        <button onclick="editShoeRetire(${jsArg(name)},${limit})" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:var(--fs-xs);color:var(--text2);cursor:pointer;flex-shrink:0">Edit</button>
       </div>
       <div style="position:relative;height:20px;background:var(--bg3);border-radius:10px;overflow:hidden">
         <div style="width:${pct}%;height:100%;background:${bar};border-radius:10px;transition:width .3s"></div>
@@ -4013,7 +4106,7 @@ function renderRunAnalysis(){
   // 月度跑量：自定义起始月份
   renderMonthlyBarCard({
     containerId:'run-mdist-card', title:'Monthly Distance',
-    chartId:'monthlyDistChart', startInputId:'run-mdist-start', onStartChange:'onRunMDistStartChange()', resetOnClick:'resetRunMDistStart()',
+    chartId:'monthlyDistChart', startInputId:'run-mdist-start', onStartChange:'onRunMDistStartChange()',
     chartWrapClass:'mdist-chart-wrap', extraHtml:'<div class="mdist-list" id="monthlyDistList"></div>'
   });
   syncStartInput('run-mdist-start', runMDistStart, runEarliest, runLatest);
@@ -4057,7 +4150,7 @@ function renderRunAnalysis(){
   // 单次距离图：自定义起始日期
   renderLineChartCard({
     containerId:'run-dist-line-card', title:'Distance per Run (km)',
-    chartId:'distChart', startInputId:'run-dist-start', onStartChange:'onRunDistStartChange()', resetOnClick:'resetRunDistStart()'
+    chartId:'distChart', startInputId:'run-dist-start', onStartChange:'onRunDistStartChange()'
   });
   syncStartInput('run-dist-start', runDistStart, runEarliest, runLatest);
   const distStart = (runDistStart.value && runDistStart.value>=runEarliest) ? runDistStart.value : '';
@@ -4115,17 +4208,15 @@ function importFromJson(e){
       } else if(parsed && typeof parsed==='object' && Array.isArray(parsed.records)){
         recordsArr = parsed.records; // 新格式：{records, runCycles, anaCycles}
         cyclesData = {
-          runCycles: Array.isArray(parsed.runCycles) ? parsed.runCycles : null,
-          anaCycles: Array.isArray(parsed.anaCycles) ? parsed.anaCycles : null,
+          runCycles: Array.isArray(parsed.runCycles) ? sanitizeCycles(parsed.runCycles) : null,
+          anaCycles: Array.isArray(parsed.anaCycles) ? sanitizeCycles(parsed.anaCycles) : null,
         };
       } else {
         throw new Error('JSON 格式不正确：应为记录数组，或包含 records 字段的备份对象（与"导出 JSON 备份"生成的文件格式一致）');
       }
-      // 基本字段校验：至少要有 date 和 sport；缺失 id 的记录自动补一个，避免脏数据影响后续渲染
-      const cleaned = recordsArr
-        .filter(r=>r && typeof r==='object' && r.date && r.sport)
-        .map(r=>({...r, id: r.id || genId()}));
-      if(!cleaned.length){ status.textContent='未找到有效记录（每条记录至少需要 date 和 sport 字段）'; return; }
+      // 统一校验：date 必须是 YYYY-MM-DD 开头的字符串、sport 必须是非空字符串；缺失/含特殊字符的 id 会被补全或规范化
+      const cleaned = sanitizeRecords(recordsArr);
+      if(!cleaned.length){ status.textContent='未找到有效记录（每条记录至少需要 YYYY-MM-DD 格式的 date 和非空的 sport 字段）'; return; }
 
       _pendingImport = cleaned;
       _pendingImportCycles = cyclesData;
@@ -4137,7 +4228,7 @@ function importFromJson(e){
       const prev = document.getElementById('import-preview');
       document.getElementById('import-preview-text').innerHTML =
         `解析完成：共 <strong>${cleaned.length}</strong> 条记录` +
-        (cleaned.length!==recordsArr.length ? `（已跳过 ${recordsArr.length-cleaned.length} 条缺少必要字段的记录）` : '') +
+        (cleaned.length!==recordsArr.length ? `（已跳过 ${recordsArr.length-cleaned.length} 条格式不符的记录）` : '') +
         (cyclesData ? `，另含 <strong>${cycleCount}</strong> 个训练周期` : '') + `<br>` +
         (mode==='overwrite'
           ? `覆盖模式：将替换现有全部 <strong>${records.length}</strong> 条记录${cyclesData?'及全部训练周期':''}`
@@ -4486,8 +4577,8 @@ function deleteSelected(){
 //  目标线（配速/心率）
 // ══════════════════════════════════════
 const LS_TARGETS = 'fitness_run_targets_v1';
-function loadTargets(){ try{ const r=localStorage.getItem(LS_TARGETS); if(r) return JSON.parse(r); }catch(e){} return {pace:null,hr:null}; }
-function saveTargetStorage(t){ localStorage.setItem(LS_TARGETS,JSON.stringify(t)); }
+function loadTargets(){ const v=lsGetJSON(LS_TARGETS, null); return (v && typeof v==='object' && !Array.isArray(v)) ? v : {pace:null,hr:null}; }
+function saveTargetStorage(t){ lsSet(LS_TARGETS,JSON.stringify(t)); }
 let runTargets = loadTargets();
 
 function openTargetModal(){
@@ -4771,7 +4862,7 @@ const CAL_COLOR_LS_KEY = 'cal_sport_colors_v1';
 
 function loadCalColors(){
   let saved = {};
-  try{ saved = JSON.parse(localStorage.getItem(CAL_COLOR_LS_KEY)||'{}'); }catch(e){ saved={}; }
+  saved = lsGetJSON(CAL_COLOR_LS_KEY, {}); if(!saved || typeof saved!=='object' || Array.isArray(saved)) saved = {};
   CAL_FILTER_GROUPS.forEach(g=>{
     const color = saved[g.key] || g.defaultColor;
     g.sports.forEach(sp=>{ SPORT_COLOR[sp]=color; });
@@ -4801,9 +4892,9 @@ function onCalColorChange(el){
   if(!grp) return;
   grp.sports.forEach(sp=>{ SPORT_COLOR[sp]=color; });
   let saved = {};
-  try{ saved = JSON.parse(localStorage.getItem(CAL_COLOR_LS_KEY)||'{}'); }catch(e){ saved={}; }
+  saved = lsGetJSON(CAL_COLOR_LS_KEY, {}); if(!saved || typeof saved!=='object' || Array.isArray(saved)) saved = {};
   saved[key]=color;
-  localStorage.setItem(CAL_COLOR_LS_KEY, JSON.stringify(saved));
+  lsSet(CAL_COLOR_LS_KEY, JSON.stringify(saved));
   syncSportColorUI();
   renderCalendar();
   refreshVisibleColorDependentCharts();
@@ -4988,9 +5079,9 @@ function renderCalendar(){
       if(sport==='Run'){
         const km=sr.reduce((a,r)=>a+(r.dist||0),0);
         const kmStr=km%1===0?km:km.toFixed(1);
-        parts.push(`${label}: <span style="color:var(--green);font-weight:600">${kmStr}km</span> (${sr.length}x)`);
+        parts.push(`${escapeHtml(label)}: <span style="color:var(--green);font-weight:600">${kmStr}km</span> (${sr.length}x)`);
       } else {
-        parts.push(`${label}: ${sr.length}x`);
+        parts.push(`${escapeHtml(label)}: ${sr.length}x`);
       }
     });
     return parts.map(p=>`<span style="white-space:nowrap">${p}</span>`).join('<span style="color:var(--border2);margin:0 4px">·</span>');
