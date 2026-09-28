@@ -1097,7 +1097,8 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 
       <div class="chart-card" id="run-dist-card" style="grid-column:2;grid-row:1 / span 2">
         <div class="chart-title" style="margin-bottom:2px">Distance Breakdown</div>
-        <div id="run-dist-chart-wrap" style="position:relative;height:280px;margin-top:var(--space-14)"><canvas id="runDistBarChart"></canvas></div>
+        <div id="run-dist-chart-wrap" class="mdist-chart-wrap" style="position:relative;height:280px;margin-top:var(--space-14)"><canvas id="runDistBarChart"></canvas></div>
+        <div class="mdist-list" id="runDistList"></div>
       </div>
     </div>
 
@@ -2000,18 +2001,33 @@ function fmtRunMonthLabel(dist,count){ return `${fmtRunKm(dist)} km · ${fmtRunC
 
 // 模板 2b：柱状图「白字数值标签」工厂函数——formatFn 决定文字内容，
 // 返回字符串就画一行居中，返回 {top,bottom} 就画两行（用于「里程+次数」这种双数值场景）
-function makeBarValueLabelPlugin(formatFn, minHeight=16){
+// opts.aboveWhenTight：纵向柱子里放不下文字（文字比柱子宽，或柱子太矮）时，改画到柱子上方（灰字），
+// 不再让白字溢出到白底上看不见。默认关闭，只有明确开启的图表才会用，不影响其它图表。
+function makeBarValueLabelPlugin(formatFn, minHeight=16, opts={}){
   return {id:'barValueLabels', afterDatasetsDraw(chart){
     const {ctx}=chart;
+    const vertical = chart.options.indexAxis!=='y';
+    const dark = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim() || '#6B6259';
     chart.data.datasets.forEach((ds,di)=>{
       const meta=chart.getDatasetMeta(di);
       if(meta.hidden) return;
       meta.data.forEach((bar,i)=>{
         const val=ds.data[i];
         if(val==null||val<1) return;
-        if((bar.height||0)<minHeight) return;
         const text = formatFn(val,i,di,chart);
         if(!text) return;
+        if(opts.aboveWhenTight && vertical && typeof text!=='object'){
+          ctx.save(); ctx.font='bold 11px system-ui';
+          const tw = ctx.measureText(String(text)).width;
+          const tight = tw > (bar.width||0)-8 || (bar.height||0) < minHeight;
+          if(tight){
+            ctx.fillStyle=dark; ctx.textAlign='center'; ctx.textBaseline='bottom';
+            ctx.fillText(String(text), bar.x, bar.y-4);
+            ctx.restore(); return;
+          }
+          ctx.restore();
+        }
+        if((bar.height||0)<minHeight) return;
         const {x,y}=bar.getCenterPoint();
         ctx.save();
         ctx.fillStyle='rgba(255,255,255,0.95)';
@@ -2025,51 +2041,6 @@ function makeBarValueLabelPlugin(formatFn, minHeight=16){
           ctx.font='bold 11px system-ui'; ctx.textBaseline='middle';
           ctx.fillText(String(text), x, y);
         }
-        ctx.restore();
-      });
-    });
-  }};
-}
-
-// 横向柱状图专用「左对齐行内标签」：跟手机端 Monthly Distance 条形列表的文字样式一致——
-// 文字固定从每一行最左边（距左侧 8px）开始，被绿色柱子盖住的那一段是白字，
-// 柱子没盖到（柱子太短）的那一段是灰字。做法跟 .mdist-val 一样画两遍，各自裁剪到柱内 / 柱外。
-// 只对 indexAxis:'y'（横向）的图生效，纵向图直接跳过。
-function makeBarInlineLabelPlugin(formatFn, padLeft=8){
-  return {id:'barInlineLabels', afterDatasetsDraw(chart){
-    if(chart.options.indexAxis!=='y') return;
-    const {ctx, chartArea}=chart;
-    const cs = getComputedStyle(chart.canvas);
-    const dark = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim() || '#6B6259';
-    chart.data.datasets.forEach((ds,di)=>{
-      const meta=chart.getDatasetMeta(di);
-      if(meta.hidden) return;
-      meta.data.forEach((bar,i)=>{
-        const val=ds.data[i];
-        if(val==null) return;
-        const text = formatFn(val,i,di,chart);
-        if(!text) return;
-        const h = Math.max(bar.height||0, 16);
-        const top = bar.y - h/2;
-        const barEnd = Math.max(chartArea.left, Math.min(bar.x, chartArea.right));
-        const x = chartArea.left + padLeft;
-        ctx.save();
-        ctx.font = `11px ${cs.fontFamily}`;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        // 柱内：白字（带跟 CSS 一致的轻阴影）
-        ctx.save();
-        ctx.beginPath(); ctx.rect(chartArea.left, top, barEnd-chartArea.left, h); ctx.clip();
-        ctx.fillStyle = '#fff';
-        ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowOffsetY = 1; ctx.shadowBlur = 2;
-        ctx.fillText(String(text), x, bar.y);
-        ctx.restore();
-        // 柱外：灰字
-        ctx.save();
-        ctx.beginPath(); ctx.rect(barEnd, top, chartArea.right-barEnd, h); ctx.clip();
-        ctx.fillStyle = dark;
-        ctx.fillText(String(text), x, bar.y);
-        ctx.restore();
         ctx.restore();
       });
     });
@@ -2963,6 +2934,18 @@ function upsertChart(id, canvas, config, aux){
 // ═══════════════════════════════════════════════════════
 const MP_MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 // 'YYYY-MM' -> 'Sep 25' 这类地道的英文月份短标签，图表 X 轴和月度列表统一用这个
+// 手机端横向条形列表的 HTML（Monthly Distance / Distance Breakdown 共用同一套结构和样式）：
+// rows = [{label, pct, text}]。文字画两层：底层深色铺满整条轨道；上层白字放进进度条内部
+// （overflow:hidden 裁切）——进度条覆盖到的部分显示白字，没覆盖到的部分显示深色字，短条也看得清。
+function mobileBarRowsHTML(rows){
+  return rows.map(r=>`<div class="mdist-row">
+        <div class="mdist-month">${escapeHtml(r.label)}</div>
+        <div class="mdist-bar-wrap">
+          <div class="mdist-val mdist-val-dark">${escapeHtml(r.text)}</div>
+          <div class="mdist-bar" style="width:${r.pct}%"><div class="mdist-val" aria-hidden="true">${escapeHtml(r.text)}</div></div>
+        </div>
+      </div>`).join('');
+}
 function fmtMonthLabel(m){ return `${MP_MONTHS[parseInt(m.slice(5,7),10)-1]} ${m.slice(2,4)}`; }
 // 统一的触发按钮文案/高亮同步：day 模式显示 "From Mar 15, 2025"，month 模式显示 "From Mar 2025"；
 // 未自定义（值等于/早于 min）时显示 "All time" 且按钮恢复默认底色——这就是现在唯一的"重置"提示方式。
@@ -4071,19 +4054,21 @@ function renderRunAnalysis(){
   // 很窄，柱子上的"X次"数字标签放不下、显示不全，所以手机端改成横向柱状图
   // （indexAxis:'y'）——柱子的"长度"方向变成了水平方向，不再受窄屏宽度限制，
   // 数字能完整显示；容器高度也跟着分类数量动态给，而不是固定 280px
-  const distChartWrap = document.getElementById('run-dist-chart-wrap');
+  // 手机端：跟 Monthly Distance 同一套 HTML 条形列表（CSS 媒体查询切换显示，见 .mdist-chart-wrap / .mdist-list）；
+  // 桌面端：Chart.js 纵向柱状图。手机端 canvas 是隐藏的，不创建图表实例。
   const distIsMobile = window.innerWidth <= 768;
-  if(distChartWrap){
-    distChartWrap.style.height = distIsMobile
-      ? Math.max(220, distEntries.length * 34) + 'px'
-      : '280px';
+  const distListEl = document.getElementById('runDistList');
+  if(distListEl){
+    const maxCnt = Math.max(1, ...distEntries.map(([,c])=>c));
+    distListEl.innerHTML = mobileBarRowsHTML(distEntries.map(([km,c])=>({
+      label: km+'km',
+      pct: (c/maxCnt*100).toFixed(1),
+      text: fmtRunCount(c)
+    })));
   }
-  if(!distEntries.length){
+  if(!distEntries.length || distIsMobile){
     dc('runDistBarChart');
   } else {
-    // indexAxis 切换（横向⇄竖向）属于布局结构性变化，直接销毁重建，
-    // 不用"原地更新"那套逻辑，避免部分 Chart.js 版本下轴向切换后不刷新
-    if(CI.runDistBarChart && CI.runDistBarChart.options.indexAxis !== (distIsMobile?'y':'x')) dc('runDistBarChart');
     upsertChart('runDistBarChart', document.getElementById('runDistBarChart'), {
       type:'bar',
       data:{
@@ -4092,24 +4077,18 @@ function renderRunAnalysis(){
       },
       options:{
         ...CHART_OPT,
-        indexAxis: distIsMobile ? 'y' : 'x',
-        // 这张图会在横向/纵向之间切换 indexAxis（x/y 轴角色对调），不能像别的图那样
-        // 直接 {...CHART_OPT.scales.x} 复用共享对象：Chart.js 会把解析后的 type、
-        // 完整 ticks 配置等直接写回它拿到的这个 options 对象本身（原地修改，不是
-        // 只读取）。CHART_OPT.scales.x/y 是全文件所有图表共用的同一个对象，一旦被
-        // 某张图（比如主页月度构成，indexAxis 固定是'x'）这样"写脏"，别的图再拿
-        // ...CHART_OPT.scales.x 出来用，就会连着这些脏数据一起继承。平时大多数图
-        // 轴角色固定，脏了也看不出来；这张图会换角色，就会表现成切走 Run 页再切
-        // 回来后坐标轴错位、柱子消失。所以这里不复用 CHART_OPT.scales，自己重新
-        // 写两个全新对象，跟其它图表彻底不共享引用。
+        // 顶部留白：放不下的标签会画在柱子上方，最高的柱子也要有位置
+        layout:{ padding:{ top:18 } },
+        // scales 不复用共享的 CHART_OPT.scales.x/y：Chart.js 会把解析后的 type、ticks 等直接写回
+        // 它拿到的 options 对象（原地修改），共享对象被别的图表写脏后会连带污染这张图，
+        // 曾导致切换 tab 再回来后这张图坐标轴错位、柱子消失。所以自己写全新对象，并显式声明 type
         scales:{
-          x:{ grid:{display:false}, ticks:{color:'#9ba3b5',font:{size:11}}, type: distIsMobile ? 'linear' : 'category' },
-          y:{ grid:{color:'rgba(0,0,0,0.05)'}, ticks:{color:'#9ba3b5',font:{size:11}}, type: distIsMobile ? 'category' : 'linear' }
+          x:{ type:'category', grid:{display:false}, ticks:{color:'#9ba3b5',font:{size:11}} },
+          y:{ type:'linear', beginAtZero:true, grid:{color:'rgba(0,0,0,0.05)'}, ticks:{color:'#9ba3b5',font:{size:11},precision:0} }
         },
         plugins:{legend:{display:false}}
       },
-      // 手机端（横向）用左对齐的行内标签，跟 Monthly Distance 条形列表统一；桌面端（纵向）仍是柱内居中
-      plugins:[ distIsMobile ? makeBarInlineLabelPlugin(val=>fmtRunCount(val)) : makeBarValueLabelPlugin(val=>fmtRunCount(val), 16) ]
+      plugins:[ makeBarValueLabelPlugin(val=>fmtRunCount(val), 16, {aboveWhenTight:true}) ]
     });
   }
 
@@ -4165,19 +4144,11 @@ function renderRunAnalysis(){
   const mdistListEl=document.getElementById('monthlyDistList');
   if(mdistListEl){
     const maxDist=Math.max(1,...mDist);
-    mdistListEl.innerHTML=months.map((m,i)=>{
-      const pct=(mDist[i]/maxDist*100).toFixed(1);
-      const label=fmtRunMonthLabel(mDist[i], mCount[i]);
-      // 文字画两层：底层深色铺满整条轨道；上层白字放进进度条内部（overflow:hidden 裁切）。
-      // 进度条覆盖到的部分显示白字，没覆盖到的部分显示深色字，短条/0 跑量月份也看得清。
-      return `<div class="mdist-row">
-        <div class="mdist-month">${fmtMonthLabel(m)}</div>
-        <div class="mdist-bar-wrap">
-          <div class="mdist-val mdist-val-dark">${label}</div>
-          <div class="mdist-bar" style="width:${pct}%"><div class="mdist-val" aria-hidden="true">${label}</div></div>
-        </div>
-      </div>`;
-    }).join('');
+    mdistListEl.innerHTML=mobileBarRowsHTML(months.map((m,i)=>({
+      label: fmtMonthLabel(m),
+      pct: (mDist[i]/maxDist*100).toFixed(1),
+      text: fmtRunMonthLabel(mDist[i], mCount[i])
+    })));
   }
 
   upsertChart('monthlyDistChart', document.getElementById('monthlyDistChart'),{
@@ -4845,7 +4816,7 @@ window.addEventListener('resize', ()=>{
     _combinedChartIsMobile = nowMobile;
     const runPage = document.getElementById('page-run');
     if(runPage && runPage.style.display!=='none' && CI.combinedChart) renderCombinedChart();
-    if(runPage && runPage.style.display!=='none' && CI.runDistBarChart) renderRunAnalysis();
+    if(runPage && runPage.style.display!=='none') renderRunAnalysis();   // 跨过手机/桌面断点：切换 Distance Breakdown 的列表 ⇄ 图表
   }, 200);
 });
 
