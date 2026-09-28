@@ -2031,6 +2031,51 @@ function makeBarValueLabelPlugin(formatFn, minHeight=16){
   }};
 }
 
+// 横向柱状图专用「左对齐行内标签」：跟手机端 Monthly Distance 条形列表的文字样式一致——
+// 文字固定从每一行最左边（距左侧 8px）开始，被绿色柱子盖住的那一段是白字，
+// 柱子没盖到（柱子太短）的那一段是灰字。做法跟 .mdist-val 一样画两遍，各自裁剪到柱内 / 柱外。
+// 只对 indexAxis:'y'（横向）的图生效，纵向图直接跳过。
+function makeBarInlineLabelPlugin(formatFn, padLeft=8){
+  return {id:'barInlineLabels', afterDatasetsDraw(chart){
+    if(chart.options.indexAxis!=='y') return;
+    const {ctx, chartArea}=chart;
+    const cs = getComputedStyle(chart.canvas);
+    const dark = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim() || '#6B6259';
+    chart.data.datasets.forEach((ds,di)=>{
+      const meta=chart.getDatasetMeta(di);
+      if(meta.hidden) return;
+      meta.data.forEach((bar,i)=>{
+        const val=ds.data[i];
+        if(val==null) return;
+        const text = formatFn(val,i,di,chart);
+        if(!text) return;
+        const h = Math.max(bar.height||0, 16);
+        const top = bar.y - h/2;
+        const barEnd = Math.max(chartArea.left, Math.min(bar.x, chartArea.right));
+        const x = chartArea.left + padLeft;
+        ctx.save();
+        ctx.font = `11px ${cs.fontFamily}`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        // 柱内：白字（带跟 CSS 一致的轻阴影）
+        ctx.save();
+        ctx.beginPath(); ctx.rect(chartArea.left, top, barEnd-chartArea.left, h); ctx.clip();
+        ctx.fillStyle = '#fff';
+        ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowOffsetY = 1; ctx.shadowBlur = 2;
+        ctx.fillText(String(text), x, bar.y);
+        ctx.restore();
+        // 柱外：灰字
+        ctx.save();
+        ctx.beginPath(); ctx.rect(barEnd, top, chartArea.right-barEnd, h); ctx.clip();
+        ctx.fillStyle = dark;
+        ctx.fillText(String(text), x, bar.y);
+        ctx.restore();
+        ctx.restore();
+      });
+    });
+  }};
+}
+
 // 模板 4：整张「折线图卡片」外壳——标题行/日期筛选器位置(含"起始日期"标签)/canvas容器，
 // 统一生成，思路跟 renderMonthlyBarCard 一样。以 Anaerobic「月度无氧训练频次」为参照实例，
 // 之前这类卡片的日期选择器前面没有文字标签，跟柱状图模板（"起始月份"）不一致，这里补上。
@@ -4063,7 +4108,8 @@ function renderRunAnalysis(){
         },
         plugins:{legend:{display:false}}
       },
-      plugins:[ makeBarValueLabelPlugin(val=>fmtRunCount(val), 16) ]
+      // 手机端（横向）用左对齐的行内标签，跟 Monthly Distance 条形列表统一；桌面端（纵向）仍是柱内居中
+      plugins:[ distIsMobile ? makeBarInlineLabelPlugin(val=>fmtRunCount(val)) : makeBarValueLabelPlugin(val=>fmtRunCount(val), 16) ]
     });
   }
 
