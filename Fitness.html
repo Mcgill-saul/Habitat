@@ -206,6 +206,14 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 .mdist-list{ display:none; }
 .landscape-btn{ display:none; }
 
+/* 配速/心率/步频卡片：头部与图表容器（桌面端布局与之前一致，手机端在下方媒体查询里重排） */
+.combo-head{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:var(--space-12);margin-bottom:var(--space-14);}
+.combo-controls{display:flex;gap:var(--space-8);flex-wrap:wrap;align-items:center;}
+.combo-toggles{display:flex;gap:var(--space-8);flex-wrap:wrap;align-items:center;}
+.combo-actions{display:flex;gap:var(--space-8);align-items:center;}
+.combo-divider{width:1px;height:20px;background:var(--border);margin:0 4px;}
+.combo-chart-wrap{position:relative;height:380px;}
+
 /* 「累计训练」卡片里的大数字/周均纯展示、不需要点击，但用 position:absolute +
    left:0;right:0 撑满整卡宽度来做垂直居中定位。这层看不见的整宽区块会盖在
    上方的日期选择器上面，导致点不中日期输入框/重置按钮——尤其是点了重置之后
@@ -340,6 +348,15 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
   .mdist-list{ display: flex; }
 
   .landscape-btn{ display: inline-flex; }
+
+  /* ── 配速/心率/步频卡片：手机端头部重排（标题+按钮一行，线条开关独占一行），图表更高更松 ── */
+  .combo-controls{ display:contents; }
+  .combo-head{ align-items:center; gap:10px 8px; margin-bottom:10px; }
+  .combo-actions{ order:2; margin-left:auto; }
+  .combo-toggles{ order:3; width:100%; flex-wrap:nowrap; justify-content:space-between; gap:6px; }
+  .combo-toggles .line-toggle{ flex:1; justify-content:center; padding:5px 4px; }
+  .combo-show-label, .combo-divider{ display:none; }
+  .combo-chart-wrap{ height:440px; }
 
   /* ── 数据管理 ── */
   .data-section{ padding: 14px; }
@@ -667,8 +684,6 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 /* 统一的 30px 药丸尺寸——"显示数字"按钮和图例徽章共用同一条规则（而不是
    两处各自维护一份"看起来一样"的样式），保证渲染出来物理上不可能有偏差 */
 .pill-30{height:30px;width:100px;padding:0 10px;border-radius:20px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.filter-pill{padding:4px 11px;border-radius:12px;font-size:var(--fs-sm);cursor:pointer;border:1.5px solid var(--border2);background:var(--bg3);color:var(--text2);transition:all .15s;user-select:none;}
-.filter-pill.on{border-color:var(--green);color:var(--green);background:var(--green-lt);font-weight:600;}
 
 /* Dashboard 顶部：本周速览 + 同比趋势 + 连续周数 + 7天色块条（网格轨道已并入 .dash-grid） */
 .dash-overview-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:16px 22px;min-width:150px;}
@@ -764,11 +779,25 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 .cycle-menu-item.danger{color:var(--coral);}
 .cycle-menu-item.danger:hover{background:var(--coral-lt);}
 
-/* ── 横屏查看：全屏弹层，靠真实旋转手机变宽 ── */
+/* ── 横屏查看：全屏弹层 ──
+   手机本身已经横过来（视口变宽）时直接铺满；
+   手机仍是竖屏（包括系统锁定了自动旋转）时，用 CSS 把整个弹层顺时针转 90°，
+   图表就真的"横过来"了——用户把手机侧过来看即可，不依赖系统自动旋转。 */
 .landscape-overlay{
   position:fixed; inset:0; z-index:500;
   background:var(--bg); display:flex; flex-direction:column;
 }
+@media (orientation: portrait) and (max-width: 768px){
+  .landscape-overlay{
+    inset:auto; top:0; left:0;
+    width:100vh; width:100dvh;
+    height:100vw; height:100dvw;
+    transform-origin:0 0;
+    transform:translateX(100vw) rotate(90deg);
+    transform:translateX(100dvw) rotate(90deg);
+  }
+}
+.landscape-overlay canvas{ touch-action:none; }
 .landscape-overlay .landscape-header{
   display:flex; align-items:center; justify-content:space-between;
   padding:10px 14px; border-bottom:1px solid var(--border); flex-shrink:0;
@@ -1132,31 +1161,41 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 
       <!-- 配速/心率/步频 合并图 -->
       <div class="chart-card">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:var(--space-12);margin-bottom:var(--space-14)">
+        <div class="combo-head">
           <div>
             <div class="chart-title">Pace · Heart Rate · Cadence</div>
           </div>
           <!-- 线条开关 + 目标线设置 -->
-          <div style="display:flex;gap:var(--space-8);flex-wrap:wrap;align-items:center">
-            <span style="font-size:var(--fs-xs);color:var(--text3)">Show:</span>
-            <label class="line-toggle" style="--c:var(--blue)"><input type="checkbox" id="lt-pace" checked onchange="renderCombinedChart()"><span>Pace</span></label>
-            <label class="line-toggle" style="--c:var(--coral)"><input type="checkbox" id="lt-hr" checked onchange="renderCombinedChart()"><span>Avg HR</span></label>
-            <label class="line-toggle" style="--c:var(--amber)"><input type="checkbox" id="lt-maxhr" checked onchange="renderCombinedChart()"><span>Max HR</span></label>
-            <label class="line-toggle" style="--c:var(--purple)"><input type="checkbox" id="lt-cadence" onchange="renderCombinedChart()"><span>Cadence</span></label>
-            <div style="width:1px;height:20px;background:var(--border);margin:0 4px"></div>
-            <button class="btn btn-secondary btn-sm" onclick="openTargetModal()" style="font-size:var(--fs-xs)">⚑ Targets</button>
-            <button class="btn btn-secondary btn-sm landscape-btn" onclick="openLandscapeChart()" style="font-size:var(--fs-xs)">⤢ Fullscreen</button>
+          <div class="combo-controls">
+            <div class="combo-toggles">
+              <span class="combo-show-label" style="font-size:var(--fs-xs);color:var(--text3)">Show:</span>
+              <label class="line-toggle" style="--c:var(--blue)"><input type="checkbox" id="lt-pace" checked onchange="renderCombinedChart()"><span>Pace</span></label>
+              <label class="line-toggle" style="--c:var(--coral)"><input type="checkbox" id="lt-hr" checked onchange="renderCombinedChart()"><span>Avg HR</span></label>
+              <label class="line-toggle" style="--c:var(--amber)"><input type="checkbox" id="lt-maxhr" checked onchange="renderCombinedChart()"><span>Max HR</span></label>
+              <label class="line-toggle" style="--c:var(--purple)"><input type="checkbox" id="lt-cadence" onchange="renderCombinedChart()"><span>Cadence</span></label>
+            </div>
+            <div class="combo-divider"></div>
+            <div class="combo-actions">
+              <button class="btn btn-secondary btn-sm" onclick="openTargetModal()" style="font-size:var(--fs-xs)">⚑ Targets</button>
+              <button class="btn btn-secondary btn-sm landscape-btn" onclick="openLandscapeChart()" style="font-size:var(--fs-xs)">⤢ Landscape</button>
+            </div>
           </div>
         </div>
         <!-- 筛选条件 -->
         <div style="display:flex;gap:var(--space-12);flex-wrap:wrap;margin-bottom:var(--space-14);padding-bottom:12px;border-bottom:1px solid var(--border)">
           <div>
             <div style="font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-6)">Workout Type</div>
-            <div id="filter-subtype" style="display:flex;gap:var(--space-6);flex-wrap:wrap"></div>
+            <button type="button" class="dp-trigger" data-filter="subtype" onclick="toggleRunFilterDropdown(this)" title="Workout type" aria-haspopup="listbox">
+              <span class="dp-text">All</span>
+              <svg class="dp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
           </div>
           <div>
             <div style="font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-6)">Distance</div>
-            <div id="filter-dist" style="display:flex;gap:var(--space-6);flex-wrap:wrap"></div>
+            <button type="button" class="dp-trigger" data-filter="dist" onclick="toggleRunFilterDropdown(this)" title="Distance" aria-haspopup="listbox">
+              <span class="dp-text">All</span>
+              <svg class="dp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
           </div>
           <div>
             <div style="font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-6)">From</div>
@@ -1172,7 +1211,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
         </div>
         <!-- 目标线提示 -->
         <div id="target-hint" style="display:none;margin-bottom:var(--space-8);font-size:var(--fs-sm);color:var(--text3);display:flex;gap:var(--space-16);flex-wrap:wrap"></div>
-        <div style="position:relative;height:380px"><canvas id="combinedChart"></canvas></div>
+        <div class="combo-chart-wrap"><canvas id="combinedChart"></canvas></div>
       </div>
 
       <!-- 单次距离（整卡外壳由 renderLineChartCard 模板统一生成，见 JS） -->
@@ -1587,7 +1626,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 <div id="landscapeOverlay" class="landscape-overlay" style="display:none">
   <div class="landscape-header">
     <span class="landscape-title">Pace · Heart Rate · Cadence</span>
-    <span class="landscape-hint">Rotate your phone for a wider view</span>
+    <span class="landscape-hint">Turn your phone sideways</span>
     <button class="landscape-close" onclick="closeLandscapeChart()" aria-label="Close">✕</button>
   </div>
   <div class="landscape-canvas-wrap"><canvas id="combinedChartLandscape"></canvas></div>
@@ -1913,49 +1952,61 @@ function renderPillDonut({chartId, legendId, toggleId, labels, values, colorFn, 
   }
 }
 
-// 模板 2：柱状图「历史均值」色带 + 虚线参照线（主页「月度运动构成」/ Run「月度里程」共用）。
+// 模板 2：柱状图「历史均值」参照线（主页「月度运动构成」/ Run「月度里程」共用）。
+// 样式：一根细圆点状线 + 压在线右端的白底胶囊标签（Apple Health 风格），不再用色带。
 // getTotals 是个函数（不是数组），每次绘制时重新取值，保证图表数据原地更新后参照线也跟着刷新。
-// 返回两个插件：色带画在柱子下方(beforeDatasetsDraw)，虚线+文字画在柱子上方(afterDraw)保证不被遮住。
+// 画在 afterDatasetsDraw：在柱子之上、柱内数字标签插件之前，所以数字不会被线穿过。
 function makeAvgBandPlugin(getTotals, unit){
   return [{
-    id:'avgBand',
-    beforeDatasetsDraw(chart){
-      const totals = getTotals();
-      const nonZero = totals.filter(t=>t>0);
+    id:'avgLine',
+    afterDatasetsDraw(chart){
+      const nonZero = getTotals().filter(t=>t>0);
       if(!nonZero.length) return;
       const avg = nonZero.reduce((a,b)=>a+b,0)/nonZero.length;
       const {ctx, chartArea, scales:{y}} = chart;
       if(!chartArea) return;
       const yPos = y.getPixelForValue(avg);
-      const top = Math.max(yPos, chartArea.top);
-      ctx.save();
-      ctx.fillStyle = hexToRgba(THEME.brand, 0.06);
-      ctx.fillRect(chartArea.left, chartArea.top, chartArea.right-chartArea.left, top-chartArea.top);
-      ctx.restore();
-    }
-  },{
-    id:'avgLine',
-    afterDraw(chart){
-      const totals = getTotals();
-      const nonZero = totals.filter(t=>t>0);
-      if(!nonZero.length) return;
-      const avg = nonZero.reduce((a,b)=>a+b,0)/nonZero.length;
-      const {ctx, chartArea, scales:{y}} = chart;
-      const yPos = y.getPixelForValue(avg);
       if(yPos<chartArea.top || yPos>chartArea.bottom) return;
+
       ctx.save();
-      ctx.setLineDash([4,4]);
-      ctx.strokeStyle='rgba(36,31,26,0.32)';
-      ctx.lineWidth=1;
+
+      // 1) 参照线：细、圆点状、中性色
+      ctx.setLineDash([2,4]);
+      ctx.lineCap = 'round';
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(36,31,26,0.42)';
       ctx.beginPath();
       ctx.moveTo(chartArea.left, yPos);
       ctx.lineTo(chartArea.right, yPos);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle='rgba(36,31,26,0.55)';
-      ctx.font='10px system-ui';
-      ctx.textAlign='right';
-      ctx.fillText(`Avg ${avg.toFixed(1)} ${unit}`, chartArea.right-2, yPos-5);
+
+      // 2) 胶囊标签：白底 + 细边 + 轻阴影，垂直居中压在线上，贴右端
+      const text = `Avg ${avg.toFixed(1)} ${unit}`;
+      ctx.font = '600 10px system-ui';
+      const padX = 8, h = 18;
+      const w = ctx.measureText(text).width + padX*2;
+      const x = chartArea.right - w - 2;
+      const top = yPos - h/2;
+
+      ctx.shadowColor = 'rgba(40,28,15,0.18)';
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetY = 1;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(x, top, w, h, h/2); else ctx.rect(x, top, w, h);
+      ctx.fill();
+
+      ctx.shadowColor = 'transparent';
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(36,31,26,0.14)';
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(36,31,26,0.72)';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, x + padX, top + h/2 + 0.5);
+
       ctx.restore();
     }
   }];
@@ -4173,19 +4224,14 @@ function renderRunAnalysis(){
   upsertChart('distChart', document.getElementById('distChart'),{type:'line',data:{labels:lbs,datasets:[lineDS(runsForDist.map(r=>r.dist),THEME.green)]},options:{...CHART_OPT,scales:{x:{...CHART_OPT.scales.x,ticks:{...CHART_OPT.scales.x.ticks,maxTicksLimit:9}},y:{...CHART_OPT.scales.y,min:0}}}});
 
 
-  // 筛选条件：训练类型 + 距离，自动从数据提取
-  const subtypes=[...new Set(runs.map(r=>r.sub||'').filter(Boolean))];
-  const dists=[...new Set(runs.map(r=>r.dist).filter(Boolean))].sort((a,b)=>a-b);
-
-  const stEl=document.getElementById('filter-subtype');
-  const distEl=document.getElementById('filter-dist');
-  // Only rebuild if pills don't exist yet (avoid resetting on re-render)
-  if(!stEl.children.length){
-    stEl.innerHTML=['All',...subtypes].map((s,i)=>`<span class="filter-pill${i===0?' on':''}" data-val="${escapeHtml(s)}" onclick="toggleFilterPill(this,'filter-subtype');renderCombinedChart()">${escapeHtml(s||'Untagged')}</span>`).join('');
-  }
-  if(!distEl.children.length){
-    distEl.innerHTML=['All',...dists.map(d=>d+'km')].map((s,i)=>`<span class="filter-pill${i===0?' on':''}" data-val="${escapeHtml(s)}" onclick="toggleFilterPill(this,'filter-dist');renderCombinedChart()">${escapeHtml(s)}</span>`).join('');
-  }
+  // 筛选条件：训练类型 + 距离，选项自动从数据提取（下拉框；没勾选任何项 = All）
+  runFilterOptions.subtype = [...new Set(runs.map(r=>r.sub||'').filter(Boolean))];
+  runFilterOptions.dist = [...new Set(runs.map(r=>r.dist).filter(Boolean))].sort((a,b)=>a-b).map(d=>d+'km');
+  // 数据变化后，已不存在的选项从当前选择里剔除
+  Object.keys(runFilterSel).forEach(k=>{
+    [...runFilterSel[k]].forEach(v=>{ if(!runFilterOptions[k].includes(v)) runFilterSel[k].delete(v); });
+  });
+  syncRunFilterTriggers();
 
   renderCombinedChart();
 }
@@ -4615,18 +4661,83 @@ function saveTargetLines(){
 // ══════════════════════════════════════
 //  合并趋势图（配速/心率/步频）
 // ══════════════════════════════════════
-function toggleFilterPill(el, groupId){
-  const group = document.getElementById(groupId);
-  const allPill = group.querySelector('[data-val="All"]');
-  if(el.dataset.val === 'All'){
-    group.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('on'));
-    el.classList.add('on');
-  } else {
-    if(allPill) allPill.classList.remove('on');
-    el.classList.toggle('on');
-    const anyOn = [...group.querySelectorAll('.filter-pill')].some(p=>p.classList.contains('on'));
-    if(!anyOn && allPill) allPill.classList.add('on');
+// 「配速/心率/步频」图的筛选下拉框：复用已有的胶囊触发按钮(.dp-trigger)、
+// 弹层外壳(.mini-date-popup)和日历筛选菜单的勾选行(.cal-filter-item)，没有新增样式。
+// 状态用集合保存，空集合 = All（默认）。
+const runFilterSel = { subtype:new Set(), dist:new Set() };
+const runFilterOptions = { subtype:[], dist:[] };
+
+function syncRunFilterTriggers(){
+  Object.keys(runFilterSel).forEach(key=>{
+    const btn = document.querySelector('.dp-trigger[data-filter="'+key+'"]');
+    if(!btn) return;
+    const sel = runFilterSel[key];
+    const txt = sel.size===0 ? 'All' : sel.size===1 ? [...sel][0] : sel.size+' selected';
+    btn.querySelector('.dp-text').textContent = txt;
+    btn.classList.toggle('dp-active', sel.size>0);
+  });
+}
+
+function toggleRunFilterDropdown(btn){
+  const forKey = 'runfilter-'+btn.dataset.filter;
+  if(miniDatePickerFor === forKey){ closeMiniDatePicker(); return; }
+  openRunFilterDropdown(btn);
+}
+
+function openRunFilterDropdown(btn){
+  closeMiniDatePicker();
+  const key = btn.dataset.filter;
+  const sel = runFilterSel[key];
+  const options = runFilterOptions[key] || [];
+  miniDatePickerFor = 'runfilter-'+key;
+  btn.setAttribute('aria-expanded','true');
+
+  const pop = document.createElement('div');
+  pop.className = 'mini-date-popup';
+  pop.style.maxHeight = '300px';
+  pop.style.overflowY = 'auto';
+  document.body.appendChild(pop);
+  miniDatePickerEl = pop;
+
+  const rows = ['All', ...options];
+  pop.innerHTML = rows.map(v=>
+    `<label class="cal-filter-item"><input type="checkbox" data-val="${escapeHtml(v)}">${escapeHtml(v)}</label>`
+  ).join('');
+
+  function syncChecks(){
+    pop.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+      cb.checked = cb.dataset.val==='All' ? sel.size===0 : sel.has(cb.dataset.val);
+    });
   }
+  syncChecks();
+
+  pop.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.onchange = ()=>{
+      const v = cb.dataset.val;
+      if(v==='All') sel.clear();
+      else if(cb.checked) sel.add(v);
+      else sel.delete(v);
+      syncChecks();
+      syncRunFilterTriggers();
+      renderCombinedChart();
+    };
+  });
+
+  // 定位在按钮下方，并按实际尺寸收敛到视口内
+  const r = btn.getBoundingClientRect();
+  pop.style.top = (r.bottom + 6) + 'px';
+  pop.style.left = r.left + 'px';
+  requestAnimationFrame(()=>{
+    const pr = pop.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    const vh = document.documentElement.clientHeight;
+    if(pr.right > vw - 8) pop.style.left = Math.max(8, vw - pr.width - 8) + 'px';
+    if(pr.bottom > vh - 8) pop.style.top = Math.max(8, r.top - pr.height - 6) + 'px';
+  });
+  setTimeout(()=>{
+    document.addEventListener('mousedown', onMiniDatePickerOutsideClick, true);
+    document.addEventListener('keydown', onMiniDatePickerKeydown, true);
+  }, 0);
 }
 
 function getFilteredRuns(){
@@ -4640,16 +4751,10 @@ function getFilteredRuns(){
   const cStart = (runCombinedStart.value && runCombinedStart.value>=earliest) ? runCombinedStart.value : '';
   const dateFiltered = cStart ? runs.filter(r=>r.date>=cStart) : runs;
 
-  const stEl = document.getElementById('filter-subtype');
-  const distEl = document.getElementById('filter-dist');
-  if(!stEl||!distEl) return dateFiltered;
-  const selSub = [...stEl.querySelectorAll('.filter-pill.on')].map(p=>p.dataset.val);
-  const selDist = [...distEl.querySelectorAll('.filter-pill.on')].map(p=>p.dataset.val);
-  const allSub = selSub.includes('All');
-  const allDist = selDist.includes('All');
+  const subSel = runFilterSel.subtype, distSel = runFilterSel.dist;
   return dateFiltered.filter(r=>{
-    const subOk = allSub || selSub.includes(r.sub||'');
-    const distOk = allDist || selDist.includes((r.dist||'')+'km');
+    const subOk = subSel.size===0 || subSel.has(r.sub||'');
+    const distOk = distSel.size===0 || distSel.has((r.dist||'')+'km');
     return subOk && distOk;
   });
 }
@@ -4731,10 +4836,19 @@ function renderCombinedChart(){
   }
 
   function buildCombinedConfig(forLandscape){
+    // rotated：手机仍是竖屏、弹层靠 CSS 转了 90°。此时 Chart.js 自带的触摸/鼠标坐标是错的，
+    // 关掉它的事件，改由 attachRotatedChartEvents() 自己换算坐标。
+    const rotated = forLandscape && isLandscapeRotated();
+    const compact = !forLandscape && window.innerWidth<=768;           // 手机竖屏下的小卡片图
+    const dense = compact && labels.length>20;                          // 点多时把点和线收细，避免糊成一团
     return {
-      type:'line', data:{labels, datasets: datasets.map(d=>({...d}))},
+      type:'line', data:{labels, datasets: datasets.map(d=>({...d,
+        ...(dense ? {pointRadius:Math.max(1.5,d.pointRadius-1), borderWidth:Math.max(1.25,d.borderWidth-0.25)} : {})
+      }))},
       options:{
         responsive:true, maintainAspectRatio:false,
+        ...(rotated ? {events:[]} : {}),
+        layout:{padding:{top:compact?8:0}},
         interaction:{mode:'index', intersect:false},
         plugins:{
           legend:{display:false},
@@ -4748,7 +4862,7 @@ function renderCombinedChart(){
           }}}
         },
         scales:{
-          x:{grid:{display:false}, ticks:{color:'#9ba3b5',font:{size:11},maxTicksLimit:forLandscape?12:(window.innerWidth<=768?6:12)}},
+          x:{grid:{display:false}, ticks:{color:'#9ba3b5',font:{size:compact?10:11},maxTicksLimit:forLandscape?12:(window.innerWidth<=768?6:12)}},
           yPace:{
             type:'linear', position:'left', reverse:true,
           // =====================================================
@@ -4764,7 +4878,7 @@ function renderCombinedChart(){
             display: !!(showPace || runTargets.pace),
             grid:{color:'rgba(0,0,0,0.05)'},
             ticks:{
-              color:THEME.blue, font:{size:11},
+              color:THEME.blue, font:{size:compact?10:11}, maxTicksLimit:compact?6:11,
               callback: v => (showPace || runTargets.pace) ? fmtPace(v) : '',
             }
           },
@@ -4774,7 +4888,7 @@ function renderCombinedChart(){
             max: runTargets.hr ? Math.max(195, runTargets.hr + 10) : 195,  // 心率轴顶部（越大则心率线越靠下）
             display: !!(showHr||showMaxHr||showCadence||runTargets.hr),
             grid:{drawOnChartArea:false},
-            ticks:{color:'#9ba3b5',font:{size:11}}
+            ticks:{color:'#9ba3b5',font:{size:compact?10:11},maxTicksLimit:compact?6:11}
           }
         }
       },
@@ -4789,7 +4903,35 @@ function renderCombinedChart(){
   const landscapeCanvas=document.getElementById('combinedChartLandscape');
   if(landscapeOverlay && landscapeCanvas && landscapeOverlay.style.display!=='none'){
     upsertChart('combinedChartLandscape', landscapeCanvas, buildCombinedConfig(true));
+    attachRotatedChartEvents(landscapeCanvas);
   }
+}
+
+// 手机是否仍处于竖屏（此时横屏弹层是靠 CSS 转 90° 做出来的）。必须和上面的 @media 条件保持一致。
+function isLandscapeRotated(){
+  return window.matchMedia('(orientation: portrait) and (max-width: 768px)').matches;
+}
+
+// 弹层被 CSS 转了 90°（顺时针）后，屏幕坐标和图表坐标的对应关系：
+//   图表的 x 方向 = 屏幕从上到下；图表的 y 方向 = 屏幕从右到左。
+// 这里把触摸/鼠标位置换算成图表坐标，手动驱动 tooltip，横屏下依然能点哪看哪。
+function attachRotatedChartEvents(canvas){
+  if(canvas._rotatedEventsBound) return;
+  canvas._rotatedEventsBound = true;
+  const handler = e=>{
+    if(!isLandscapeRotated()) return;               // 真横屏时由 Chart.js 自己处理
+    const chart = CI.combinedChartLandscape;
+    if(!chart) return;
+    const pt = (e.touches && e.touches[0]) || e;
+    if(pt.clientX===undefined) return;
+    const rect = canvas.getBoundingClientRect();
+    const pos = { x: pt.clientY - rect.top, y: rect.right - pt.clientX, native: true };
+    const els = chart.getElementsAtEventForMode(pos, 'index', {intersect:false}, true);
+    chart.setActiveElements(els);
+    chart.tooltip.setActiveElements(els, {x:pos.x, y:pos.y});
+    chart.update('none');
+  };
+  ['touchstart','touchmove','mousedown','mousemove'].forEach(t=>canvas.addEventListener(t, handler, {passive:true}));
 }
 
 function openLandscapeChart(){
@@ -4800,6 +4942,17 @@ function closeLandscapeChart(){
   document.getElementById('landscapeOverlay').style.display='none';
   dc('combinedChartLandscape');
 }
+
+// 手机在竖屏 ⇄ 横屏之间切换时，如果横屏弹层正开着，重建弹层里的图表
+// （竖屏时弹层是 CSS 转出来的、事件要手动处理；真横屏时恢复 Chart.js 自带事件）
+(function(){
+  const mq = window.matchMedia('(orientation: portrait) and (max-width: 768px)');
+  const onChange = ()=>{
+    const ov = document.getElementById('landscapeOverlay');
+    if(ov && ov.style.display!=='none'){ dc('combinedChartLandscape'); renderCombinedChart(); }
+  };
+  if(mq.addEventListener) mq.addEventListener('change', onChange); else if(mq.addListener) mq.addListener(onChange);
+})();
 
 // 屏幕宽度跨越 768px 断点（例如手机旋转横竖屏）时，
 // 重新渲染配速/心率/步频图，让 maxTicksLimit 等随宽度更新
