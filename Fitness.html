@@ -213,6 +213,8 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 .combo-actions{display:flex;gap:var(--space-8);align-items:center;}
 .combo-divider{width:1px;height:20px;background:var(--border);margin:0 4px;}
 .combo-chart-wrap{position:relative;height:380px;}
+.combo-filters{display:flex;gap:var(--space-12);flex-wrap:wrap;margin-bottom:var(--space-14);padding-bottom:12px;border-bottom:1px solid var(--border);}
+.combo-filter-label{font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-6);}
 
 /* 「累计训练」卡片里的大数字/周均纯展示、不需要点击，但用 position:absolute +
    left:0;right:0 撑满整卡宽度来做垂直居中定位。这层看不见的整宽区块会盖在
@@ -350,12 +352,22 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
   .landscape-btn{ display: inline-flex; }
 
   /* ── 配速/心率/步频卡片：手机端头部重排（标题+按钮一行，线条开关独占一行），图表更高更松 ── */
+  /* 第 1 行：标题 + 两个图标按钮；第 2 行：四个线条开关等宽一排；第 3 行：三个筛选项一排 */
   .combo-controls{ display:contents; }
-  .combo-head{ align-items:center; gap:10px 8px; margin-bottom:10px; }
-  .combo-actions{ order:2; margin-left:auto; }
-  .combo-toggles{ order:3; width:100%; flex-wrap:nowrap; justify-content:space-between; gap:6px; }
-  .combo-toggles .line-toggle{ flex:1; justify-content:center; padding:5px 4px; }
-  .combo-show-label, .combo-divider{ display:none; }
+  .combo-head{ flex-wrap:wrap; align-items:center; gap:12px 8px; margin-bottom:12px; }
+  .combo-head > div:first-child{ flex:1; min-width:0; }
+  .combo-actions{ order:2; gap:6px; }
+  .combo-actions .btn{ width:34px; height:34px; padding:0; display:inline-flex; align-items:center; justify-content:center; border-radius:10px; font-size:var(--fs-base) !important; }
+  .combo-btn-text{ display:none; }
+  .combo-toggles{ order:3; width:100%; flex-wrap:nowrap; gap:6px; }
+  .combo-toggles .line-toggle{ flex:1 1 0; min-width:0; justify-content:center; gap:0; padding:6px 2px; font-size:var(--fs-xs); white-space:nowrap; }
+  .combo-toggles .line-toggle span::before{ width:6px; height:6px; margin-right:4px; }
+  .combo-show-label, .combo-divider, .combo-label-long{ display:none; }
+  .combo-filters{ display:grid; grid-template-columns:auto auto minmax(0,1fr); gap:8px; }
+  .combo-filters > div{ min-width:0; }
+  .combo-filters .dp-trigger{ width:100%; justify-content:space-between; }
+  .combo-filters .dp-trigger > svg:not(.dp-chev){ display:none; }
+  .combo-filters .dp-text{ min-width:0; overflow:hidden; text-overflow:ellipsis; }
   .combo-chart-wrap{ height:440px; }
 
   /* ── 数据管理 ── */
@@ -1176,29 +1188,29 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
             </div>
             <div class="combo-divider"></div>
             <div class="combo-actions">
-              <button class="btn btn-secondary btn-sm" onclick="openTargetModal()" style="font-size:var(--fs-xs)">⚑ Targets</button>
-              <button class="btn btn-secondary btn-sm landscape-btn" onclick="openLandscapeChart()" style="font-size:var(--fs-xs)">⤢ Landscape</button>
+              <button class="btn btn-secondary btn-sm" onclick="openTargetModal()" title="Targets" aria-label="Targets" style="font-size:var(--fs-xs)"><span class="combo-icon">⚑</span><span class="combo-btn-text"> Targets</span></button>
+              <button class="btn btn-secondary btn-sm landscape-btn" onclick="openLandscapeChart()" title="Landscape" aria-label="Landscape" style="font-size:var(--fs-xs)"><span class="combo-icon">⤢</span><span class="combo-btn-text"> Landscape</span></button>
             </div>
           </div>
         </div>
         <!-- 筛选条件 -->
-        <div style="display:flex;gap:var(--space-12);flex-wrap:wrap;margin-bottom:var(--space-14);padding-bottom:12px;border-bottom:1px solid var(--border)">
+        <div class="combo-filters">
           <div>
-            <div style="font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-6)">Workout Type</div>
+            <div class="combo-filter-label"><span class="combo-label-long">Workout </span>Type</div>
             <button type="button" class="dp-trigger" data-filter="subtype" onclick="toggleRunFilterDropdown(this)" title="Workout type" aria-haspopup="listbox">
               <span class="dp-text">All</span>
               <svg class="dp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
           </div>
           <div>
-            <div style="font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-6)">Distance</div>
+            <div class="combo-filter-label">Distance</div>
             <button type="button" class="dp-trigger" data-filter="dist" onclick="toggleRunFilterDropdown(this)" title="Distance" aria-haspopup="listbox">
               <span class="dp-text">All</span>
               <svg class="dp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
           </div>
           <div>
-            <div style="font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-6)">From</div>
+            <div class="combo-filter-label">From</div>
             <div style="display:flex;align-items:center;gap:var(--space-6)">
               <input type="date" id="run-combined-start" class="mini-date-input-plain" onchange="onRunCombinedStartChange()">
               <button type="button" class="dp-trigger" data-for="run-combined-start" data-mode="day" onclick="toggleMiniDatePicker(this)" title="Start date" aria-haspopup="dialog">
@@ -4843,7 +4855,7 @@ function renderCombinedChart(){
     const dense = compact && labels.length>20;                          // 点多时把点和线收细，避免糊成一团
     return {
       type:'line', data:{labels, datasets: datasets.map(d=>({...d,
-        ...(dense ? {pointRadius:Math.max(1.5,d.pointRadius-1), borderWidth:Math.max(1.25,d.borderWidth-0.25)} : {})
+        ...(dense ? {pointRadius:0, pointHoverRadius:4, pointHitRadius:12, borderWidth:Math.max(1.25,d.borderWidth-0.25)} : {})
       }))},
       options:{
         responsive:true, maintainAspectRatio:false,
