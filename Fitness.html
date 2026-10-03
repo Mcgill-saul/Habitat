@@ -1533,25 +1533,17 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
     Dashboard
   </button>
-  <button class="mobile-nav-item" id="mnav-anaerobic" onclick="showTab('anaerobic')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="9" width="3" height="6" rx="1"/><rect x="4" y="7" width="2" height="10" rx="1"/><line x1="6" y1="12" x2="18" y2="12"/><rect x="18" y="7" width="2" height="10" rx="1"/><rect x="20" y="9" width="3" height="6" rx="1"/></svg>
-    Strength
-  </button>
   <button class="mobile-nav-item" id="mnav-run" onclick="showTab('run')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 4a1 1 0 1 0 2 0 1 1 0 0 0-2 0"/><path d="M7.5 17l2-5 3 3 2-4 2 4"/><path d="M5 20l4-8 2 3 3-6 3 3 2-3"/></svg>
     Run
   </button>
-  <button class="mobile-nav-item" id="mnav-records" onclick="showTab('records')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
-    Records
+  <button class="mobile-nav-add" onclick="showTab('add')" id="mnav-add">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9" fill="var(--green)" stroke="none"/><line x1="12" y1="8" x2="12" y2="16" stroke="white"/><line x1="8" y1="12" x2="16" y2="12" stroke="white"/></svg>
+    Add
   </button>
   <button class="mobile-nav-item" id="mnav-calendar" onclick="showTab('calendar')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
     Calendar
-  </button>
-  <button class="mobile-nav-add" onclick="showTab('add')" id="mnav-add">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9" fill="var(--green)" stroke="none"/><line x1="12" y1="8" x2="12" y2="16" stroke="white"/><line x1="8" y1="12" x2="16" y2="12" stroke="white"/></svg>
-    Add
   </button>
   <button class="mobile-nav-item" id="mnav-more" onclick="toggleMobileMore()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/></svg>
@@ -1561,6 +1553,8 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 
 <!-- 📱 更多菜单（手机端，从底部导航向上展开） -->
 <div id="mobileMoreMenu" style="display:none;position:fixed;bottom:calc(56px + env(safe-area-inset-bottom));left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);z-index:199;padding:6px 0;box-shadow:0 -4px 20px rgba(0,0,0,0.1)">
+  <button onclick="showTab('anaerobic');closeMobileMore()" style="display:flex;align-items:center;gap:var(--space-12);width:100%;padding:14px 20px;border:none;background:none;font-family:var(--font);font-size:var(--fs-base);color:var(--text);cursor:pointer;text-align:left">🏋️ Strength</button>
+  <button onclick="showTab('records');closeMobileMore()" style="display:flex;align-items:center;gap:var(--space-12);width:100%;padding:14px 20px;border:none;background:none;font-family:var(--font);font-size:var(--fs-base);color:var(--text);cursor:pointer;text-align:left">📋 Records</button>
   <button onclick="showTab('hike');closeMobileMore()" style="display:flex;align-items:center;gap:var(--space-12);width:100%;padding:14px 20px;border:none;background:none;font-family:var(--font);font-size:var(--fs-base);color:var(--text);cursor:pointer;text-align:left">🥾 Hike</button>
   <button onclick="showTab('data');closeMobileMore()" style="display:flex;align-items:center;gap:var(--space-12);width:100%;padding:14px 20px;border:none;background:none;font-family:var(--font);font-size:var(--fs-base);color:var(--text);cursor:pointer;text-align:left">🗂 Data</button>
 </div>
@@ -2269,7 +2263,8 @@ function initGistBtn(){
 //  手机底部导航
 // ══════════════════════════════════════
 function syncMobileNav(n){
-  const map = {dashboard:'mnav-dashboard',records:'mnav-records',calendar:'mnav-calendar',run:'mnav-run',anaerobic:'mnav-anaerobic',add:'mnav-add',hike:'mnav-more',data:'mnav-more'};
+  // records / anaerobic 已经收进"More"面板，不再是主栏按钮，选中时主栏高亮 More
+  const map = {dashboard:'mnav-dashboard',records:'mnav-more',calendar:'mnav-calendar',run:'mnav-run',anaerobic:'mnav-more',add:'mnav-add',hike:'mnav-more',data:'mnav-more'};
   document.querySelectorAll('.mobile-nav-item,.mobile-nav-add').forEach(el=>el.classList.remove('active'));
   const target = map[n];
   if(target) document.getElementById(target)?.classList.add('active');
@@ -2284,7 +2279,9 @@ function toggleMobileMore(){
 }
 function closeMobileMore(){
   document.getElementById('mobileMoreMenu').style.display = 'none';
-  document.getElementById('mnav-more')?.classList.remove('active');
+  // 不在这里清 More 按钮的 active：closeMobileMore() 只在 syncMobileNav() 末尾被调用，
+  // 这时 active 应该交给 syncMobileNav() 自己的 map 决定——当前在 Strength/Records/Hike/Data
+  // 这几个收进"More"的页面时，More 按钮本身就该保持高亮，不能被这里一并清掉
 }
 
 // ══════════════════════════════════════
