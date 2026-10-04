@@ -218,6 +218,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 .cs-cell{flex:1 1 0;min-width:0;}
 .cs-val{font-size:16px;font-weight:700;line-height:1.25;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .cs-cell.off{opacity:.35;}
+@media (min-width:769px){ .combo-summary{display:none;} }   /* 桌面端不显示摘要行，改为图内悬停提示 */
 .cs-unit{font-size:10px;font-weight:500;color:var(--text3);margin-left:2px;}
 .combo-chart-wrap{position:relative;height:340px;}
 .combo-filters{display:flex;gap:var(--space-12);flex-wrap:wrap;margin-bottom:var(--space-14);padding-bottom:12px;border-bottom:1px solid var(--border);}
@@ -3353,6 +3354,170 @@ function getMonthRange(startDate){
 }
 function weeksBetween(d1,d2){ return Math.max(1,(new Date(d2)-new Date(d1))/(7*86400000)); }
 
+// ══════════════════════════════════════
+//  ChartKit —— 折线图共用外观层
+//  设计原则：以手机端为基准，桌面端只在「更宽」「能悬停」两处放宽；能共用的一套代码，不分端写两份。
+//  外观：Y 轴数字画在图内并贴齐卡片边缘 · 仅稀疏横线 · 无圆点 · 十字准线 · 可选渐变填充
+//  用法：upsertChart(id, canvas, ChartKit.lineChart({labels, datasets:[ChartKit.dataset(data,color,{fill:'gradient'})], ...}))
+// ══════════════════════════════════════
+const ChartKit = (() => {
+  const BP = 768;                                   // 手机/桌面断点（CSS 里的 768px 与此保持一致）
+  const isMobile = () => window.innerWidth <= BP;
+  const defaultFmt = v => String(Math.round(v*10)/10);
+
+  // 轴数字画在绘图区内（side: 'left' | 'right'），贴着网格线上方；最顶一格改画在线下方，避免被画布裁掉
+  function innerAxisPlugin(axes){                   // axes: [{id, side, show, color, fmt}]
+    return {
+      id:'ckInnerAxis',
+      afterDatasetsDraw(chart){
+        const {ctx, chartArea:{left,right,top}} = chart;
+        ctx.save();
+        ctx.font = '10px system-ui, sans-serif';
+        axes.forEach(a=>{
+          const sc = chart.scales[a.id]; if(!sc || !a.show) return;
+          ctx.textAlign = a.side==='right' ? 'right' : 'left';
+          const x = a.side==='right' ? right : left;
+          sc.ticks.forEach(t=>{
+            const py = sc.getPixelForValue(t.value);
+            const atTop = py - 13 < top;
+            ctx.textBaseline = atTop ? 'top' : 'bottom';
+            const y = atTop ? py+2 : py-2;
+            const txt = a.fmt(t.value);
+            ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.strokeText(txt,x,y);
+            ctx.fillStyle = a.color; ctx.fillText(txt,x,y);
+          });
+        });
+        ctx.restore();
+      }
+    };
+  }
+  // 十字准线：竖虚线 + 每条显示中曲线上一个圆点
+  function crosshairPlugin(){
+    return {
+      id:'ckCrosshair',
+      afterDatasetsDraw(chart){
+        const act = chart.getActiveElements(); if(!act.length) return;
+        const {ctx, chartArea:{top,bottom}} = chart;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(36,31,26,0.25)'; ctx.lineWidth = 1; ctx.setLineDash([3,3]);
+        ctx.beginPath(); ctx.moveTo(act[0].element.x,top); ctx.lineTo(act[0].element.x,bottom); ctx.stroke();
+        ctx.setLineDash([]); ctx.lineWidth = 2; ctx.strokeStyle = '#fff';
+        act.forEach(a=>{
+          if(a.element.skip || isNaN(a.element.y)) return;
+          ctx.fillStyle = chart.data.datasets[a.datasetIndex].borderColor;
+          ctx.beginPath(); ctx.arc(a.element.x,a.element.y,4,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        });
+        ctx.restore();
+      }
+    };
+  }
+  // Y 轴：无轴线、不占宽度（数字由 innerAxisPlugin 画在图内），只留稀疏横线
+  function yScale(extra, showGrid){
+    const e = extra || {};
+    return Object.assign({
+      type:'linear', border:{display:false},
+      grid:{display:showGrid, drawOnChartArea:showGrid, color:'rgba(0,0,0,0.06)', drawTicks:false},
+      afterFit(s){ s.width = 0; },
+    }, e, { ticks:Object.assign({display:false, maxTicksLimit:5}, e.ticks) });
+  }
+  // X 轴：首尾标签向内对齐，并去掉首尾标签撑出的左右留白，图表区才能贴齐卡片边缘
+  function xScale(tickExtra){
+    return {
+      grid:{display:false}, border:{display:false},
+      afterFit(sc){ sc.paddingLeft = 0; sc.paddingRight = 0; },
+      ticks:Object.assign({color:'#9ba3b5', font:{size:11}, maxRotation:0, padding:6, align:'inner'}, tickExtra||{}),
+    };
+  }
+  // 悬停提示框（白底、细边、圆角、小色点）
+  function tooltip(callbacks){
+    return {
+      backgroundColor:'rgba(255,255,255,0.96)', titleColor:'#241f1a', bodyColor:'#241f1a',
+      borderColor:'rgba(0,0,0,0.10)', borderWidth:1, padding:10, cornerRadius:10,
+      boxPadding:4, boxWidth:8, boxHeight:8, usePointStyle:true, displayColors:true,
+      titleFont:{size:11, weight:'500'}, bodyFont:{size:12, weight:'600'},
+      callbacks:Object.assign({
+        labelColor:c=>({borderColor:c.dataset.borderColor, backgroundColor:c.dataset.borderColor, borderRadius:4}),
+        labelPointStyle:()=>({pointStyle:'circle', rotation:0}),
+      }, callbacks),
+    };
+  }
+  // 渐变填充：曲线处较深、向底部渐隐
+  function gradient(color){
+    return ctx=>{
+      const a = ctx.chart.chartArea;
+      if(!a) return hexToRgba(color,0.1);
+      const g = ctx.chart.ctx.createLinearGradient(0,a.top,0,a.bottom);
+      g.addColorStop(0,hexToRgba(color,0.28)); g.addColorStop(1,hexToRgba(color,0.02));
+      return g;
+    };
+  }
+  // 日期刻度：标签是 YYYY-MM-DD 时显示 MM-DD；数据跨年则显示 YY-MM
+  function dateTick(labels){
+    const spanYears = labels.length && labels[0].slice(0,4) !== labels[labels.length-1].slice(0,4);
+    return function(v){ const l = this.getLabelForValue(v) || ''; return spanYears ? l.slice(2,7) : l.slice(5); };
+  }
+  const isIsoDate = s => /^\d{4}-\d{2}-\d{2}/.test(s || '');
+
+  // 数据集：fill 'gradient' = 渐变填充；dots = 稀疏/断续数据才画小圆点（否则孤立的点会看不见）
+  function dataset(data, color, o={}){
+    const {label, width=1.8, dash, axis, fill=false, dots=false, spanGaps=true, tension=0.3} = o;
+    return {
+      ...(label ? {label} : {}), ...(axis ? {yAxisID:axis} : {}),
+      data, borderColor:color, borderWidth:width, borderDash:dash||[], tension, spanGaps,
+      ...(fill==='gradient' ? {fill:'start', backgroundColor:gradient(color)} : {fill:false}),
+      pointRadius:dots?3.5:0, pointHoverRadius:0, pointHitRadius:20,
+      pointBackgroundColor:color, pointBorderColor:'#fff', pointBorderWidth:dots?1.5:0,
+    };
+  }
+
+  // 折线图整张配置。o:
+  //   labels, datasets             必填
+  //   axes[{id,side,show,color,fmt,grid,scale}]   默认单条左轴 'y'；scale 里放 min/max/reverse/grace/ticks 等
+  //   tooltip {title,label,...}    覆盖提示框回调
+  //   scrub(i|null)                手机竖屏下用「图外摘要行」代替悬停提示框；手指滑动时回调当前下标，松开回调 null
+  //   plugins[]                    额外插件（例如目标线）
+  //   landscape, rotated           横屏弹层 / 被 CSS 旋转的弹层（此时图表自带事件坐标不对，需关掉）
+  function lineChart(o){
+    const {labels, datasets, scrub, plugins:extra=[], landscape=false, rotated=false} = o;
+    const axes = (o.axes && o.axes.length ? o.axes : [{id:'y', side:'left'}]).map(a=>({
+      show:true, color:'#8a93a6', fmt:defaultFmt, side:'left', ...a,
+    }));
+    const mobile = isMobile() && !landscape;
+    const scales = {
+      x: xScale({
+        font:{size:mobile?10:11}, maxTicksLimit:mobile?5:8,
+        ...(isIsoDate(labels[0]) ? {callback:dateTick(labels)} : {}),
+      }),
+    };
+    axes.forEach((a,i)=>{
+      scales[a.id] = yScale({position:a.side, ...a.scale}, a.grid!==undefined ? a.grid : i===0);
+    });
+    const fmtOf = id => (axes.find(a=>a.id===id) || axes[0]).fmt;
+    const scrubOn = mobile && typeof scrub==='function';
+    const tip = scrubOn
+      ? {enabled:false, external({tooltip:t}){ scrub(t.opacity===0 || !t.dataPoints?.length ? null : t.dataPoints[0].dataIndex); }}
+      : tooltip(Object.assign({
+          label:c => c.parsed.y==null ? null : ` ${c.dataset.label ? c.dataset.label+'  ' : ''}${fmtOf(c.dataset.yAxisID)(c.parsed.y)}`,
+        }, o.tooltip));
+    return {
+      type:'line',
+      data:{labels, datasets},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        ...(rotated ? {events:[]} : {}),
+        layout:{padding:{top:6, right:0, left:0}},
+        interaction:{mode:'index', intersect:false},
+        plugins:{legend:{display:false}, tooltip:tip},
+        scales,
+      },
+      plugins:[...extra, innerAxisPlugin(axes), crosshairPlugin()],
+    };
+  }
+
+  return {BP, isMobile, lineChart, dataset, gradient, dateTick, tooltip};
+})();
+
+// 柱状图通用配置（折线图统一走 ChartKit.lineChart，不再使用这份）
 const CHART_OPT={
   responsive:true, maintainAspectRatio:false,
   plugins:{legend:{display:false}},
@@ -3361,21 +3526,6 @@ const CHART_OPT={
     y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{color:'#9ba3b5',font:{size:11}}}
   }
 };
-// 折线图数据集模板——统一点样式（实心圆点、统一半径），三张折线图卡片
-// （Run单次距离/无氧月度频次/Hike步数趋势）都调用这一份，不再各写各的点大小。
-// opts 支持按需覆盖：fill(是否填充面积，Hike双系列要设false避免两个面积重叠)、
-// spanGaps(有缺失日期时是否连线)、label(图例用，Hike双系列需要区分)
-function lineDS(data,color,opts={}){
-  const {radius=4, fill=true, spanGaps=true, tension=0.3, label} = opts;
-  return {
-    ...(label?{label}:{}),
-    data, borderColor:color, backgroundColor:hexToRgba(color,0.1),
-    borderWidth:2, pointRadius:radius, pointHoverRadius:radius+2,
-    pointBackgroundColor:color, pointBorderColor:color,
-    fill, tension, spanGaps,
-  };
-}
-
 function renderDashboard(){
   const allDates=records.filter(r=>r.date).map(r=>r.date).sort();
   const earliest=allDates.length>0?allDates[0]:'';
@@ -3824,14 +3974,12 @@ function renderAnaerobic(){
   syncStartInput('ana-monthly-start', anaMonthlyStart, anaEarliest, anaLatest);
   const amStart = (anaMonthlyStart.value && anaMonthlyStart.value>=anaEarliest) ? anaMonthlyStart.value : '';
   const months = getMonthRange(amStart);
-  upsertChart('anaMonthlyChart', document.getElementById('anaMonthlyChart'),{
-    type:'line',
-    data:{
-      labels:months.map(fmtMonthLabel),
-      datasets:[lineDS(months.map(m=>ana.filter(r=>r.date?.startsWith(m)).length), THEME.blue)]
-    },
-    options:{...CHART_OPT, plugins:{legend:{display:false}}}
-  });
+  upsertChart('anaMonthlyChart', document.getElementById('anaMonthlyChart'), ChartKit.lineChart({
+    labels: months.map(fmtMonthLabel),
+    datasets:[ChartKit.dataset(months.map(m=>ana.filter(r=>r.date?.startsWith(m)).length), THEME.blue, {fill:'gradient'})],
+    axes:[{id:'y', side:'left', fmt:v=>String(Math.round(v)), scale:{min:0, grace:'8%', ticks:{precision:0}}}],
+    tooltip:{label:c=> c.parsed.y==null ? null : ` ${c.parsed.y} 次`},
+  }));
 }
 
 // 分类速览：图标 / 顺序（固定类型在前，自定义运动按出现顺序追加在后）
@@ -4018,7 +4166,7 @@ function renderHikeAnalysis(){
   const walkRecs = hikesInRange.filter(r=>r.sub==='Walk');
 
   const allDates = [...new Set(hikesInRange.map(r=>r.date))].sort();
-  const labels = allDates.map(d=>d.slice(5));
+  const labels = allDates;
 
   const hikeMap = Object.fromEntries(hikeRecs.map(r=>[r.date, r.steps||0]));
   const walkMap = Object.fromEntries(walkRecs.map(r=>[r.date, r.steps||0]));
@@ -4029,24 +4177,14 @@ function renderHikeAnalysis(){
   if(!ctx) return;
 
   const datasets = [];
-  if(showHike) datasets.push(lineDS(hikeData, getSportColor('Hike'), {radius:5, fill:false, spanGaps:false, label:'⛰ Hike'}));
-  if(showWalk) datasets.push(lineDS(walkData, getSportColor('Walk'), {radius:5, fill:false, spanGaps:false, label:'🚶 Walk'}));
+  if(showHike) datasets.push(ChartKit.dataset(hikeData, getSportColor('Hike'), {label:'⛰ Hike', dots:true, spanGaps:false}));
+  if(showWalk) datasets.push(ChartKit.dataset(walkData, getSportColor('Walk'), {label:'🚶 Walk', dots:true, spanGaps:false}));
 
-  upsertChart('hikeDistChart', ctx, {
-    type:'line',
-    data:{ labels, datasets },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{
-        legend:{ display:false },
-        tooltip:{callbacks:{label:c=>`${c.dataset.label}：${c.parsed.y?.toLocaleString()} 步`}}
-      },
-      scales:{
-        x:{ticks:{color:'#9ba3b5',font:{size:11},maxRotation:45},grid:{color:'rgba(0,0,0,0.04)'}},
-        y:{beginAtZero:true,ticks:{color:'#9ba3b5',font:{size:11},callback:v=>v.toLocaleString()+' 步'},grid:{color:'rgba(0,0,0,0.06)'}}
-      }
-    }
-  });
+  upsertChart('hikeDistChart', ctx, ChartKit.lineChart({
+    labels, datasets,
+    axes:[{id:'y', side:'left', fmt:v=>Math.round(v).toLocaleString(), scale:{min:0, grace:'8%'}}],
+    tooltip:{label:c=> c.parsed.y==null ? null : ` ${c.dataset.label}：${c.parsed.y.toLocaleString()} 步`},
+  }));
 }
 
 function renderRunAnalysis(){
@@ -4240,40 +4378,12 @@ function renderRunAnalysis(){
   const distStart = (runDistStart.value && runDistStart.value>=runEarliest) ? runDistStart.value : '';
   const runsForDist = distStart ? runs.filter(r=>r.date>=distStart) : runs;
   const lbs=runsForDist.map(r=>r.date.slice(5));
-  // 股票风格：y 轴数字在图内、稀疏横线、无圆点、十字准线、渐变填充（共用样式层见 stockInnerAxisPlugin 等）
-  upsertChart('distChart', document.getElementById('distChart'),{
-    type:'line',
-    data:{labels:runsForDist.map(r=>r.date), datasets:[{
-      label:'Distance', data:runsForDist.map(r=>r.dist||null),
-      borderColor:THEME.green, borderWidth:1.8, tension:0.3, spanGaps:true,
-      fill:'start', backgroundColor:stockGradient(THEME.green),
-      pointRadius:0, pointHoverRadius:0, pointHitRadius:20,
-    }]},
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      layout:{padding:{top:6, right:2, left:2}},
-      interaction:{mode:'index', intersect:false},
-      plugins:{
-        legend:{display:false},
-        tooltip:{callbacks:{
-          title:items=>items[0]?.label||'',
-          label:c=> c.parsed.y==null ? null : ` ${c.parsed.y} km`,
-        }}
-      },
-      scales:{
-        x:{
-          grid:{display:false}, border:{display:false},
-          ticks:{color:'#9ba3b5', font:{size:11}, maxRotation:0, padding:6, maxTicksLimit:window.innerWidth<=768?5:9,
-            callback(v){ const l=this.getLabelForValue(v)||''; return (runsForDist.length && runsForDist[0].date.slice(0,4)!==runsForDist[runsForDist.length-1].date.slice(0,4)) ? l.slice(2,7) : l.slice(5); }}
-        },
-        y: stockScale({position:'left', min:0, grace:'8%', ticks:{display:false, maxTicksLimit:5}}, true),
-      }
-    },
-    plugins:[
-      stockInnerAxisPlugin([{id:'y', side:'left', show:true, color:'#8a93a6', fmt:v=>String(Math.round(v*10)/10)}]),
-      stockCrosshairPlugin(),
-    ]
-  });
+  upsertChart('distChart', document.getElementById('distChart'), ChartKit.lineChart({
+    labels: runsForDist.map(r=>r.date),
+    datasets:[ChartKit.dataset(runsForDist.map(r=>r.dist||null), THEME.green, {label:'Distance', fill:'gradient'})],
+    axes:[{id:'y', side:'left', scale:{min:0, grace:'8%'}}],
+    tooltip:{label:c=> c.parsed.y==null ? null : ` Distance  ${c.parsed.y} km`},
+  }));
 
 
   // 筛选条件：训练类型 + 距离，选项自动从数据提取（下拉框；没勾选任何项 = All）
@@ -4811,212 +4921,119 @@ function getFilteredRuns(){
   });
 }
 
-// ===== 股票风格共用样式层（与数据无关，其他图表想用时 plugins 里加这两个、scales 里用 stockScale）=====
-// 轴上的数字画在绘图区内：side 'left' / 'right'，贴在网格线上方，带白色描边避免被曲线盖住
-function stockInnerAxisPlugin(axes){            // axes: [{id, side, fmt, color}]
-  return {
-    id:'stockInnerAxis',
-    afterDatasetsDraw(chart){
-      const {ctx, chartArea:{left,right}} = chart;
-      ctx.save();
-      ctx.font='10px system-ui, sans-serif'; ctx.textBaseline='bottom';
-      axes.forEach(a=>{
-        const sc = chart.scales[a.id]; if(!sc || !a.show) return;
-        ctx.textAlign = a.side==='left' ? 'left' : 'right';
-        const inset = a.inset==null ? 6 : a.inset;
-        const x = a.side==='left' ? left+inset : right-inset;
-        sc.ticks.forEach(t=>{
-          const py = sc.getPixelForValue(t.value);
-          const atTop = py - 13 < chart.chartArea.top;          // 最顶上一格：数字改画在线的下方，避免被画布裁掉
-          ctx.textBaseline = atTop ? 'top' : 'bottom';
-          const y = atTop ? py + 2 : py - 2;
-          const txt = a.fmt(t.value);
-          ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.strokeText(txt,x,y);
-          ctx.fillStyle=a.color; ctx.fillText(txt,x,y);
-        });
-      });
-      ctx.restore();
-    }
-  };
-}
-// 十字准线：竖虚线 + 每条显示中曲线上一个圆点
-function stockCrosshairPlugin(){
-  return {
-    id:'stockCrosshair',
-    afterDatasetsDraw(chart){
-      const act = chart.getActiveElements(); if(!act.length) return;
-      const {ctx, chartArea:{top,bottom}} = chart;
-      ctx.save();
-      ctx.strokeStyle='rgba(36,31,26,0.25)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
-      ctx.beginPath(); ctx.moveTo(act[0].element.x,top); ctx.lineTo(act[0].element.x,bottom); ctx.stroke();
-      ctx.setLineDash([]); ctx.lineWidth=2; ctx.strokeStyle='#fff';
-      act.forEach(a=>{
-        if(a.element.skip || isNaN(a.element.y)) return;
-        ctx.fillStyle = chart.data.datasets[a.datasetIndex].borderColor;
-        ctx.beginPath(); ctx.arc(a.element.x,a.element.y,4,0,Math.PI*2); ctx.fill(); ctx.stroke();
-      });
-      ctx.restore();
-    }
-  };
-}
-// y 轴基础：无轴线、无刻度外占位（数字由 stockInnerAxisPlugin 画在图内），只留稀疏横线
-function stockScale(extra, showGrid){
-  return Object.assign({
-    type:'linear',
-    border:{display:false},
-    grid:{display:showGrid, drawOnChartArea:showGrid, color:'rgba(0,0,0,0.06)', drawTicks:false},
-    ticks:{display:false},
-    afterFit(s){ s.width = 0; },
-  }, extra);
+// ══════════════════════════════════════
+//  Pace · Heart Rate · Cadence 图表
+// ══════════════════════════════════════
+// 四个指标的定义表（颜色/单位/格式只在这里写一次）
+const RUN_METRICS = [
+  {k:'pace',    name:'Pace',    field:'pace',    color:THEME.blue,   unit:'/km', axis:'yPace', width:1.8, fmt:v=>fmtPace(v)},
+  {k:'hr',      name:'Avg HR',  field:'hr',      color:THEME.coral,  unit:'bpm', axis:'yHr',   width:1.6, fmt:v=>String(Math.round(v))},
+  {k:'maxhr',   name:'Max HR',  field:'maxhr',   color:THEME.amber,  unit:'bpm', axis:'yHr',   width:1.4, dash:[4,3], fmt:v=>String(Math.round(v))},
+  {k:'cadence', name:'Cadence', field:'cadence', color:THEME.purple, unit:'spm', axis:'yHr',   width:1.6, fmt:v=>String(Math.round(v))},
+];
+
+// 轴范围：配速 4'00"–8'00"（反向，越快越靠上），心率 100–196；各 5 条刻度刚好对齐同一组网格线
+function getRunAxisRanges(){
+  const paceMin = 4.0, paceMax = runTargets.pace ? Math.max(8.0, runTargets.pace+0.5) : 8.0;
+  const hrMin = 100,   hrMax   = runTargets.hr   ? Math.max(196, runTargets.hr+10)   : 196;
+  return {paceMin, paceMax, hrMin, hrMax, paceStep:(paceMax-paceMin)/4, hrStep:(hrMax-hrMin)/4};
 }
 
-// 渐变填充：曲线处较深、向底部渐隐。用法：backgroundColor: stockGradient(color)
-function stockGradient(color){
-  return ctx=>{
-    const a = ctx.chart.chartArea;
-    if(!a) return hexToRgba(color,0.1);
-    const g = ctx.chart.ctx.createLinearGradient(0,a.top,0,a.bottom);
-    g.addColorStop(0,hexToRgba(color,0.28)); g.addColorStop(1,hexToRgba(color,0.02));
-    return g;
+// 目标虚线：配速标签在线上方靠左，心率标签在线下方靠右，两线重合时也不叠字
+function makeRunTargetPlugin(){
+  return {
+    id:'runTargetLines',
+    afterDraw(chart){
+      const {ctx, chartArea:{left,right,top,bottom}, scales} = chart;
+      const draw = (sc,val,color,text,xFrac,above)=>{
+        if(!sc || !val) return;
+        const y = sc.getPixelForValue(val);
+        if(isNaN(y) || y<top || y>bottom) return;
+        ctx.save();
+        ctx.strokeStyle = hexToRgba(color,0.85); ctx.lineWidth = 1.2; ctx.setLineDash([5,4]);
+        ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(right,y); ctx.stroke(); ctx.setLineDash([]);
+        ctx.font = '600 10px system-ui, sans-serif'; ctx.textAlign = 'center';
+        ctx.textBaseline = above ? 'bottom' : 'top';
+        const x = left + (right-left)*xFrac, ty = above ? y-3 : y+3;
+        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.strokeText(text,x,ty);
+        ctx.fillStyle = color; ctx.fillText(text,x,ty);
+        ctx.restore();
+      };
+      draw(scales.yPace, runTargets.pace, THEME.blue,  'Target '+fmtPace(runTargets.pace||0), 0.28, true);
+      draw(scales.yHr,   runTargets.hr,   THEME.coral, 'Target '+runTargets.hr+' bpm',        0.72, false);
+    }
   };
+}
+
+// 手机端图上方的摘要行：四个指标固定四等分，没勾选的整格变淡显示 —
+function renderRunSummary(el, metrics, runs, i){
+  if(!el) return;
+  const r = i>=0 ? runs[i] : null;
+  el.innerHTML =
+    `<div class="cs-meta">${r ? r.date+(r.dist?' · '+r.dist+'km':'')+(r.sub?' · '+r.sub:'') : '—'}</div>`+
+    `<div class="cs-row">`+metrics.map(m=>{
+      const v = (r && m.show) ? m.data[i] : null;
+      return `<div class="cs-cell${m.show?'':' off'}"><div class="cs-val" style="color:${m.color}">${v!=null?m.fmt(v):'—'}${v!=null?`<span class="cs-unit">${m.unit}</span>`:''}</div></div>`;
+    }).join('')+`</div>`;
 }
 
 function renderCombinedChart(){
   const runs = getFilteredRuns();
-  const showPace    = document.getElementById('lt-pace')?.checked;
-  const showHr      = document.getElementById('lt-hr')?.checked;
-  const showMaxHr   = document.getElementById('lt-maxhr')?.checked;
-  const showCadence = document.getElementById('lt-cadence')?.checked;
+  const metrics = RUN_METRICS.map(m=>({
+    ...m,
+    show: !!document.getElementById('lt-'+m.k)?.checked,
+    data: runs.map(r=>r[m.field]||null),
+  }));
+  const shown = metrics.filter(m=>m.show);
+  const rg = getRunAxisRanges();
+  const paceUsed = !!(shown.some(m=>m.axis==='yPace') || runTargets.pace);
+  const hrUsed   = !!(shown.some(m=>m.axis==='yHr')   || runTargets.hr);
 
-  const labels = runs.map(r=>r.date);
-  // 四个指标固定顺序；show 决定是否画线，摘要行始终四等分占位
-  const all = [
-    {k:'pace',    name:'Pace',    field:'pace',    color:THEME.blue,   unit:'/km', axis:'yPace', w:1.8, show:!!showPace,    fmt:v=>fmtPace(v)},
-    {k:'hr',      name:'Avg HR',  field:'hr',      color:THEME.coral,  unit:'bpm', axis:'yHr',   w:1.6, show:!!showHr,      fmt:v=>String(Math.round(v))},
-    {k:'maxhr',   name:'Max HR',  field:'maxhr',   color:THEME.amber,  unit:'bpm', axis:'yHr',   w:1.4, show:!!showMaxHr,   dash:[4,3], fmt:v=>String(Math.round(v))},
-    {k:'cadence', name:'Cadence', field:'cadence', color:THEME.purple, unit:'spm', axis:'yHr',   w:1.6, show:!!showCadence, fmt:v=>String(Math.round(v))},
-  ];
-  all.forEach(d=>{ d.data = runs.map(r=>r[d.field]||null); });
-  const defs = all.filter(d=>d.show);
-
-  // ---- 轴范围（保持原来的错开布局；5 条刻度刚好对齐同一组网格线）----
-  const paceUsed = !!(showPace || runTargets.pace);
-  const hrUsed   = !!(showHr || showMaxHr || showCadence || runTargets.hr);
-  const paceMin = 4.0, paceMax = runTargets.pace ? Math.max(8.0, runTargets.pace+0.5) : 8.0;   // 4'00"–8'00"，每格整 1 分钟
-  const hrMin = 100,   hrMax   = runTargets.hr   ? Math.max(196, runTargets.hr+10)   : 196;
-  const paceStep = (paceMax-paceMin)/4, hrStep = (hrMax-hrMin)/4;
-
-  // ---- 顶部摘要：所有显示中的数值并排，默认最新一次，滑动时跟随 ----
+  // 默认显示最新一次；手指滑动时跟随（仅手机竖屏用到）
+  const src = shown.length ? shown : metrics;
+  let latest = -1;
+  for(let i=runs.length-1;i>=0;i--) if(src.some(m=>m.data[i]!=null)){ latest = i; break; }
   const summaryEl = document.getElementById('combo-summary');
-  function lastIdx(){
-    const src = defs.length ? defs : all;
-    for(let i=runs.length-1;i>=0;i--) if(src.some(d=>d.data[i]!=null)) return i;
-    return -1;
-  }
-  function setSummary(i){
-    if(!summaryEl) return;
-    const r = i>=0 ? runs[i] : null;
-    summaryEl.innerHTML =
-      `<div class="cs-meta">${r ? r.date+(r.dist?' · '+r.dist+'km':'')+(r.sub?' · '+r.sub:'') : '—'}</div>`+
-      `<div class="cs-row">`+all.map(d=>{
-        const v = (r && d.show) ? d.data[i] : null;
-        return `<div class="cs-cell${d.show?'':' off'}"><div class="cs-val" style="color:${d.color}">${v!=null?d.fmt(v):'—'}${v!=null?`<span class="cs-unit">${d.unit}</span>`:''}</div></div>`;
-      }).join('')+`</div>`;
-  }
-  setSummary(lastIdx());
+  const scrub = i => renderRunSummary(summaryEl, metrics, runs, i==null ? latest : i);
+  scrub(null);
 
-  // ---- 目标虚线 ----
-  const targetPlugin = {
-    id:'targetLines',
-    afterDraw(chart){
-      const {ctx, chartArea:{left,right,top,bottom}, scales} = chart;
-      // 两个目标标签分开放：配速标签在线上方、靠左 1/4；心率标签在线下方、靠右 3/4，两条线重合时也不会叠字
-      const draw=(sc,val,color,text,xFrac,above)=>{
-        if(!sc||!val) return;
-        const y = sc.getPixelForValue(val);
-        if(isNaN(y)||y<top||y>bottom) return;
-        ctx.save();
-        ctx.strokeStyle=hexToRgba(color,0.85); ctx.lineWidth=1.2; ctx.setLineDash([5,4]);
-        ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(right,y); ctx.stroke(); ctx.setLineDash([]);
-        ctx.font='600 10px system-ui, sans-serif'; ctx.textAlign='center';
-        ctx.textBaseline = above ? 'bottom' : 'top';
-        const x = left + (right-left)*xFrac, ty = above ? y-3 : y+3;
-        ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.strokeText(text,x,ty);
-        ctx.fillStyle=color; ctx.fillText(text,x,ty);
-        ctx.restore();
-      };
-      draw(scales.yPace, runTargets.pace, THEME.blue,  'Target '+fmtPace(runTargets.pace||0), 0.28, true);
-      draw(scales.yHr,   runTargets.hr,   THEME.coral, 'Target '+runTargets.hr+' bpm', 0.72, false);
-    }
-  };
-  const spanYears = labels.length && labels[0].slice(0,4)!==labels[labels.length-1].slice(0,4);
-  const innerAxes = [
-    {id:'yPace', side:'left',  inset:0, show:paceUsed, color:hexToRgba(THEME.blue,0.9),  fmt:v=>fmtPace(v)},
-    {id:'yHr',   side:'right', inset:0, show:hrUsed,   color:'#8a93a6',                    fmt:v=>String(Math.round(v))},
-  ];
-
-  function buildCombinedConfig(forLandscape){
-    // rotated：手机仍是竖屏、弹层靠 CSS 转了 90°，Chart.js 自带事件坐标不对，改由 attachRotatedChartEvents() 处理
-    const rotated = forLandscape && isLandscapeRotated();
-    const compact = !forLandscape && window.innerWidth<=768;
-    return {
-      type:'line',
-      data:{labels, datasets: defs.map(d=>({
-        label:d.name, data:d.data, yAxisID:d.axis,
-        borderColor:d.color, borderWidth:d.w, borderDash:d.dash||[],
-        tension:0.3, spanGaps:true, fill:false,
-        pointRadius:0, pointHoverRadius:0, pointHitRadius:20,
-      }))},
-      options:{
-        responsive:true, maintainAspectRatio:false,
-        ...(rotated ? {events:[]} : {}),
-        layout:{padding:{top:6, right:0, left:0}},
-        interaction:{mode:'index', intersect:false},
-        plugins:{
-          legend:{display:false},
-          tooltip: forLandscape ? {
-            callbacks:{ label(c){
-              const v=c.parsed.y; if(v==null) return null;
-              const d=defs[c.datasetIndex]; return ` ${d.name} ${d.fmt(v)} ${d.unit}`;
-            }}
-          } : {
-            enabled:false,
-            external({tooltip}){
-              if(tooltip.opacity===0 || !tooltip.dataPoints?.length) setSummary(lastIdx());
-              else setSummary(tooltip.dataPoints[0].dataIndex);
-            }
-          }
+  function build(landscape){
+    return ChartKit.lineChart({
+      labels: runs.map(r=>r.date),
+      datasets: shown.map(m=>ChartKit.dataset(m.data, m.color, {label:m.name, width:m.width, dash:m.dash, axis:m.axis})),
+      axes:[
+        {id:'yPace', side:'left',  show:paceUsed, color:hexToRgba(THEME.blue,0.9), fmt:v=>fmtPace(v), grid:paceUsed,
+         scale:{reverse:true, min:rg.paceMin, max:rg.paceMax, ticks:{stepSize:rg.paceStep}}},
+        {id:'yHr',   side:'right', show:hrUsed, grid:hrUsed && !paceUsed,
+         scale:{min:rg.hrMin, max:rg.hrMax, ticks:{stepSize:rg.hrStep}}},
+      ],
+      tooltip:{
+        title(items){
+          const r = runs[items[0]?.dataIndex]; if(!r) return '';
+          return r.date+(r.dist?' · '+r.dist+'km':'')+(r.sub?' · '+r.sub:'');
         },
-        scales:{
-          x:{
-            afterFit(sc){ sc.paddingLeft=0; sc.paddingRight=0; },   // 去掉首尾刻度标签撑出的左右留白，图表区才能贴齐卡片边缘（与标题左对齐）
-            grid:{display:false}, border:{display:false},
-            ticks:{
-              color:'#9ba3b5', font:{size:compact?10:11}, maxRotation:0, padding:6,
-              align:'inner',
-              maxTicksLimit: forLandscape?8:5,
-              callback(v){ const l=this.getLabelForValue(v)||''; return spanYears ? l.slice(2,7) : l.slice(5); }
-            }
-          },
-          yPace: stockScale({position:'left',  reverse:true, min:paceMin, max:paceMax, ticks:{display:false, stepSize:paceStep}}, paceUsed),
-          yHr:   stockScale({position:'right', min:hrMin, max:hrMax, ticks:{display:false, stepSize:hrStep}}, hrUsed && !paceUsed),
-        }
+        label(c){
+          const v = c.parsed.y; if(v==null) return null;
+          const m = shown[c.datasetIndex]; return ` ${m.name}  ${m.fmt(v)} ${m.unit}`;
+        },
       },
-      plugins:[targetPlugin, stockInnerAxisPlugin(innerAxes), stockCrosshairPlugin()]
-    };
+      scrub, plugins:[makeRunTargetPlugin()],
+      landscape, rotated: landscape && isLandscapeRotated(),
+    });
   }
 
-  upsertChart('combinedChart', document.getElementById('combinedChart'), buildCombinedConfig(false));
+  upsertChart('combinedChart', document.getElementById('combinedChart'), build(false));
 
   // 横屏弹层打开时，同步刷新弹层里的图表
-  const landscapeOverlay=document.getElementById('landscapeOverlay');
-  const landscapeCanvas=document.getElementById('combinedChartLandscape');
+  const landscapeOverlay = document.getElementById('landscapeOverlay');
+  const landscapeCanvas  = document.getElementById('combinedChartLandscape');
   if(landscapeOverlay && landscapeCanvas && landscapeOverlay.style.display!=='none'){
-    upsertChart('combinedChartLandscape', landscapeCanvas, buildCombinedConfig(true));
+    upsertChart('combinedChartLandscape', landscapeCanvas, build(true));
     attachRotatedChartEvents(landscapeCanvas);
   }
 }
 
+// 手机是否仍处于竖屏（此时横屏弹层是靠 CSS 转 90° 做出来的）。必须和 CSS 里的 @media 条件保持一致。
 function isLandscapeRotated(){
   return window.matchMedia('(orientation: portrait) and (max-width: 768px)').matches;
 }
@@ -5065,12 +5082,12 @@ function closeLandscapeChart(){
 
 // 屏幕宽度跨越 768px 断点（例如手机旋转横竖屏）时，
 // 重新渲染配速/心率/步频图，让 maxTicksLimit 等随宽度更新
-let _combinedChartIsMobile = window.innerWidth<=768;
+let _combinedChartIsMobile = ChartKit.isMobile();
 let _resizeTimer=null;
 window.addEventListener('resize', ()=>{
   clearTimeout(_resizeTimer);
   _resizeTimer=setTimeout(()=>{
-    const nowMobile = window.innerWidth<=768;
+    const nowMobile = ChartKit.isMobile();
     if(nowMobile===_combinedChartIsMobile) return;
     _combinedChartIsMobile = nowMobile;
     const runPage = document.getElementById('page-run');
