@@ -1247,13 +1247,25 @@ const Parser = {
   parseTimelineSection(body, heading='时间线', defaultYear){
     const items = []; const skipped = [];
     let inSection = false;
+    // 每行下面缩进的列表项是这一行的备注（item.notes，给Timeline悬浮框用）：
+    // 只认第一层缩进；没有对应行的缩进项直接忽略；本身能解析成日期行的缩进行仍当行处理。
+    let last = null, subIndent = null;
     for(const raw of body.split(/\r?\n/)){
       const h2 = raw.match(/^##\s+(.+)/);
-      if(h2){ inSection = Parser.normalizeHeading(h2[1].trim()) === heading; continue; }
+      if(h2){ inSection = Parser.normalizeHeading(h2[1].trim()) === heading; last = null; continue; }
       if(!inSection) continue;
       if(raw.trim()===''){ continue; }
       const parsed = Parser.parseTimelineLine(raw, defaultYear);
-      if(parsed) items.push(parsed); else skipped.push(raw.trim());
+      const sub = parsed ? null : raw.match(/^([ \t]+)[-*+]\s+(.+)$/);
+      if(sub){
+        if(!last) continue;
+        const w = sub[1].replace(/\t/g,'    ').length;
+        if(subIndent===null) subIndent = w;
+        if(w===subIndent) (last.notes = last.notes||[]).push(sub[2].trim());
+        continue;
+      }
+      if(parsed){ items.push(parsed); last = parsed; } else { skipped.push(raw.trim()); last = null; }
+      subIndent = null;
     }
     return { items, skipped };
   },
@@ -1439,13 +1451,13 @@ const Parser = {
     // 自己挑要哪些分类）、entriesByDay/entriesByYearMonthUnplaced（只有月历读，
     // 所以在这里就按calendarPointCategories筛掉月历不要的分类）。
     const UNTAGGED_KEY = Parser.UNTAGGED_KEY;
-    const addPointEntry = (dateInfo, category, text, rawTag, prefix)=>{
+    const addPointEntry = (dateInfo, category, text, rawTag, prefix, notes)=>{
       const isUntagged = category===null;
       if(!isUntagged && !pointCategories.has(category)) return;
       const toCalendar = isUntagged || calendarPointCategories.has(category);
       const key = isUntagged ? UNTAGGED_KEY : category;
       const {year, month, day} = dateInfo;
-      const entry = { text, month: month||null, day: day||null, rawTag: rawTag||null, prefix: prefix||null };
+      const entry = { text, month: month||null, day: day||null, rawTag: rawTag||null, prefix: prefix||null, notes: notes||null };
       if(day){
         if(toCalendar){
           const dkey = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
@@ -1468,9 +1480,9 @@ const Parser = {
       }
     };
 
-    const addNoteEntry = (d, category, text, calOnly, prefix)=>{
+    const addNoteEntry = (d, category, text, calOnly, prefix, notes)=>{
       const {year, month, day} = d;
-      const entry = { text, month: month||null, day: day||null, rawTag:null, src:'note', prefix: prefix||null };
+      const entry = { text, month: month||null, day: day||null, rawTag:null, src:'note', prefix: prefix||null, notes: notes||null };
       if(noteCalendarCategories.has(category)){
         if(day){
           const dk = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
@@ -1492,9 +1504,9 @@ const Parser = {
         const e = new Date(end.year, end.month-1, end.day);
         let n = 0;
         for(const t = new Date(it.year, it.month-1, it.day); t<=e && n<366; t.setDate(t.getDate()+1), n++){
-          addNoteEntry({year:t.getFullYear(), month:t.getMonth()+1, day:t.getDate()}, category, it.text, n>0, prefix);
+          addNoteEntry({year:t.getFullYear(), month:t.getMonth()+1, day:t.getDate()}, category, it.text, n>0, prefix, it.notes);
         }
-      } else addNoteEntry({year:it.year, month:it.month, day:it.day}, category, it.text, false, prefix);
+      } else addNoteEntry({year:it.year, month:it.month, day:it.day}, category, it.text, false, prefix, it.notes);
     };
 
     files.forEach(f=>{
@@ -1632,12 +1644,12 @@ const Parser = {
         items.forEach(it=>{
           if(it.end){
             rowSpans.push({ category: fm.category, title: it.text || basename,
-              start:{year:it.year, month:it.month, day:it.day, precision: it.day?'day':it.month?'month':'year'}, end: it.end });
+              start:{year:it.year, month:it.month, day:it.day, precision: it.day?'day':it.month?'month':'year'}, end: it.end, notes: it.notes||null });
             return;
           }
           const text = it.text || basename; // 点就是点：不管笔记主date是不是跨度，只写日期的行都用笔记名兜底
           // Media分类：有说明文字时，日历里显示成"作品名·说明"（prefix只给日历用）
-          if(text) addPointEntry({year:it.year, month:it.month, day:it.day}, fm.category, text, null, (mediaCategories.has(fm.category) && it.text) ? basename : null);
+          if(text) addPointEntry({year:it.year, month:it.month, day:it.day}, fm.category, text, null, (mediaCategories.has(fm.category) && it.text) ? basename : null, it.notes);
         });
       }
     });
@@ -3387,13 +3399,13 @@ const HorizontalTimeline = {
       if(!e.month) return; // 完全没日期精度的条目，时间轴上画不出位置，跳过
       // 以前这里会把"落在自己跨度色条里的点"去重掉；现在是否画圆点完全由展示位表的 Timeline-圆点 决定，重叠的会自动分到下一子行。
       const d = {year, month:e.month, day:e.day||1, precision: e.day?'day':'month'};
-      items.push({title:e.text, start:d, end:d});
+      items.push({title:e.text, start:d, end:d, notes:e.notes});
     });
     (Store.rowSpans||[]).forEach(rs=>{
       if(rs.category!==cat || !spanOn) return;
       const ongoing = rs.end==='ongoing';
       const endD = ongoing ? ongoingAsToday : rs.end;
-      if(year>=rs.start.year && year<=endD.year) items.push({title:rs.title, start:rs.start, end:endD, ongoing});
+      if(year>=rs.start.year && year<=endD.year) items.push({title:rs.title, start:rs.start, end:endD, ongoing, notes:rs.notes});
     });
     return items;
   },
@@ -3478,7 +3490,7 @@ const HorizontalTimeline = {
       // 属性值里裸换行符的处理不一致）；标题、日期要分别转义之后再拼&#10;，
       // 不能对拼好的整串再转义一次，不然&#10;里的&会被转成&amp;，变成显示
       // "&#10;"这几个字符而不是真的换行。
-      const tip = `${Utils.escapeHtml(it.title)}&#10;${Utils.escapeHtml(dateLine)}`;
+      const tip = `${Utils.escapeHtml(it.title)}&#10;${Utils.escapeHtml(dateLine)}${(it.notes||[]).map(n=>'&#10;'+Utils.escapeHtml(n)).join('')}`;
       if(isSameDay){
         const dotLeft = ((leftR+rightR)/2)*100;
         // 单天记录的竖条用"CC"（约80%不透明度）——只有5px宽，太淡了在轨道上会
