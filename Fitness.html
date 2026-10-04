@@ -214,11 +214,10 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 .combo-divider{width:1px;height:20px;background:var(--border);margin:0 4px;}
 .combo-summary{margin:var(--space-8) 0 var(--space-4);min-height:52px;}
 .cs-meta{font-size:var(--fs-xs);color:var(--text3);margin-bottom:4px;font-variant-numeric:tabular-nums;}
-.cs-row{display:flex;gap:var(--space-12);}
+.cs-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--space-8);}
 .cs-cell{flex:1 1 0;min-width:0;}
-.cs-name{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3);white-space:nowrap;}
-.cs-name i{width:6px;height:6px;border-radius:50%;display:inline-block;flex:none;}
 .cs-val{font-size:16px;font-weight:700;line-height:1.25;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.cs-cell.off{opacity:.35;}
 .cs-unit{font-size:10px;font-weight:500;color:var(--text3);margin-left:2px;}
 .combo-chart-wrap{position:relative;height:340px;}
 .combo-filters{display:flex;gap:var(--space-12);flex-wrap:wrap;margin-bottom:var(--space-14);padding-bottom:12px;border-bottom:1px solid var(--border);}
@@ -1229,8 +1228,6 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
             </div>
           </div>
         </div>
-        <!-- 目标线提示 -->
-        <div id="target-hint" style="display:none;margin-bottom:var(--space-8);font-size:var(--fs-sm);color:var(--text3);gap:var(--space-16);flex-wrap:wrap"></div>
         <!-- 当前值 / 滑动值摘要（所有显示中的指标并排） -->
         <div class="combo-summary" id="combo-summary"></div>
         <div class="combo-chart-wrap"><canvas id="combinedChart"></canvas></div>
@@ -4826,7 +4823,8 @@ function stockInnerAxisPlugin(axes){            // axes: [{id, side, fmt, color}
       axes.forEach(a=>{
         const sc = chart.scales[a.id]; if(!sc || !a.show) return;
         ctx.textAlign = a.side==='left' ? 'left' : 'right';
-        const x = a.side==='left' ? left+6 : right-6;
+        const inset = a.inset==null ? 6 : a.inset;
+        const x = a.side==='left' ? left+inset : right-inset;
         sc.ticks.forEach(t=>{
           const py = sc.getPixelForValue(t.value);
           const atTop = py - 13 < chart.chartArea.top;          // 最顶上一格：数字改画在线的下方，避免被画布裁掉
@@ -4891,36 +4889,38 @@ function renderCombinedChart(){
   const showCadence = document.getElementById('lt-cadence')?.checked;
 
   const labels = runs.map(r=>r.date);
-  const defs = [];
-  if(showPace)    defs.push({k:'pace',    name:'Pace',    field:'pace',    color:THEME.blue,   unit:'/km', axis:'yPace', w:1.8, fmt:v=>fmtPace(v)});
-  if(showHr)      defs.push({k:'hr',      name:'Avg HR',  field:'hr',      color:THEME.coral,  unit:'bpm', axis:'yHr',   w:1.6, fmt:v=>String(Math.round(v))});
-  if(showMaxHr)   defs.push({k:'maxhr',   name:'Max HR',  field:'maxhr',   color:THEME.amber,  unit:'bpm', axis:'yHr',   w:1.4, dash:[4,3], fmt:v=>String(Math.round(v))});
-  if(showCadence) defs.push({k:'cadence', name:'Cadence', field:'cadence', color:THEME.purple, unit:'spm', axis:'yHr',   w:1.6, fmt:v=>String(Math.round(v))});
-  defs.forEach(d=>{ d.data = runs.map(r=>r[d.field]||null); });
+  // 四个指标固定顺序；show 决定是否画线，摘要行始终四等分占位
+  const all = [
+    {k:'pace',    name:'Pace',    field:'pace',    color:THEME.blue,   unit:'/km', axis:'yPace', w:1.8, show:!!showPace,    fmt:v=>fmtPace(v)},
+    {k:'hr',      name:'Avg HR',  field:'hr',      color:THEME.coral,  unit:'bpm', axis:'yHr',   w:1.6, show:!!showHr,      fmt:v=>String(Math.round(v))},
+    {k:'maxhr',   name:'Max HR',  field:'maxhr',   color:THEME.amber,  unit:'bpm', axis:'yHr',   w:1.4, show:!!showMaxHr,   dash:[4,3], fmt:v=>String(Math.round(v))},
+    {k:'cadence', name:'Cadence', field:'cadence', color:THEME.purple, unit:'spm', axis:'yHr',   w:1.6, show:!!showCadence, fmt:v=>String(Math.round(v))},
+  ];
+  all.forEach(d=>{ d.data = runs.map(r=>r[d.field]||null); });
+  const defs = all.filter(d=>d.show);
 
   // ---- 轴范围（保持原来的错开布局；5 条刻度刚好对齐同一组网格线）----
   const paceUsed = !!(showPace || runTargets.pace);
   const hrUsed   = !!(showHr || showMaxHr || showCadence || runTargets.hr);
-  const paceMin = 4.5, paceMax = runTargets.pace ? Math.max(7.5, runTargets.pace+0.5) : 7.5;
+  const paceMin = 4.0, paceMax = runTargets.pace ? Math.max(8.0, runTargets.pace+0.5) : 8.0;   // 4'00"–8'00"，每格整 1 分钟
   const hrMin = 100,   hrMax   = runTargets.hr   ? Math.max(196, runTargets.hr+10)   : 196;
   const paceStep = (paceMax-paceMin)/4, hrStep = (hrMax-hrMin)/4;
 
   // ---- 顶部摘要：所有显示中的数值并排，默认最新一次，滑动时跟随 ----
   const summaryEl = document.getElementById('combo-summary');
   function lastIdx(){
-    for(let i=runs.length-1;i>=0;i--) if(defs.some(d=>d.data[i]!=null)) return i;
+    const src = defs.length ? defs : all;
+    for(let i=runs.length-1;i>=0;i--) if(src.some(d=>d.data[i]!=null)) return i;
     return -1;
   }
   function setSummary(i){
     if(!summaryEl) return;
-    if(!defs.length || i<0){ summaryEl.innerHTML='<div class="cs-meta">—</div>'; return; }
-    const r = runs[i];
+    const r = i>=0 ? runs[i] : null;
     summaryEl.innerHTML =
-      `<div class="cs-meta">${r.date}${r.dist?' · '+r.dist+'km':''}${r.sub?' · '+r.sub:''}</div>`+
-      `<div class="cs-row">`+defs.map(d=>{
-        const v = d.data[i];
-        return `<div class="cs-cell"><div class="cs-name"><i style="background:${d.color}"></i>${d.name}</div>`+
-               `<div class="cs-val" style="color:${d.color}">${v!=null?d.fmt(v):'—'}<span class="cs-unit">${d.unit}</span></div></div>`;
+      `<div class="cs-meta">${r ? r.date+(r.dist?' · '+r.dist+'km':'')+(r.sub?' · '+r.sub:'') : '—'}</div>`+
+      `<div class="cs-row">`+all.map(d=>{
+        const v = (r && d.show) ? d.data[i] : null;
+        return `<div class="cs-cell${d.show?'':' off'}"><div class="cs-val" style="color:${d.color}">${v!=null?d.fmt(v):'—'}${v!=null?`<span class="cs-unit">${d.unit}</span>`:''}</div></div>`;
       }).join('')+`</div>`;
   }
   setSummary(lastIdx());
@@ -4930,36 +4930,29 @@ function renderCombinedChart(){
     id:'targetLines',
     afterDraw(chart){
       const {ctx, chartArea:{left,right,top,bottom}, scales} = chart;
-      const draw=(sc,val,color,text)=>{
+      // 两个目标标签分开放：配速标签在线上方、靠左 1/4；心率标签在线下方、靠右 3/4，两条线重合时也不会叠字
+      const draw=(sc,val,color,text,xFrac,above)=>{
         if(!sc||!val) return;
         const y = sc.getPixelForValue(val);
         if(isNaN(y)||y<top||y>bottom) return;
         ctx.save();
         ctx.strokeStyle=hexToRgba(color,0.85); ctx.lineWidth=1.2; ctx.setLineDash([5,4]);
         ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(right,y); ctx.stroke(); ctx.setLineDash([]);
-        ctx.font='600 10px system-ui, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
-        const x=(left+right)/2;
-        ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.strokeText(text,x,y-2);
-        ctx.fillStyle=color; ctx.fillText(text,x,y-2);
+        ctx.font='600 10px system-ui, sans-serif'; ctx.textAlign='center';
+        ctx.textBaseline = above ? 'bottom' : 'top';
+        const x = left + (right-left)*xFrac, ty = above ? y-3 : y+3;
+        ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.strokeText(text,x,ty);
+        ctx.fillStyle=color; ctx.fillText(text,x,ty);
         ctx.restore();
       };
-      draw(scales.yPace, runTargets.pace, THEME.blue,  'Target '+fmtPace(runTargets.pace||0));
-      draw(scales.yHr,   runTargets.hr,   THEME.coral, 'Target '+runTargets.hr+' bpm');
+      draw(scales.yPace, runTargets.pace, THEME.blue,  'Target '+fmtPace(runTargets.pace||0), 0.28, true);
+      draw(scales.yHr,   runTargets.hr,   THEME.coral, 'Target '+runTargets.hr+' bpm', 0.72, false);
     }
   };
-  const hint = document.getElementById('target-hint');
-  if(hint){
-    const parts=[];
-    if(runTargets.pace) parts.push(`<span style="color:var(--blue)">⚑ Pace target ${fmtPace(runTargets.pace)}/km</span>`);
-    if(runTargets.hr) parts.push(`<span style="color:var(--coral)">⚑ HR target ${runTargets.hr} bpm</span>`);
-    hint.innerHTML=parts.join('<span style="color:var(--border2)"> · </span>');
-    hint.style.display=parts.length?'flex':'none';
-  }
-
   const spanYears = labels.length && labels[0].slice(0,4)!==labels[labels.length-1].slice(0,4);
   const innerAxes = [
-    {id:'yPace', side:'left',  show:paceUsed, color:hexToRgba(THEME.blue,0.9),  fmt:v=>fmtPace(v)},
-    {id:'yHr',   side:'right', show:hrUsed,   color:'#8a93a6',                    fmt:v=>String(Math.round(v))},
+    {id:'yPace', side:'left',  inset:0, show:paceUsed, color:hexToRgba(THEME.blue,0.9),  fmt:v=>fmtPace(v)},
+    {id:'yHr',   side:'right', inset:0, show:hrUsed,   color:'#8a93a6',                    fmt:v=>String(Math.round(v))},
   ];
 
   function buildCombinedConfig(forLandscape){
@@ -4977,7 +4970,7 @@ function renderCombinedChart(){
       options:{
         responsive:true, maintainAspectRatio:false,
         ...(rotated ? {events:[]} : {}),
-        layout:{padding:{top:6, right:2, left:2}},
+        layout:{padding:{top:6, right:0, left:0}},
         interaction:{mode:'index', intersect:false},
         plugins:{
           legend:{display:false},
@@ -4996,9 +4989,11 @@ function renderCombinedChart(){
         },
         scales:{
           x:{
+            afterFit(sc){ sc.paddingLeft=0; sc.paddingRight=0; },   // 去掉首尾刻度标签撑出的左右留白，图表区才能贴齐卡片边缘（与标题左对齐）
             grid:{display:false}, border:{display:false},
             ticks:{
               color:'#9ba3b5', font:{size:compact?10:11}, maxRotation:0, padding:6,
+              align:'inner',
               maxTicksLimit: forLandscape?8:5,
               callback(v){ const l=this.getLabelForValue(v)||''; return spanYears ? l.slice(2,7) : l.slice(5); }
             }
