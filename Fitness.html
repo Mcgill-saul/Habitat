@@ -212,11 +212,14 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 .combo-toggles{display:flex;gap:var(--space-8);flex-wrap:wrap;align-items:center;}
 .combo-actions{display:flex;gap:var(--space-8);align-items:center;}
 .combo-divider{width:1px;height:20px;background:var(--border);margin:0 4px;}
-.combo-summary{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-12);margin:var(--space-12) 0 var(--space-8);min-height:44px;}
-.combo-summary-val{font-size:28px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums;letter-spacing:-0.5px;}
-.combo-summary-unit{font-size:var(--fs-sm);font-weight:500;color:var(--text3);margin-left:4px;letter-spacing:0;}
-.combo-summary-side{text-align:right;font-size:var(--fs-xs);color:var(--text3);line-height:1.5;font-variant-numeric:tabular-nums;}
-.combo-summary-delta{font-weight:600;font-size:var(--fs-sm);}
+.combo-summary{margin:var(--space-8) 0 var(--space-4);min-height:52px;}
+.cs-meta{font-size:var(--fs-xs);color:var(--text3);margin-bottom:4px;font-variant-numeric:tabular-nums;}
+.cs-row{display:flex;gap:var(--space-12);}
+.cs-cell{flex:1 1 0;min-width:0;}
+.cs-name{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3);white-space:nowrap;}
+.cs-name i{width:6px;height:6px;border-radius:50%;display:inline-block;flex:none;}
+.cs-val{font-size:16px;font-weight:700;line-height:1.25;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.cs-unit{font-size:10px;font-weight:500;color:var(--text3);margin-left:2px;}
 .combo-chart-wrap{position:relative;height:340px;}
 .combo-filters{display:flex;gap:var(--space-12);flex-wrap:wrap;margin-bottom:var(--space-14);padding-bottom:12px;border-bottom:1px solid var(--border);}
 .combo-filter-label{font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-6);}
@@ -1185,11 +1188,11 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
           <!-- 线条开关 + 目标线设置 -->
           <div class="combo-controls">
             <div class="combo-toggles">
-              <span class="combo-show-label" style="font-size:var(--fs-xs);color:var(--text3)">Metric:</span>
-              <label class="line-toggle" style="--c:var(--blue)"><input type="radio" name="combo-metric" id="lt-pace" checked onchange="renderCombinedChart()"><span>Pace</span></label>
-              <label class="line-toggle" style="--c:var(--coral)"><input type="radio" name="combo-metric" id="lt-hr" onchange="renderCombinedChart()"><span>Avg HR</span></label>
-              <label class="line-toggle" style="--c:var(--amber)"><input type="radio" name="combo-metric" id="lt-maxhr" onchange="renderCombinedChart()"><span>Max HR</span></label>
-              <label class="line-toggle" style="--c:var(--purple)"><input type="radio" name="combo-metric" id="lt-cadence" onchange="renderCombinedChart()"><span>Cadence</span></label>
+              <span class="combo-show-label" style="font-size:var(--fs-xs);color:var(--text3)">Show:</span>
+              <label class="line-toggle" style="--c:var(--blue)"><input type="checkbox" id="lt-pace" checked onchange="renderCombinedChart()"><span>Pace</span></label>
+              <label class="line-toggle" style="--c:var(--coral)"><input type="checkbox" id="lt-hr" checked onchange="renderCombinedChart()"><span>Avg HR</span></label>
+              <label class="line-toggle" style="--c:var(--amber)"><input type="checkbox" id="lt-maxhr" checked onchange="renderCombinedChart()"><span>Max HR</span></label>
+              <label class="line-toggle" style="--c:var(--purple)"><input type="checkbox" id="lt-cadence" onchange="renderCombinedChart()"><span>Cadence</span></label>
             </div>
             <div class="combo-divider"></div>
             <div class="combo-actions">
@@ -1226,7 +1229,9 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
             </div>
           </div>
         </div>
-        <!-- 当前值 / 悬停值摘要 -->
+        <!-- 目标线提示 -->
+        <div id="target-hint" style="display:none;margin-bottom:var(--space-8);font-size:var(--fs-sm);color:var(--text3);gap:var(--space-16);flex-wrap:wrap"></div>
+        <!-- 当前值 / 滑动值摘要（所有显示中的指标并排） -->
         <div class="combo-summary" id="combo-summary"></div>
         <div class="combo-chart-wrap"><canvas id="combinedChart"></canvas></div>
       </div>
@@ -4238,7 +4243,40 @@ function renderRunAnalysis(){
   const distStart = (runDistStart.value && runDistStart.value>=runEarliest) ? runDistStart.value : '';
   const runsForDist = distStart ? runs.filter(r=>r.date>=distStart) : runs;
   const lbs=runsForDist.map(r=>r.date.slice(5));
-  upsertChart('distChart', document.getElementById('distChart'),{type:'line',data:{labels:lbs,datasets:[lineDS(runsForDist.map(r=>r.dist),THEME.green)]},options:{...CHART_OPT,scales:{x:{...CHART_OPT.scales.x,ticks:{...CHART_OPT.scales.x.ticks,maxTicksLimit:9}},y:{...CHART_OPT.scales.y,min:0}}}});
+  // 股票风格：y 轴数字在图内、稀疏横线、无圆点、十字准线、渐变填充（共用样式层见 stockInnerAxisPlugin 等）
+  upsertChart('distChart', document.getElementById('distChart'),{
+    type:'line',
+    data:{labels:runsForDist.map(r=>r.date), datasets:[{
+      label:'Distance', data:runsForDist.map(r=>r.dist||null),
+      borderColor:THEME.green, borderWidth:1.8, tension:0.3, spanGaps:true,
+      fill:'start', backgroundColor:stockGradient(THEME.green),
+      pointRadius:0, pointHoverRadius:0, pointHitRadius:20,
+    }]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:6, right:2, left:2}},
+      interaction:{mode:'index', intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{
+          title:items=>items[0]?.label||'',
+          label:c=> c.parsed.y==null ? null : ` ${c.parsed.y} km`,
+        }}
+      },
+      scales:{
+        x:{
+          grid:{display:false}, border:{display:false},
+          ticks:{color:'#9ba3b5', font:{size:11}, maxRotation:0, padding:6, maxTicksLimit:window.innerWidth<=768?5:9,
+            callback(v){ const l=this.getLabelForValue(v)||''; return (runsForDist.length && runsForDist[0].date.slice(0,4)!==runsForDist[runsForDist.length-1].date.slice(0,4)) ? l.slice(2,7) : l.slice(5); }}
+        },
+        y: stockScale({position:'left', min:0, grace:'8%', ticks:{display:false, maxTicksLimit:5}}, true),
+      }
+    },
+    plugins:[
+      stockInnerAxisPlugin([{id:'y', side:'left', show:true, color:'#8a93a6', fmt:v=>String(Math.round(v*10)/10)}]),
+      stockCrosshairPlugin(),
+    ]
+  });
 
 
   // 筛选条件：训练类型 + 距离，选项自动从数据提取（下拉框；没勾选任何项 = All）
@@ -4776,113 +4814,153 @@ function getFilteredRuns(){
   });
 }
 
+// ===== 股票风格共用样式层（与数据无关，其他图表想用时 plugins 里加这两个、scales 里用 stockScale）=====
+// 轴上的数字画在绘图区内：side 'left' / 'right'，贴在网格线上方，带白色描边避免被曲线盖住
+function stockInnerAxisPlugin(axes){            // axes: [{id, side, fmt, color}]
+  return {
+    id:'stockInnerAxis',
+    afterDatasetsDraw(chart){
+      const {ctx, chartArea:{left,right}} = chart;
+      ctx.save();
+      ctx.font='10px system-ui, sans-serif'; ctx.textBaseline='bottom';
+      axes.forEach(a=>{
+        const sc = chart.scales[a.id]; if(!sc || !a.show) return;
+        ctx.textAlign = a.side==='left' ? 'left' : 'right';
+        const x = a.side==='left' ? left+6 : right-6;
+        sc.ticks.forEach(t=>{
+          const py = sc.getPixelForValue(t.value);
+          const atTop = py - 13 < chart.chartArea.top;          // 最顶上一格：数字改画在线的下方，避免被画布裁掉
+          ctx.textBaseline = atTop ? 'top' : 'bottom';
+          const y = atTop ? py + 2 : py - 2;
+          const txt = a.fmt(t.value);
+          ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.strokeText(txt,x,y);
+          ctx.fillStyle=a.color; ctx.fillText(txt,x,y);
+        });
+      });
+      ctx.restore();
+    }
+  };
+}
+// 十字准线：竖虚线 + 每条显示中曲线上一个圆点
+function stockCrosshairPlugin(){
+  return {
+    id:'stockCrosshair',
+    afterDatasetsDraw(chart){
+      const act = chart.getActiveElements(); if(!act.length) return;
+      const {ctx, chartArea:{top,bottom}} = chart;
+      ctx.save();
+      ctx.strokeStyle='rgba(36,31,26,0.25)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(act[0].element.x,top); ctx.lineTo(act[0].element.x,bottom); ctx.stroke();
+      ctx.setLineDash([]); ctx.lineWidth=2; ctx.strokeStyle='#fff';
+      act.forEach(a=>{
+        if(a.element.skip || isNaN(a.element.y)) return;
+        ctx.fillStyle = chart.data.datasets[a.datasetIndex].borderColor;
+        ctx.beginPath(); ctx.arc(a.element.x,a.element.y,4,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      });
+      ctx.restore();
+    }
+  };
+}
+// y 轴基础：无轴线、无刻度外占位（数字由 stockInnerAxisPlugin 画在图内），只留稀疏横线
+function stockScale(extra, showGrid){
+  return Object.assign({
+    type:'linear',
+    border:{display:false},
+    grid:{display:showGrid, drawOnChartArea:showGrid, color:'rgba(0,0,0,0.06)', drawTicks:false},
+    ticks:{display:false},
+    afterFit(s){ s.width = 0; },
+  }, extra);
+}
+
+// 渐变填充：曲线处较深、向底部渐隐。用法：backgroundColor: stockGradient(color)
+function stockGradient(color){
+  return ctx=>{
+    const a = ctx.chart.chartArea;
+    if(!a) return hexToRgba(color,0.1);
+    const g = ctx.chart.ctx.createLinearGradient(0,a.top,0,a.bottom);
+    g.addColorStop(0,hexToRgba(color,0.28)); g.addColorStop(1,hexToRgba(color,0.02));
+    return g;
+  };
+}
+
 function renderCombinedChart(){
   const runs = getFilteredRuns();
-  const key = ['pace','hr','maxhr','cadence'].find(k=>document.getElementById('lt-'+k)?.checked) || 'pace';
-  const M = {
-    pace:    {name:'Pace',    field:'pace',    color:THEME.blue,   unit:'/km', fmt:v=>fmtPace(v),            target:runTargets.pace},
-    hr:      {name:'Avg HR',  field:'hr',      color:THEME.coral,  unit:'bpm', fmt:v=>String(Math.round(v)), target:runTargets.hr},
-    maxhr:   {name:'Max HR',  field:'maxhr',   color:THEME.amber,  unit:'bpm', fmt:v=>String(Math.round(v)), target:null},
-    cadence: {name:'Cadence', field:'cadence', color:THEME.purple, unit:'spm', fmt:v=>String(Math.round(v)), target:null},
-  }[key];
-  const isPace = key==='pace';
+  const showPace    = document.getElementById('lt-pace')?.checked;
+  const showHr      = document.getElementById('lt-hr')?.checked;
+  const showMaxHr   = document.getElementById('lt-maxhr')?.checked;
+  const showCadence = document.getElementById('lt-cadence')?.checked;
 
   const labels = runs.map(r=>r.date);
-  const data = runs.map(r=>r[M.field]||null);
-  const vals = data.filter(v=>v!=null);
-  const hasData = vals.length>0;
+  const defs = [];
+  if(showPace)    defs.push({k:'pace',    name:'Pace',    field:'pace',    color:THEME.blue,   unit:'/km', axis:'yPace', w:1.8, fmt:v=>fmtPace(v)});
+  if(showHr)      defs.push({k:'hr',      name:'Avg HR',  field:'hr',      color:THEME.coral,  unit:'bpm', axis:'yHr',   w:1.6, fmt:v=>String(Math.round(v))});
+  if(showMaxHr)   defs.push({k:'maxhr',   name:'Max HR',  field:'maxhr',   color:THEME.amber,  unit:'bpm', axis:'yHr',   w:1.4, dash:[4,3], fmt:v=>String(Math.round(v))});
+  if(showCadence) defs.push({k:'cadence', name:'Cadence', field:'cadence', color:THEME.purple, unit:'spm', axis:'yHr',   w:1.6, fmt:v=>String(Math.round(v))});
+  defs.forEach(d=>{ d.data = runs.map(r=>r[d.field]||null); });
 
-  // 参考虚线：有目标用目标，否则用平均值
-  const avg = hasData ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
-  const ref = M.target || avg;
-  const refText = M.target ? 'Target '+M.fmt(M.target) : 'Avg '+(ref!=null?M.fmt(ref):'');
+  // ---- 轴范围（保持原来的错开布局；5 条刻度刚好对齐同一组网格线）----
+  const paceUsed = !!(showPace || runTargets.pace);
+  const hrUsed   = !!(showHr || showMaxHr || showCadence || runTargets.hr);
+  const paceMin = 4.5, paceMax = runTargets.pace ? Math.max(7.5, runTargets.pace+0.5) : 7.5;
+  const hrMin = 100,   hrMax   = runTargets.hr   ? Math.max(196, runTargets.hr+10)   : 196;
+  const paceStep = (paceMax-paceMin)/4, hrStep = (hrMax-hrMin)/4;
 
-  // y 轴自动贴合数据（含参考线），上下留白
-  let yMin, yMax;
-  if(hasData){
-    const lo = Math.min(...vals, ref), hi = Math.max(...vals, ref);
-    const pad = (hi-lo||hi*0.05||1)*0.15;
-    yMin = lo-pad; yMax = hi+pad;
-  }
-
-  const pctOf = v => ref ? (isPace ? (ref-v)/ref : (v-ref)/ref)*100 : 0;   // 配速：越快越“涨”
-  const fmtPct = p => (p>0?'+':'')+p.toFixed(1)+'%';
-
-  // ---- 顶部摘要（默认最新一次，悬停/滑动时跟随）----
+  // ---- 顶部摘要：所有显示中的数值并排，默认最新一次，滑动时跟随 ----
   const summaryEl = document.getElementById('combo-summary');
-  function lastIdx(){ for(let i=data.length-1;i>=0;i--) if(data[i]!=null) return i; return -1; }
+  function lastIdx(){
+    for(let i=runs.length-1;i>=0;i--) if(defs.some(d=>d.data[i]!=null)) return i;
+    return -1;
+  }
   function setSummary(i){
     if(!summaryEl) return;
-    if(i<0 || data[i]==null){ summaryEl.innerHTML='<div class="combo-summary-val" style="color:var(--text3)">—</div>'; return; }
-    const p = pctOf(data[i]);
-    const up = p>=0;
-    const dcolor = isPace ? (up?THEME.green:THEME.coral) : 'var(--text2)';
+    if(!defs.length || i<0){ summaryEl.innerHTML='<div class="cs-meta">—</div>'; return; }
     const r = runs[i];
     summaryEl.innerHTML =
-      `<div><span class="combo-summary-val" style="color:${M.color}">${M.fmt(data[i])}</span><span class="combo-summary-unit">${M.unit}</span></div>`+
-      `<div class="combo-summary-side"><div><span class="combo-summary-delta" style="color:${dcolor}">${up?'▲':'▼'} ${fmtPct(p)}</span> vs ${M.target?'Target':'Avg'}</div>`+
-      `<div>${r.date}${r.dist?' · '+r.dist+'km':''}</div></div>`;
+      `<div class="cs-meta">${r.date}${r.dist?' · '+r.dist+'km':''}${r.sub?' · '+r.sub:''}</div>`+
+      `<div class="cs-row">`+defs.map(d=>{
+        const v = d.data[i];
+        return `<div class="cs-cell"><div class="cs-name"><i style="background:${d.color}"></i>${d.name}</div>`+
+               `<div class="cs-val" style="color:${d.color}">${v!=null?d.fmt(v):'—'}<span class="cs-unit">${d.unit}</span></div></div>`;
+      }).join('')+`</div>`;
   }
   setSummary(lastIdx());
 
-  // ---- 插件：参考虚线 + 胶囊标签 ----
-  const refPlugin = {
-    id:'refLine',
-    afterDatasetsDraw(chart){
-      if(ref==null) return;
-      const {ctx, chartArea:{left,right,top,bottom}, scales:{y}} = chart;
-      const py = y.getPixelForValue(ref);
-      if(!(py>=top && py<=bottom)) return;
-      ctx.save();
-      ctx.strokeStyle = M.target ? hexToRgba(M.color,0.85) : 'rgba(217,119,6,0.75)';
-      ctx.lineWidth = 1; ctx.setLineDash([4,3]);
-      ctx.beginPath(); ctx.moveTo(left,py); ctx.lineTo(right,py); ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.font = '600 11px system-ui, sans-serif';
-      const w = ctx.measureText(refText).width + 16, h = 18, x = left+6, yy = py-h/2;
-      ctx.shadowColor='rgba(0,0,0,0.12)'; ctx.shadowBlur=6; ctx.shadowOffsetY=1;
-      ctx.fillStyle='#fff'; ctx.beginPath();
-      if(ctx.roundRect) ctx.roundRect(x,yy,w,h,h/2); else ctx.rect(x,yy,w,h);
-      ctx.fill();
-      ctx.shadowColor='transparent';
-      ctx.fillStyle = M.target ? M.color : '#8a5a12';
-      ctx.textAlign='left'; ctx.textBaseline='middle';
-      ctx.fillText(refText, x+8, py+0.5);
-      ctx.restore();
-    }
-  };
-  // ---- 插件：右侧百分比轴 ----
-  const pctPlugin = {
-    id:'pctAxis',
+  // ---- 目标虚线 ----
+  const targetPlugin = {
+    id:'targetLines',
     afterDraw(chart){
-      if(ref==null) return;
-      const {ctx, chartArea:{right}, scales:{y}} = chart;
-      ctx.save();
-      ctx.font='10px system-ui, sans-serif'; ctx.fillStyle='#9ba3b5';
-      ctx.textAlign='right'; ctx.textBaseline='middle';
-      y.ticks.forEach(t=>{ ctx.fillText(fmtPct(pctOf(t.value)), right+44, y.getPixelForValue(t.value)); });
-      ctx.restore();
+      const {ctx, chartArea:{left,right,top,bottom}, scales} = chart;
+      const draw=(sc,val,color,text)=>{
+        if(!sc||!val) return;
+        const y = sc.getPixelForValue(val);
+        if(isNaN(y)||y<top||y>bottom) return;
+        ctx.save();
+        ctx.strokeStyle=hexToRgba(color,0.85); ctx.lineWidth=1.2; ctx.setLineDash([5,4]);
+        ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(right,y); ctx.stroke(); ctx.setLineDash([]);
+        ctx.font='600 10px system-ui, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+        const x=(left+right)/2;
+        ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.strokeText(text,x,y-2);
+        ctx.fillStyle=color; ctx.fillText(text,x,y-2);
+        ctx.restore();
+      };
+      draw(scales.yPace, runTargets.pace, THEME.blue,  'Target '+fmtPace(runTargets.pace||0));
+      draw(scales.yHr,   runTargets.hr,   THEME.coral, 'Target '+runTargets.hr+' bpm');
     }
   };
-  // ---- 插件：十字准线 ----
-  const crossPlugin = {
-    id:'crosshair',
-    afterDatasetsDraw(chart){
-      const a = chart.getActiveElements()[0];
-      if(!a) return;
-      const {ctx, chartArea:{top,bottom}} = chart;
-      const {x,y} = a.element;
-      ctx.save();
-      ctx.strokeStyle='rgba(36,31,26,0.25)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
-      ctx.beginPath(); ctx.moveTo(x,top); ctx.lineTo(x,bottom); ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle=M.color; ctx.strokeStyle='#fff'; ctx.lineWidth=2;
-      ctx.beginPath(); ctx.arc(x,y,4.5,0,Math.PI*2); ctx.fill(); ctx.stroke();
-      ctx.restore();
-    }
-  };
+  const hint = document.getElementById('target-hint');
+  if(hint){
+    const parts=[];
+    if(runTargets.pace) parts.push(`<span style="color:var(--blue)">⚑ Pace target ${fmtPace(runTargets.pace)}/km</span>`);
+    if(runTargets.hr) parts.push(`<span style="color:var(--coral)">⚑ HR target ${runTargets.hr} bpm</span>`);
+    hint.innerHTML=parts.join('<span style="color:var(--border2)"> · </span>');
+    hint.style.display=parts.length?'flex':'none';
+  }
 
   const spanYears = labels.length && labels[0].slice(0,4)!==labels[labels.length-1].slice(0,4);
+  const innerAxes = [
+    {id:'yPace', side:'left',  show:paceUsed, color:hexToRgba(THEME.blue,0.9),  fmt:v=>fmtPace(v)},
+    {id:'yHr',   side:'right', show:hrUsed,   color:'#8a93a6',                    fmt:v=>String(Math.round(v))},
+  ];
 
   function buildCombinedConfig(forLandscape){
     // rotated：手机仍是竖屏、弹层靠 CSS 转了 90°，Chart.js 自带事件坐标不对，改由 attachRotatedChartEvents() 处理
@@ -4890,30 +4968,24 @@ function renderCombinedChart(){
     const compact = !forLandscape && window.innerWidth<=768;
     return {
       type:'line',
-      data:{labels, datasets:[{
-        label:M.name, data,
-        borderColor:M.color, borderWidth:1.6, tension:0.2, spanGaps:true,
+      data:{labels, datasets: defs.map(d=>({
+        label:d.name, data:d.data, yAxisID:d.axis,
+        borderColor:d.color, borderWidth:d.w, borderDash:d.dash||[],
+        tension:0.3, spanGaps:true, fill:false,
         pointRadius:0, pointHoverRadius:0, pointHitRadius:20,
-        fill: isPace ? 'end' : 'start',
-        backgroundColor(ctx){
-          const {chart} = ctx, a = chart.chartArea;
-          if(!a) return hexToRgba(M.color,0.1);
-          const g = chart.ctx.createLinearGradient(0,a.top,0,a.bottom);
-          // 填充靠近曲线处较深、向底部渐隐
-          if(isPace){ g.addColorStop(0,hexToRgba(M.color,0.02)); g.addColorStop(1,hexToRgba(M.color,0.30)); }
-          else      { g.addColorStop(0,hexToRgba(M.color,0.30)); g.addColorStop(1,hexToRgba(M.color,0.02)); }
-          return g;
-        },
-      }]},
+      }))},
       options:{
         responsive:true, maintainAspectRatio:false,
         ...(rotated ? {events:[]} : {}),
-        layout:{padding:{top:6, right:46}},
+        layout:{padding:{top:6, right:2, left:2}},
         interaction:{mode:'index', intersect:false},
         plugins:{
           legend:{display:false},
           tooltip: forLandscape ? {
-            callbacks:{ label:c=> c.parsed.y==null ? null : ` ${M.name} ${M.fmt(c.parsed.y)} ${M.unit}  (${fmtPct(pctOf(c.parsed.y))})` }
+            callbacks:{ label(c){
+              const v=c.parsed.y; if(v==null) return null;
+              const d=defs[c.datasetIndex]; return ` ${d.name} ${d.fmt(v)} ${d.unit}`;
+            }}
           } : {
             enabled:false,
             external({tooltip}){
@@ -4926,19 +4998,16 @@ function renderCombinedChart(){
           x:{
             grid:{display:false}, border:{display:false},
             ticks:{
-              color:'#9ba3b5', font:{size:compact?10:11}, maxRotation:0,
+              color:'#9ba3b5', font:{size:compact?10:11}, maxRotation:0, padding:6,
               maxTicksLimit: forLandscape?8:5,
               callback(v){ const l=this.getLabelForValue(v)||''; return spanYears ? l.slice(2,7) : l.slice(5); }
             }
           },
-          y:{
-            position:'left', reverse:isPace, min:yMin, max:yMax,
-            grid:{color:'rgba(0,0,0,0.05)', drawTicks:false}, border:{display:false},
-            ticks:{ color:'#9ba3b5', font:{size:compact?10:11}, maxTicksLimit:5, padding:6, callback:v=>M.fmt(v) }
-          }
+          yPace: stockScale({position:'left',  reverse:true, min:paceMin, max:paceMax, ticks:{display:false, stepSize:paceStep}}, paceUsed),
+          yHr:   stockScale({position:'right', min:hrMin, max:hrMax, ticks:{display:false, stepSize:hrStep}}, hrUsed && !paceUsed),
         }
       },
-      plugins:[refPlugin, pctPlugin, crossPlugin]
+      plugins:[targetPlugin, stockInnerAxisPlugin(innerAxes), stockCrosshairPlugin()]
     };
   }
 
