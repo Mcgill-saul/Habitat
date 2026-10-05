@@ -156,24 +156,41 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 
 
 /* metrics */
-.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--space-12);margin-bottom:1.5rem;}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--space-12);}
 .metric{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;box-shadow:var(--shadow);}
-.metric-label{font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-8);}
-.metric-value{font-size:var(--fs-stat);font-weight:700;line-height:1;}
-.metric-unit{font-size:var(--fs-sm);font-weight:400;color:var(--text2);margin-left:2px;}
-.metric-sub{font-size:var(--fs-xs);color:var(--text3);margin-top:var(--space-5);}
-.metric.green .metric-value{color:var(--green);}
-.metric.blue .metric-value{color:var(--blue);}
-.metric.amber .metric-value{color:var(--amber);}
-.metric.coral .metric-value{color:var(--coral);}
-.metric.purple .metric-value{color:var(--purple);}
+/* ── Meter：全站统一的横向进度条（轨道 + 色块，可选条内文字）。JS 用 Meter.html()。
+   sm = 6px 细条（分类速览）；lg = 20px 粗条，条内写百分比（跑鞋里程） ── */
+.meter{position:relative;height:6px;border-radius:3px;background:var(--bg3);overflow:hidden;}
+.meter-fill{position:absolute;top:0;left:0;bottom:0;border-radius:inherit;transition:width .3s ease;}
+.meter-text{position:absolute;left:8px;top:0;bottom:0;display:flex;align-items:center;font-size:10px;font-weight:700;color:#fff;}
+.meter-lg{height:20px;border-radius:10px;}
+
+/* ── StatBlock：全站统一的「小标签 + 大数字」统计块（JS 用 StatBlock.html()，静态 HTML 直接写同样的类）──
+   标签永远在上；4 档字号 hero 40 / lg 28 / md 24 / sm 16；单位、副标题可选；颜色用 --sb-color。
+   外面要不要卡片底色由容器决定（.metric / .dash-overview-card），StatBlock 自己只管文字。 */
+.sb{display:flex;flex-direction:column;gap:var(--space-6);min-width:0;}
+.sb-grow{flex:1;}
+.sb-label{font-size:var(--fs-xs);color:var(--text3);white-space:nowrap;}
+.sb-value{font-weight:700;line-height:1;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--sb-color,var(--text));}
+.sb-unit{font-size:var(--fs-sm);font-weight:400;color:var(--text3);margin-left:3px;}
+.sb-sub{font-size:var(--fs-xs);color:var(--text3);min-height:15px;}
+.sb-hero .sb-value{font-size:var(--fs-display);font-weight:800;}
+.sb-lg   .sb-value{font-size:var(--fs-display-sm);font-weight:800;}
+.sb-md   .sb-value{font-size:var(--fs-stat);}
+.sb-sm   .sb-value{font-size:16px;line-height:1.25;}
+.sb-sm   .sb-unit{font-size:10px;font-weight:500;}
+.sb.off{opacity:.35;}
 
 /* charts */
-.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-14);margin-bottom:1.5rem;}
+/* 页面节奏：分析页（Dashboard / Anaerobic / Hike / Run）的直接子块之间只由这一条规则隔开，
+   块自己不再写 margin-bottom。要调整卡片间距，改 --space-14 或这里即可。 */
+.page-stack > * + *{margin-top:var(--space-14);}
+@media(min-width:769px){.page-stack{padding-bottom:1.5rem;}}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-14);}
 .charts-grid > *{min-width:0;}
 /* Dashboard 主体：第〇行(速览)和第一行(模块卡)共享同一套 4 列轨道(auto auto 1fr 1fr)，
    跨 2 列的元素(近7天条 / 累计训练窄卡)宽度精确对齐另一行的另外两张卡片之和 */
-.dash-grid{display:grid;grid-template-columns:auto auto 1fr 1fr;gap:var(--space-14);margin-bottom:1.5rem;}
+.dash-grid{display:grid;grid-template-columns:auto auto 1fr 1fr;gap:var(--space-14);}
 .dash-grid > *{min-width:0;}
 .dash-grid .span2{grid-column:span 2;}
 @media(max-width:1100px){.dash-grid{grid-template-columns:1fr 1fr;}.dash-grid .span2{grid-column:1/-1;}}
@@ -232,10 +249,6 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 .cc-summary{min-height:52px;}
 .cs-meta{font-size:var(--fs-xs);color:var(--text3);margin-bottom:4px;font-variant-numeric:tabular-nums;}
 .cs-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--space-8);}
-.cs-cell{min-width:0;}
-.cs-val{font-size:16px;font-weight:700;line-height:1.25;font-variant-numeric:tabular-nums;white-space:nowrap;}
-.cs-cell.off{opacity:.35;}
-.cs-unit{font-size:10px;font-weight:500;color:var(--text3);margin-left:2px;}
 @media (min-width:769px){ .cc-summary{display:none;} }
 
 /* 「累计训练」卡片里的大数字/周均纯展示、不需要点击，但用 position:absolute +
@@ -244,6 +257,8 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
    再想重新选日期，点击其实落在这层透明遮罩上，日期选择器完全没反应。
    加 pointer-events:none 让点击穿透到下层真正的控件。 */
 .dash-total-block, .dash-avg-block{ pointer-events:none; }
+.dash-total-block{ position:absolute;left:0;right:0;bottom:50%;margin-bottom:4px;display:flex;justify-content:center; }
+.dash-avg-block{ position:absolute;left:0;right:0;top:50%;margin-top:4px;text-align:center;font-size:var(--fs-sm);font-weight:600;color:var(--text2); }
 
 @media(max-width:768px){
 
@@ -285,7 +300,6 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
   /* ── 指标卡 → 2列 ── */
   .metrics{ grid-template-columns: repeat(2,1fr); gap: 8px; }
   .metric{ padding: 12px 14px; }
-  .metric-value{ font-size:var(--fs-xl); }
 
   /* ── 表单 → 单列，字段高度更易点击 ── */
   .form-card{ padding: 14px; }
@@ -353,8 +367,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
     grid-template-columns: repeat(2,1fr);
     gap: 10px;
   }
-  .cycle-card-stats .cycle-stat{ min-width: 0; }
-  /* 注：微型标签的全大写与字距已在全局（.metric-label / .cycle-stat-label）统一去掉，
+  /* 注：微型标签的全大写与字距已在全局（.sb-label）统一去掉，
      这里不再单独覆盖——桌面端与手机端共用同一套规则，避免样式随视口漂移 */
   /* ── 跑步总览：手机端「平均配速/心率/最快配速/总次数」四项之前用
      flex:1 + min-width:0 会无限收缩挤成一团，而不是换行。改成两列网格，
@@ -366,7 +379,6 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
     align-items: start;
   }
   #run-overview-stats > div:first-child{ grid-column: 1 / -1; }
-  #run-overview-stats .cycle-stat{ min-width: 0; }
   /* ── 柱状图：手机端统一用横向条形列表替代纵向柱状图（ChartKit.bar） ── */
   .bar-chart-wrap{ display: none; }
   .bar-rows{ display: flex; }
@@ -731,9 +743,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 
 /* Dashboard 顶部：本周速览 + 同比趋势 + 连续周数 + 7天色块条（网格轨道已并入 .dash-grid） */
 .dash-overview-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:16px 22px;min-width:150px;}
-.dash-overview-label{font-size:var(--fs-xs);color:var(--text3);margin-bottom:6px;}
-.dash-overview-value{font-size:var(--fs-display-sm);font-weight:800;color:var(--text);line-height:1;font-variant-numeric:tabular-nums;}
-.dash-overview-trend{font-size:var(--fs-xs);margin-top:7px;min-height:15px;}
+.dash-overview-strip-card > .sb-label{margin-bottom:6px;}
 .dash-badges{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;min-height:26px;align-items:center;}
 .dash-badge{width:26px;height:26px;border-radius:50%;background:var(--brand-lt);display:flex;align-items:center;justify-content:center;font-size:var(--icon-sm);cursor:default;}
 .dash-overview-strip-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:16px 22px;display:flex;flex-direction:column;}
@@ -759,8 +769,15 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 .sport-summary-name{font-weight:600;color:var(--text);flex-shrink:0;width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .sport-summary-stat{color:var(--text2);font-variant-numeric:tabular-nums;white-space:nowrap;flex-shrink:0;width:180px;}
 .sport-summary-extra{color:var(--text3);}
-.sport-summary-bar-wrap{position:relative;flex:1;height:6px;border-radius:3px;background:var(--bg3);overflow:hidden;margin-left:var(--space-8);}
-.sport-summary-bar{position:absolute;top:0;left:0;bottom:0;border-radius:3px;transition:width .3s ease;}
+.sport-summary-row .meter{flex:1;margin-left:var(--space-8);}
+/* 跑鞋里程（Run）—— 每双鞋一行：名称 + 里程说明 + Edit，下面一根粗进度条 */
+.shoe-row{padding:9px 0;border-bottom:1px solid var(--border);}
+.shoe-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-8);margin-bottom:var(--space-6);}
+.shoe-title{display:flex;align-items:baseline;gap:var(--space-8);min-width:0;flex-wrap:wrap;}
+.shoe-name{font-size:var(--fs-sm);font-weight:600;color:var(--text);white-space:nowrap;}
+.shoe-meta{font-size:var(--fs-xs);color:var(--text3);white-space:nowrap;}
+.shoe-warn{font-size:var(--fs-xs);color:var(--coral);white-space:nowrap;}
+.shoe-edit{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:var(--fs-xs);color:var(--text2);cursor:pointer;flex-shrink:0;}
 
 /* ── 周期卡片：紧凑独立卡片 + 网格布局（无氧/跑步共用），
    不再是撑满整行的横条，多个周期存在时并排成网格，不会出现中间大片空白 ── */
@@ -770,9 +787,6 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 .cycle-card.active{border-color:var(--cycle-accent,var(--green));background:var(--cycle-accent-lt,var(--green-lt));}
 .cycle-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-8);}
 .cycle-card-stats{display:flex;align-items:center;gap:var(--space-10);}
-.cycle-stat{display:flex;flex-direction:column;gap:var(--space-2);min-width:0;flex:1;}
-.cycle-stat-val{font-size:var(--fs-stat);font-weight:700;color:var(--text);line-height:1;white-space:nowrap;}
-.cycle-stat-label{font-size:var(--fs-xs);color:var(--text3);white-space:nowrap;}
 .cycle-divider{width:1px;height:36px;background:var(--border);flex-shrink:0;}
 .run-overview-divider{width:1px;height:44px;background:var(--border);flex-shrink:0;}
 .cycle-extra{border-top:1px solid var(--border);padding-top:var(--space-12);}
@@ -873,16 +887,6 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 
 
 /* ── Anaerobic: yearly report ── */
-.yearly-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:var(--space-12);box-shadow:var(--shadow);}
-.yearly-title{font-size:var(--fs-base);font-weight:700;color:var(--text);margin-bottom:var(--space-4);}
-.yearly-sub{font-size:var(--fs-sm);color:var(--text3);margin-bottom:var(--space-16);}
-.yearly-bars{display:flex;flex-direction:column;gap:var(--space-10);}
-.yearly-bar-row{display:flex;align-items:center;gap:var(--space-12);}
-.yearly-bar-label{font-size:var(--fs-sm);color:var(--text2);width:40px;text-align:right;flex-shrink:0;}
-.yearly-bar-track{flex:1;height:22px;background:var(--bg3);border-radius:4px;overflow:hidden;position:relative;}
-.yearly-bar-fill{height:100%;border-radius:4px;background:var(--blue);transition:width .4s ease;display:flex;align-items:center;padding-left:8px;min-width:30px;}
-.yearly-bar-num{font-size:var(--fs-sm);font-weight:700;color:#fff;white-space:nowrap;}
-.yearly-bar-pct{font-size:var(--fs-sm);color:var(--text3);flex-shrink:0;width:36px;}
 
 /* Data mgmt */
 .data-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:var(--space-14);box-shadow:var(--shadow);}
@@ -1040,7 +1044,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 <div class="main">
 
   <!-- ══════════ DASHBOARD ══════════ -->
-  <div id="page-dashboard">
+  <div id="page-dashboard" class="page-stack">
 
     <!-- 主页顶部区：统一用一套 4 列网格(auto auto 1fr 1fr)，第〇行和第一行共享列轨道，
          这样"近7天"条和"累计训练"窄卡都跨 2 列，宽度分别精确等于上方/下方另外两张小卡之和，
@@ -1049,17 +1053,21 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 
       <!-- 第〇行：本周速览 + 同比趋势 + 连续周数 + 7天色块条 -->
       <div class="dash-overview-card">
-        <div class="dash-overview-label">本周训练</div>
-        <div class="dash-overview-value" id="dash-week-count">—</div>
-        <div class="dash-overview-trend" id="dash-week-trend"></div>
+        <div class="sb sb-lg">
+          <div class="sb-label">本周训练</div>
+          <div class="sb-value" id="dash-week-count">—</div>
+          <div class="sb-sub" id="dash-week-trend"></div>
+        </div>
       </div>
       <div class="dash-overview-card">
-        <div class="dash-overview-label">连续周数</div>
-        <div class="dash-overview-value" id="dash-streak">—</div>
+        <div class="sb sb-lg">
+          <div class="sb-label">连续周数</div>
+          <div class="sb-value" id="dash-streak">—</div>
+        </div>
         <div class="dash-badges" id="dash-badges"></div>
       </div>
       <div class="dash-overview-strip-card span2">
-        <div class="dash-overview-label">近 7 天</div>
+        <div class="sb-label">近 7 天</div>
         <div class="week-strip" id="dash-week-strip"></div>
       </div>
 
@@ -1069,15 +1077,10 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
           <span data-start-picker="dashStat" style="display:contents"></span>
           <span>至今</span>
         </div>
-        <div class="dash-total-block" style="position:absolute;left:0;right:0;bottom:50%;margin-bottom:4px;display:flex;justify-content:center">
-          <div style="display:flex;align-items:flex-end;gap:var(--space-3);line-height:1">
-            <div style="font-size:var(--fs-display);font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums;line-height:1" id="dash-total">—</div>
-            <div style="font-size:var(--fs-sm);color:var(--text3);padding-bottom:5px;white-space:nowrap">次运动</div>
-          </div>
+        <div class="dash-total-block">
+          <div class="sb sb-hero" style="--sb-color:var(--brand)"><div class="sb-value"><span id="dash-total">—</span><span class="sb-unit">次运动</span></div></div>
         </div>
-        <div class="dash-avg-block" style="position:absolute;left:0;right:0;top:50%;margin-top:4px;text-align:center">
-          <div style="font-size:var(--fs-sm);font-weight:600;color:var(--text2)" id="dash-week-avg">—</div>
-        </div>
+        <div class="dash-avg-block" id="dash-week-avg">—</div>
       </div>
 
       <!-- 卡片 2：运动类型占比（整卡结构由 renderDonutCard 模板统一生成，见 JS） -->
@@ -1092,15 +1095,15 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 
     <!-- 第二行：月度运动构成独占一行 -->
     <!-- 月度运动构成（整卡外壳由 ChartCard.render 统一生成，见 JS） -->
-    <div class="chart-card full" style="margin-bottom:1.5rem" id="dash-monthly-card"></div>
+    <div class="chart-card full" id="dash-monthly-card"></div>
 
   </div>
 
   <!-- ══════════ ANAEROBIC ══════════ -->
-  <div id="page-anaerobic" style="display:none">
+  <div id="page-anaerobic" class="page-stack" style="display:none">
 
     <!-- 坚持周期 -->
-    <div class="chart-card cc-card full" style="margin-bottom:var(--space-14)">
+    <div class="chart-card cc-card full">
       <div class="cc-head">
         <div class="cc-title"><div class="chart-title">无氧坚持周期</div></div>
         <div class="cc-controls">
@@ -1119,7 +1122,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
     </div>
 
     <!-- 肌群分布 + 月度趋势 同一行 -->
-    <div class="charts-grid" style="margin-bottom:var(--space-14)">
+    <div class="charts-grid">
       <!-- 肌群训练分布（整卡结构由 renderDonutCard 模板统一生成，见 JS） -->
       <div class="chart-card" id="ana-donut-card"></div>
       <!-- 月度无氧训练频次（整卡外壳由 ChartCard.render 统一生成，见 JS） -->
@@ -1127,21 +1130,21 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
     </div>
 
     <!-- 年度战报：分组柱状图 -->
-    <div class="chart-card full" id="ana-yearly-card" style="margin-bottom:var(--space-14)"></div>
+    <div class="chart-card full" id="ana-yearly-card"></div>
   </div>
 
   <!-- ══════════ HIKE ANALYSIS ══════════ -->
-  <div id="page-hike" style="display:none">
+  <div id="page-hike" class="page-stack" style="display:none">
     <!-- 步数趋势（整卡外壳由 ChartCard.render 统一生成，见 JS） -->
-    <div class="chart-card full" style="margin-bottom:1.5rem" id="hike-dist-line-card"></div>
+    <div class="chart-card full" id="hike-dist-line-card"></div>
   </div>
 
   <!-- ══════════ RUN ANALYSIS ══════════ -->
-  <div id="page-run" style="display:none">
+  <div id="page-run" class="page-stack" style="display:none">
 
     <!-- 跑步总览 + 距离分布 + 跑鞋里程：三卡网格。左侧「跑步总览」+「跑鞋里程」上下堆叠，
          右侧「距离分布」（改成图表后高度固定）跨两行。 -->
-    <div class="charts-grid" style="margin-bottom:var(--space-14)" id="run-overview-grid">
+    <div class="charts-grid" id="run-overview-grid">
       <div class="chart-card cc-card" id="run-overview-card" style="grid-column:1;grid-row:1;display:flex;flex-direction:column">
         <div class="cc-head has-icon">
           <span style="width:34px;height:34px;border-radius:10px;background:var(--green-lt);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🏃</span>
@@ -1160,7 +1163,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
     </div>
 
     <!-- 跑步周期 -->
-    <div class="chart-card cc-card full" style="margin-bottom:var(--space-14)">
+    <div class="chart-card cc-card full">
       <div class="cc-head">
         <div class="cc-title"><div class="chart-title">Training Cycles</div></div>
         <div class="cc-controls">
@@ -1179,7 +1182,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
     </div>
 
     <!-- 趋势图表（最下方） -->
-    <div style="display:flex;flex-direction:column;gap:var(--space-14);margin-bottom:1.5rem;">
+    <div style="display:flex;flex-direction:column;gap:var(--space-14)">
 
       <!-- 月度跑量 -->
       <!-- 月度跑量（整卡外壳由 ChartCard.render 统一生成，见 JS） -->
@@ -1631,6 +1634,34 @@ const THEME = {
   coral:  cssVar('--coral')  || '#e04545',
   purple: cssVar('--purple') || '#7c5cf6',
   brand:  cssVar('--brand')  || '#16a06a',
+  teal:   '#059669',   // 肌群：二头
+  gold:   '#f0a843',   // 肌群：三头
+  // 图表中性灰：刻度 / 轴文字 / 找不到颜色时的兜底，全文件只在这里定义
+  axis:   '#9ba3b5',   // 刻度文字、兜底色
+  axisHi: '#8a93a6',   // 折线图内嵌 Y 轴数字
+  axisBold:'#5a6278',  // 加粗的 X 轴标签（年度战报）
+};
+// 肌群 → 颜色：肌群分布环形图、年度战报共用这一张表
+const MUSCLE_COLORS = { Chest:THEME.blue, Back:THEME.green, Legs:THEME.amber, Delts:THEME.purple, Core:THEME.coral, Bis:THEME.teal, Tris:THEME.gold };
+
+// StatBlock：统一的「小标签 + 大数字」统计块（CSS 见 .sb）。size: hero|lg|md|sm；label 可省（如配速图摘要行）
+//   color 传任意 CSS 颜色；grow=true 在 flex 行里均分宽度；valueId/subId 给需要事后改文字的块用
+const StatBlock = {
+  html({label='', value, unit='', sub='', size='md', color='', grow=false, cls='', valueId='', subId=''}){
+    return `<div class="sb sb-${size}${grow?' sb-grow':''}${cls?' '+cls:''}"${color?` style="--sb-color:${color}"`:''}>`+
+      (label?`<div class="sb-label">${escapeHtml(label)}</div>`:'')+
+      `<div class="sb-value"${valueId?` id="${valueId}"`:''}>${value}${unit?`<span class="sb-unit">${unit}</span>`:''}</div>`+
+      (sub?`<div class="sb-sub"${subId?` id="${subId}"`:''}>${sub}</div>`:'')+
+    `</div>`;
+  }
+};
+
+// Meter：统一的横向进度条（CSS 见 .meter）。pct 0-100；size: sm|lg；text 显示在条内（lg 用）
+const Meter = {
+  html({pct, color, size='sm', text='', cls=''}){
+    return `<div class="meter meter-${size}${cls?' '+cls:''}"><div class="meter-fill" style="width:${pct}%;background:${color}"></div>`+
+      (text?`<span class="meter-text">${text}</span>`:'')+`</div>`;
+  }
 };
 
 const _escMap={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
@@ -1834,7 +1865,7 @@ function badgeClass(sport){
   return {'Run':'badge-run','Strength':'badge-ana','Jump Rope':'badge-jump','Badminton':'badge-badminton','Hike':'badge-hike','Walk':'badge-walk'}[sport]||'badge-walk';
 }
 function getSportColor(s){
-  return SPORT_COLOR[s] || '#9ba3b5';
+  return SPORT_COLOR[s] || THEME.axis;
 }
 function hexToRgba(hex, alpha){
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex||'');
@@ -2862,249 +2893,219 @@ function syncMiniDateTrigger(inputId){
   btn.classList.toggle('dp-active', !isDefault);
 }
 
-let miniDatePickerEl = null;
-let miniDatePickerFor = null;
-
-function closeMiniDatePicker(){
-  if(miniDatePickerEl){ miniDatePickerEl.remove(); miniDatePickerEl = null; }
-  miniDatePickerFor = null;
-  document.querySelectorAll('.dp-trigger[aria-expanded]').forEach(b=>b.removeAttribute('aria-expanded'));
-  document.removeEventListener('mousedown', onMiniDatePickerOutsideClick, true);
-  document.removeEventListener('keydown', onMiniDatePickerKeydown, true);
-}
-function onMiniDatePickerOutsideClick(e){
-  if(miniDatePickerEl && !miniDatePickerEl.contains(e.target) && !(e.target.closest && e.target.closest('.dp-trigger'))){
-    closeMiniDatePicker();
+// ══════════════════════════════════════
+//  Popup —— 所有「按钮下方弹出小浮层」的统一外壳
+//  负责：同一时间只开一个、挂到 body、按钮 aria-expanded、定位在按钮下方并收敛进视口、
+//        点外面 / 按 Esc 关闭。内容由调用方的 build(pop) 填，需要重画时直接改 pop.innerHTML。
+//  用法：Popup.toggle(btn, 唯一key, pop=>{ pop.innerHTML = '…'; }, {label, maxHeight})
+// ══════════════════════════════════════
+const Popup = (() => {
+  let el = null, owner = null;
+  function close(){
+    if(el){ el.remove(); el = null; }
+    owner = null;
+    document.querySelectorAll('.dp-trigger[aria-expanded]').forEach(b=>b.removeAttribute('aria-expanded'));
+    document.removeEventListener('mousedown', onOutside, true);
+    document.removeEventListener('keydown', onKey, true);
   }
-}
-function onMiniDatePickerKeydown(e){
-  if(e.key==='Escape') closeMiniDatePicker();
-}
+  function onOutside(e){
+    if(el && !el.contains(e.target) && !(e.target.closest && e.target.closest('.dp-trigger'))) close();
+  }
+  function onKey(e){ if(e.key==='Escape') close(); }
+  function open(btn, key, build, opts={}){
+    close();
+    owner = key;
+    btn.setAttribute('aria-expanded','true');
+    const pop = document.createElement('div');
+    pop.className = 'mini-date-popup';
+    if(opts.label){ pop.setAttribute('role','dialog'); pop.setAttribute('aria-label', opts.label); }
+    if(opts.maxHeight){ pop.style.maxHeight = opts.maxHeight; pop.style.overflowY = 'auto'; }
+    document.body.appendChild(pop);
+    el = pop;
+    build(pop);
+    // 定位在按钮下方；渲染完再按实际尺寸收敛，避免溢出视口
+    const r = btn.getBoundingClientRect();
+    pop.style.top = (r.bottom + 6) + 'px';
+    pop.style.left = r.left + 'px';
+    requestAnimationFrame(()=>{
+      const pr = pop.getBoundingClientRect();
+      const vw = document.documentElement.clientWidth;
+      const vh = document.documentElement.clientHeight;
+      if(pr.right > vw - 8) pop.style.left = Math.max(8, vw - pr.width - 8) + 'px';
+      if(pr.bottom > vh - 8) pop.style.top = Math.max(8, r.top - pr.height - 6) + 'px';
+    });
+    setTimeout(()=>{
+      document.addEventListener('mousedown', onOutside, true);
+      document.addEventListener('keydown', onKey, true);
+    }, 0);
+  }
+  function toggle(btn, key, build, opts){
+    if(owner === key){ close(); return; }
+    open(btn, key, build, opts);
+  }
+  return {open, close, toggle};
+})();
 
-// 弹层底部的「All time」整行胶囊：点一下清空自定义起点（回到默认）。日精度 / 月精度两种弹层共用。
-// 当前已经是默认（值为空或不晚于最早日期）时高亮显示；清空 = 把隐藏 input 置空并触发 change，
-// 后续存储 / 重绘走 ChartStart 的统一路径，按钮文案由 syncMiniDateTrigger 自动变回 All time。
-function appendAllTimeButton(pop, input, mode){
-  const v = input.value || '', min = input.min || '';
-  const cut = mode==='month' ? 7 : 10;
-  const isDefault = !v || (min && v.slice(0,cut) <= min.slice(0,cut));
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'dp-alltime' + (isDefault ? ' is-on' : '');
-  btn.textContent = 'All time';
-  btn.onclick = ()=>{
-    input.value = '';
+// ══════════════════════════════════════
+//  DatePicker —— 起始日期选择（日 / 月两种精度，同一个入口）
+//  触发按钮 .dp-trigger 的 data-mode 决定精度：
+//    day   日历网格；点头部年月可切到「年月选择」视图
+//    month 年份翻页 + 3×4 月份网格；选到最早月份时写 min（保持“未自定义”），其余写 YYYY-MM-01
+//  两种都共用：外壳（Popup）、写回并触发 change 的 commit、底部 All time 胶囊。
+// ══════════════════════════════════════
+const DatePicker = (() => {
+  const pad = n => String(n).padStart(2,'0');
+
+  // 写回隐藏 input 并触发 change，后续存储 / 重绘走 ChartStart 的统一路径
+  function commit(input, value){
+    input.value = value;
     input.dispatchEvent(new Event('change', {bubbles:true}));
-    closeMiniDatePicker();
-  };
-  pop.appendChild(btn);
-}
+    Popup.close();
+  }
 
-function toggleMiniDatePicker(btn){
-  const inputId = btn.dataset.for;
-  if(miniDatePickerFor === inputId){ closeMiniDatePicker(); return; }
-  openMiniDatePicker(btn, inputId);
-}
+  // 弹层底部的「All time」整行胶囊：清空自定义起点。当前已是默认（值为空或不晚于最早日期）时高亮。
+  function appendAllTime(pop, input, mode){
+    const v = input.value || '', min = input.min || '';
+    const cut = mode==='month' ? 7 : 10;
+    const isDefault = !v || (min && v.slice(0,cut) <= min.slice(0,cut));
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'dp-alltime' + (isDefault ? ' is-on' : '');
+    btn.textContent = 'All time';
+    btn.onclick = ()=> commit(input, '');
+    pop.appendChild(btn);
+  }
 
+  function buildMonth(pop, input){
+    const min = input.min || '', max = input.max || '', val = input.value || '';
+    const minYM = min.slice(0,7), maxYM = max.slice(0,7), valYM = val.slice(0,7);
+    const nowYM = localDateStr().slice(0,7);
+    const minY = minYM ? parseInt(minYM.slice(0,4),10) : -Infinity;
+    const maxY = maxYM ? parseInt(maxYM.slice(0,4),10) : Infinity;
+    let viewYear = parseInt((valYM || maxYM || nowYM).slice(0,4),10);
+    const chevron = dir => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="${dir<0?'15 6 9 12 15 18':'9 6 15 12 9 18'}"/></svg>`;
 
-// 月份选择器（月度柱状图卡片的「起始月份」）：年份翻页 + 3×4 月份网格，点一下直接生效。
-// 写回隐藏 input 的值：选到最早月份时写 min（保持"未自定义"），其余写 YYYY-MM-01。
-function toggleMonthPicker(btn){
-  const inputId = btn.dataset.for;
-  if(miniDatePickerFor === inputId){ closeMiniDatePicker(); return; }
-  openMonthPicker(btn, inputId);
-}
-function openMonthPicker(btn, inputId){
-  closeMiniDatePicker();
-  const input = document.getElementById(inputId);
-  if(!input) return;
-  miniDatePickerFor = inputId;
-  btn.setAttribute('aria-expanded','true');
-
-  const min = input.min || '', max = input.max || '', val = input.value || '';
-  const minYM = min.slice(0,7), maxYM = max.slice(0,7), valYM = val.slice(0,7);
-  const nowYM = localDateStr().slice(0,7);
-  const minY = minYM ? parseInt(minYM.slice(0,4),10) : -Infinity;
-  const maxY = maxYM ? parseInt(maxYM.slice(0,4),10) : Infinity;
-  let viewYear = parseInt((valYM || maxYM || nowYM).slice(0,4),10);
-  const pad = n => String(n).padStart(2,'0');
-  const chevron = dir => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="${dir<0?'15 6 9 12 15 18':'9 6 15 12 9 18'}"/></svg>`;
-
-  const pop = document.createElement('div');
-  pop.className = 'mini-date-popup';
-  pop.setAttribute('role','dialog');
-  pop.setAttribute('aria-label','Select start month');
-  document.body.appendChild(pop);
-  miniDatePickerEl = pop;
-
-  function render(){
-    let cells = '';
-    for(let m=0; m<12; m++){
-      const ym = `${viewYear}-${pad(m+1)}`;
-      const disabled = (minYM && ym<minYM) || (maxYM && ym>maxYM);
-      cells += `<button type="button" class="mp-cell${ym===valYM?' mp-selected':''}${ym===nowYM?' mp-current':''}" ${disabled?'disabled':''} data-m="${m}">${MP_MONTHS[m]}</button>`;
+    function render(){
+      let cells = '';
+      for(let m=0; m<12; m++){
+        const ym = `${viewYear}-${pad(m+1)}`;
+        const disabled = (minYM && ym<minYM) || (maxYM && ym>maxYM);
+        cells += `<button type="button" class="mp-cell${ym===valYM?' mp-selected':''}${ym===nowYM?' mp-current':''}" ${disabled?'disabled':''} data-m="${m}">${MP_MONTHS[m]}</button>`;
+      }
+      pop.innerHTML = `
+        <div class="mp-head">
+          <button type="button" class="mp-nav" data-nav="-1" aria-label="Previous year" ${viewYear<=minY?'disabled':''}>${chevron(-1)}</button>
+          <div class="mp-year">${viewYear}</div>
+          <button type="button" class="mp-nav" data-nav="1" aria-label="Next year" ${viewYear>=maxY?'disabled':''}>${chevron(1)}</button>
+        </div>
+        <div class="mp-grid">${cells}</div>`;
+      pop.querySelectorAll('.mp-nav').forEach(b=>{
+        b.onclick = ()=>{ viewYear += parseInt(b.dataset.nav,10); render(); };
+      });
+      pop.querySelectorAll('.mp-cell').forEach(c=>{
+        c.onclick = ()=>{
+          if(c.disabled) return;
+          const ym = `${viewYear}-${pad(parseInt(c.dataset.m,10)+1)}`;
+          commit(input, (minYM && ym===minYM && min) ? min : ym+'-01');
+        };
+      });
+      appendAllTime(pop, input, 'month');
     }
-    pop.innerHTML = `
-      <div class="mp-head">
-        <button type="button" class="mp-nav" data-nav="-1" aria-label="Previous year" ${viewYear<=minY?'disabled':''}>${chevron(-1)}</button>
-        <div class="mp-year">${viewYear}</div>
-        <button type="button" class="mp-nav" data-nav="1" aria-label="Next year" ${viewYear>=maxY?'disabled':''}>${chevron(1)}</button>
-      </div>
-      <div class="mp-grid">${cells}</div>`;
-    pop.querySelectorAll('.mp-nav').forEach(b=>{
-      b.onclick = ()=>{ viewYear += parseInt(b.dataset.nav,10); render(); };
-    });
-    pop.querySelectorAll('.mp-cell').forEach(c=>{
-      c.onclick = ()=>{
-        if(c.disabled) return;
-        const ym = `${viewYear}-${pad(parseInt(c.dataset.m,10)+1)}`;
-        input.value = (minYM && ym===minYM && min) ? min : ym+'-01';
-        input.dispatchEvent(new Event('change', {bubbles:true}));
-        closeMiniDatePicker();
-      };
-    });
-    appendAllTimeButton(pop, input, 'month');
-  }
-  render();
-
-  const r = btn.getBoundingClientRect();
-  pop.style.top = (r.bottom + 8) + 'px';
-  pop.style.left = r.left + 'px';
-  requestAnimationFrame(()=>{
-    const pr = pop.getBoundingClientRect();
-    const vw = document.documentElement.clientWidth;
-    const vh = document.documentElement.clientHeight;
-    if(pr.right > vw - 8) pop.style.left = Math.max(8, vw - pr.width - 8) + 'px';
-    if(pr.bottom > vh - 8) pop.style.top = Math.max(8, r.top - pr.height - 8) + 'px';
-  });
-  setTimeout(()=>{
-    document.addEventListener('mousedown', onMiniDatePickerOutsideClick, true);
-    document.addEventListener('keydown', onMiniDatePickerKeydown, true);
-  }, 0);
-}
-
-function openMiniDatePicker(btn, inputId){
-  closeMiniDatePicker();
-  const input = document.getElementById(inputId);
-  if(!input) return;
-  miniDatePickerFor = inputId;
-  btn.setAttribute('aria-expanded','true');
-
-  const min = input.min || '';
-  const max = input.max || '';
-  const val = input.value || '';
-  const todayStr = localDateStr();
-  const seed = val || max || todayStr;
-  let viewYear = parseInt(seed.slice(0,4),10);
-  let viewMonth = parseInt(seed.slice(5,7),10) - 1; // 0-based
-  let view = 'day'; // 'day' | 'month'——点头部年月标题在两者间切换
-  const valYear = val ? parseInt(val.slice(0,4),10) : null;
-  const valMonth = val ? parseInt(val.slice(5,7),10) - 1 : null;
-
-  const pop = document.createElement('div');
-  pop.className = 'mini-date-popup';
-  document.body.appendChild(pop);
-  miniDatePickerEl = pop;
-
-  const pad = n => String(n).padStart(2,'0');
-  const ymd = (y,m,d) => `${y}-${pad(m+1)}-${pad(d)}`;
-  const minYM = min ? min.slice(0,7) : '';
-  const maxYM = max ? max.slice(0,7) : '';
-
-  function render(){
-    if(view === 'month') renderMonthPicker(); else renderDay();
-    // 头部年月标题始终可点，用于在"日期格"和"年月选择"之间切换
-    const monthLabel = pop.querySelector('.mdp-month');
-    if(monthLabel){ monthLabel.onclick = ()=>{ view = (view==='day') ? 'month' : 'day'; render(); }; }
+    render();
   }
 
-  function renderDay(){
-    const first = new Date(viewYear, viewMonth, 1);
-    const startWeekday = first.getDay();
-    const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
-    let cells = '';
-    for(let i=0;i<startWeekday;i++) cells += `<span class="mdp-cell mdp-empty"></span>`;
-    for(let d=1; d<=daysInMonth; d++){
-      const dateStr = ymd(viewYear, viewMonth, d);
-      const disabled = (min && dateStr<min) || (max && dateStr>max);
-      const selected = dateStr === val;
-      const today = dateStr === todayStr;
-      cells += `<button type="button" class="mdp-cell${disabled?' mdp-disabled':''}${selected?' mdp-selected':''}${today?' mdp-today':''}" ${disabled?'disabled':''} data-date="${dateStr}">${d}</button>`;
+  function buildDay(pop, input){
+    const min = input.min || '', max = input.max || '', val = input.value || '';
+    const todayStr = localDateStr();
+    const seed = val || max || todayStr;
+    let viewYear = parseInt(seed.slice(0,4),10);
+    let viewMonth = parseInt(seed.slice(5,7),10) - 1; // 0-based
+    let view = 'day'; // 'day' | 'month'——点头部年月标题在两者间切换
+    const valYear = val ? parseInt(val.slice(0,4),10) : null;
+    const valMonth = val ? parseInt(val.slice(5,7),10) - 1 : null;
+    const ymd = (y,m,d) => `${y}-${pad(m+1)}-${pad(d)}`;
+    const minYM = min ? min.slice(0,7) : '';
+    const maxYM = max ? max.slice(0,7) : '';
+
+    function render(){
+      if(view === 'month') renderMonths(); else renderDays();
+      // 头部年月标题始终可点，用于在“日期格”和“年月选择”之间切换
+      const monthLabel = pop.querySelector('.mdp-month');
+      if(monthLabel){ monthLabel.onclick = ()=>{ view = (view==='day') ? 'month' : 'day'; render(); }; }
     }
-    pop.innerHTML = `
-      <div class="mdp-header">
-        <span class="mdp-nav" data-nav="-1">‹</span>
-        <span class="mdp-month" title="点击选择年月">${viewYear}年${viewMonth+1}月</span>
-        <span class="mdp-nav" data-nav="1">›</span>
-      </div>
-      <div class="mdp-weekdays">${['日','一','二','三','四','五','六'].map(w=>`<span>${w}</span>`).join('')}</div>
-      <div class="mdp-grid">${cells}</div>
-    `;
-    pop.querySelector('[data-nav="-1"]').onclick = ()=>{ viewMonth--; if(viewMonth<0){viewMonth=11;viewYear--;} render(); };
-    pop.querySelector('[data-nav="1"]').onclick = ()=>{ viewMonth++; if(viewMonth>11){viewMonth=0;viewYear++;} render(); };
-    pop.querySelectorAll('.mdp-cell[data-date]').forEach(cell=>{
-      cell.onclick = ()=>{
-        if(cell.disabled) return;
-        input.value = cell.dataset.date;
-        input.dispatchEvent(new Event('change', {bubbles:true}));
-        closeMiniDatePicker();
-      };
-    });
-    appendAllTimeButton(pop, input, 'day');
-  }
 
-  // 年月选择视图：左右箭头切换整年，12 个月份格子一次点选，
-  // 比"只能一个月一个月点左右箭头翻"快得多，尤其是选择很久以前的日期时
-  function renderMonthPicker(){
-    const names = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-    let cells = '';
-    for(let m=0; m<12; m++){
-      const ym = `${viewYear}-${pad(m+1)}`;
-      const disabled = (minYM && ym<minYM) || (maxYM && ym>maxYM);
-      const selected = (viewYear===valYear && m===valMonth);
-      cells += `<button type="button" class="mdp-month-cell${disabled?' mdp-disabled':''}${selected?' mdp-selected':''}" ${disabled?'disabled':''} data-month="${m}">${names[m]}</button>`;
+    function renderDays(){
+      const startWeekday = new Date(viewYear, viewMonth, 1).getDay();
+      const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+      let cells = '';
+      for(let i=0;i<startWeekday;i++) cells += `<span class="mdp-cell mdp-empty"></span>`;
+      for(let d=1; d<=daysInMonth; d++){
+        const dateStr = ymd(viewYear, viewMonth, d);
+        const disabled = (min && dateStr<min) || (max && dateStr>max);
+        cells += `<button type="button" class="mdp-cell${disabled?' mdp-disabled':''}${dateStr===val?' mdp-selected':''}${dateStr===todayStr?' mdp-today':''}" ${disabled?'disabled':''} data-date="${dateStr}">${d}</button>`;
+      }
+      pop.innerHTML = `
+        <div class="mdp-header">
+          <span class="mdp-nav" data-nav="-1">‹</span>
+          <span class="mdp-month" title="点击选择年月">${viewYear}年${viewMonth+1}月</span>
+          <span class="mdp-nav" data-nav="1">›</span>
+        </div>
+        <div class="mdp-weekdays">${['日','一','二','三','四','五','六'].map(w=>`<span>${w}</span>`).join('')}</div>
+        <div class="mdp-grid">${cells}</div>
+      `;
+      pop.querySelector('[data-nav="-1"]').onclick = ()=>{ viewMonth--; if(viewMonth<0){viewMonth=11;viewYear--;} render(); };
+      pop.querySelector('[data-nav="1"]').onclick = ()=>{ viewMonth++; if(viewMonth>11){viewMonth=0;viewYear++;} render(); };
+      pop.querySelectorAll('.mdp-cell[data-date]').forEach(cell=>{
+        cell.onclick = ()=>{ if(!cell.disabled) commit(input, cell.dataset.date); };
+      });
+      appendAllTime(pop, input, 'day');
     }
-    pop.innerHTML = `
-      <div class="mdp-header">
-        <span class="mdp-nav" data-nav="-1">‹</span>
-        <span class="mdp-month" title="点击返回日期选择">${viewYear}年</span>
-        <span class="mdp-nav" data-nav="1">›</span>
-      </div>
-      <div class="mdp-month-grid">${cells}</div>
-    `;
-    pop.querySelector('[data-nav="-1"]').onclick = ()=>{ viewYear--; render(); };
-    pop.querySelector('[data-nav="1"]').onclick = ()=>{ viewYear++; render(); };
-    pop.querySelectorAll('.mdp-month-cell').forEach(cell=>{
-      cell.onclick = ()=>{
-        if(cell.disabled) return;
-        viewMonth = parseInt(cell.dataset.month,10);
-        view = 'day';
-        render();
-      };
-    });
-    appendAllTimeButton(pop, input, 'day');
+
+    // 年月选择视图：左右箭头切换整年，12 个月份格子一次点选，选很久以前的日期时比逐月翻快得多
+    function renderMonths(){
+      const names = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+      let cells = '';
+      for(let m=0; m<12; m++){
+        const ym = `${viewYear}-${pad(m+1)}`;
+        const disabled = (minYM && ym<minYM) || (maxYM && ym>maxYM);
+        const selected = (viewYear===valYear && m===valMonth);
+        cells += `<button type="button" class="mdp-month-cell${disabled?' mdp-disabled':''}${selected?' mdp-selected':''}" ${disabled?'disabled':''} data-month="${m}">${names[m]}</button>`;
+      }
+      pop.innerHTML = `
+        <div class="mdp-header">
+          <span class="mdp-nav" data-nav="-1">‹</span>
+          <span class="mdp-month" title="点击返回日期选择">${viewYear}年</span>
+          <span class="mdp-nav" data-nav="1">›</span>
+        </div>
+        <div class="mdp-month-grid">${cells}</div>
+      `;
+      pop.querySelector('[data-nav="-1"]').onclick = ()=>{ viewYear--; render(); };
+      pop.querySelector('[data-nav="1"]').onclick = ()=>{ viewYear++; render(); };
+      pop.querySelectorAll('.mdp-month-cell').forEach(cell=>{
+        cell.onclick = ()=>{
+          if(cell.disabled) return;
+          viewMonth = parseInt(cell.dataset.month,10);
+          view = 'day';
+          render();
+        };
+      });
+      appendAllTime(pop, input, 'day');
+    }
+    render();
   }
 
-  render();
-
-  // 定位在按钮下方；渲染完之后再按实际尺寸做一次边界收敛，避免溢出视口
-  const r = btn.getBoundingClientRect();
-  pop.style.top = (r.bottom + 6) + 'px';
-  pop.style.left = r.left + 'px';
-  requestAnimationFrame(()=>{
-    const pr = pop.getBoundingClientRect();
-    const vw = document.documentElement.clientWidth;
-    const vh = document.documentElement.clientHeight;
-    if(pr.right > vw - 8) pop.style.left = Math.max(8, vw - pr.width - 8) + 'px';
-    if(pr.bottom > vh - 8) pop.style.top = Math.max(8, r.top - pr.height - 6) + 'px';
-  });
-
-  setTimeout(()=>{
-    document.addEventListener('mousedown', onMiniDatePickerOutsideClick, true);
-    document.addEventListener('keydown', onMiniDatePickerKeydown, true);
-  }, 0);
-}
-
+  // 触发按钮的 onclick 统一调这个
+  function toggle(btn){
+    const inputId = btn.dataset.for;
+    const input = document.getElementById(inputId);
+    if(!input) return;
+    const month = btn.dataset.mode === 'month';
+    Popup.toggle(btn, inputId,
+      pop => month ? buildMonth(pop, input) : buildDay(pop, input),
+      month ? {label:'Select start month'} : {});
+  }
+  return {toggle};
+})();
 
 
 // ══════════════════════════════════════
@@ -3140,7 +3141,7 @@ const ChartCard = (() => {
   function startPicker(name, mode='day'){
     const id = ChartStart.inputId(name), month = mode==='month';
     return `<input type="date" id="${id}" class="mini-date-input-plain" onchange="ChartStart.change('${name}')">`+
-      `<button type="button" class="dp-trigger" data-for="${id}" data-mode="${mode}" onclick="${month?'toggleMonthPicker':'toggleMiniDatePicker'}(this)" title="Start ${month?'month':'date'}" aria-haspopup="dialog">${CAL}<span class="dp-text">All time</span>${CHEV}</button>`;
+      `<button type="button" class="dp-trigger" data-for="${id}" data-mode="${mode}" onclick="DatePicker.toggle(this)" title="Start ${month?'month':'date'}" aria-haspopup="dialog">${CAL}<span class="dp-text">All time</span>${CHEV}</button>`;
   }
   // 下拉筛选触发按钮（弹层由 toggleRunFilterDropdown 负责）
   function dropdown(filter, title){
@@ -3328,7 +3329,7 @@ const ChartKit = (() => {
     return {
       grid:{display:false}, border:{display:false},
       afterFit(sc){ sc.paddingLeft = 0; sc.paddingRight = 0; },
-      ticks:Object.assign({color:'#9ba3b5', font:{size:11}, maxRotation:0, padding:6, align:'inner'}, tickExtra||{}),
+      ticks:Object.assign({color:THEME.axis, font:{size:11}, maxRotation:0, padding:6, align:'inner'}, tickExtra||{}),
     };
   }
   // 悬停提示框（白底、细边、圆角、小色点）
@@ -3390,7 +3391,7 @@ const ChartKit = (() => {
     const datasets = o.datasets.map(d => (d._ckFill==='gradient' || (d._ckFill==='auto' && o.datasets.length===1))
       ? {...d, fill:'start', backgroundColor:gradient(d._ckColor)} : d);
     const axes = (o.axes && o.axes.length ? o.axes : [{id:'y', side:'left'}]).map(a=>({
-      show:true, color:'#8a93a6', fmt:defaultFmt, side:'left', ...a,
+      show:true, color:THEME.axisHi, fmt:defaultFmt, side:'left', ...a,
     }));
     const mobile = isMobile() && !landscape;
     const scales = {
@@ -3485,9 +3486,9 @@ const ChartKit = (() => {
           }),
         },
         scales:{
-          x:{type:'category', stacked, grid:{display:false}, ticks:Object.assign({color:'#9ba3b5', font:{size:11}}, o.xTicks)},
+          x:{type:'category', stacked, grid:{display:false}, ticks:Object.assign({color:THEME.axis, font:{size:11}}, o.xTicks)},
           y:{type:'linear', beginAtZero:true, stacked, grid:{color:'rgba(0,0,0,0.05)'},
-             ticks:Object.assign({color:'#9ba3b5', font:{size:11}}, o.integerAxis===false ? {} : {precision:0}, o.yTick ? {callback:o.yTick} : {})},
+             ticks:Object.assign({color:THEME.axis, font:{size:11}}, o.integerAxis===false ? {} : {precision:0}, o.yTick ? {callback:o.yTick} : {})},
         },
       },
       plugins:o.plugins || [],
@@ -3555,15 +3556,6 @@ const ChartKit = (() => {
   return {BP, isMobile, lineChart, bar, donut, dataset, gradient, dateTick, tooltip};
 })();
 
-// 柱状图通用配置（折线图统一走 ChartKit.lineChart，不再使用这份）
-const CHART_OPT={
-  responsive:true, maintainAspectRatio:false,
-  plugins:{legend:{display:false}},
-  scales:{
-    x:{grid:{display:false},ticks:{color:'#9ba3b5',font:{size:11}}},
-    y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{color:'#9ba3b5',font:{size:11}}}
-  }
-};
 function renderDashboard(){
   const allDates=records.filter(r=>r.date).map(r=>r.date).sort();
   const earliest=allDates.length>0?allDates[0]:'';
@@ -3798,7 +3790,7 @@ function renderCycleCard({id, label, isActive, startDate, endDate, stats, onEdit
     ? `<span style="font-size:var(--fs-xs);background:${accentLt};color:${accentDk};border:1px solid ${accent};padding:2px 8px;border-radius:10px;font-weight:600">Active</span>`
     : `<span style="font-size:var(--fs-xs);background:var(--bg3);color:var(--text3);border:1px solid var(--border);padding:2px 8px;border-radius:10px">Ended</span>`;
   const statsHtml = stats.map((s,i)=>`${i>0?'<div class="cycle-divider"></div>':''}
-      <div class="cycle-stat"><span class="cycle-stat-val"${s.highlight?` style="color:${accent}"`:''}>${s.val}</span><span class="cycle-stat-label">${escapeHtml(s.label)}</span></div>`).join('');
+      ${StatBlock.html({label:s.label, value:s.val, size:'md', grow:true, color:s.highlight?accent:''})}`).join('');
   return `<div class="cycle-card${isActive?' active':''}" ${isActive?`style="--cycle-accent:${accent};--cycle-accent-lt:${accentLt}"`:''}>
     <div class="cycle-card-header">
       <div style="display:flex;flex-direction:column;gap:var(--space-4);min-width:0">
@@ -3906,7 +3898,6 @@ function renderAnaerobic(){
   }
 
   // ── 肌群分布（饼图）──
-  const MUSCLE_COLORS = { Chest:THEME.blue, Back:THEME.green, Legs:THEME.amber, Delts:THEME.purple, Core:THEME.coral, Bis:'#059669', Tris:'#f0a843' };
   const mm = {};
   ana.forEach(r=>{
     const m = primaryMuscle(r.muscles||r.sub||'');
@@ -3915,14 +3906,13 @@ function renderAnaerobic(){
   const PARTS_ORDER = ['Chest','Back','Legs','Delts','Core','Bis','Tris'];
   const mmLabels = PARTS_ORDER.filter(p=>mm[p]);
   const mmVals = mmLabels.map(p=>mm[p]);
-  renderDonutCard({containerId:'ana-donut-card', title:'肌群训练分布', chartId:'muscleChart', legendId:'muscleChart-legend', toggleId:'ana-pie-labels', onToggle:'renderAnaerobic()', labels:mmLabels, values:mmVals, colorFn:l=>MUSCLE_COLORS[l]||'#9ba3b5', toggleColor:'var(--blue)'});
+  renderDonutCard({containerId:'ana-donut-card', title:'肌群训练分布', chartId:'muscleChart', legendId:'muscleChart-legend', toggleId:'ana-pie-labels', onToggle:'renderAnaerobic()', labels:mmLabels, values:mmVals, colorFn:l=>MUSCLE_COLORS[l]||THEME.axis, toggleColor:'var(--blue)'});
 
   // ── 年度战报（分组柱状图，可点击图例排除某年）──
   const YEAR_COLORS = [THEME.blue, THEME.green, THEME.amber, THEME.purple, THEME.coral];
   const allYears = [...new Set(ana.map(r=>r.date?.slice(0,4)).filter(Boolean))].sort();
   const years = allYears.filter(yr=>!anaYearlyExcluded.has(yr));
   const PARTS = ['Chest','Back','Legs','Delts','Core','Bis','Tris'];
-  const PART_COLORS_YEARLY = { Chest:THEME.blue, Back:THEME.green, Legs:THEME.amber, Delts:THEME.purple, Core:THEME.coral, Bis:'#059669', Tris:'#f0a843' };
 
   // 每年一个 dataset，每个部位一个 x 标签
   const yearlyDatasets = years.map((yr)=>{
@@ -3933,7 +3923,7 @@ function renderAnaerobic(){
     return {
       label: yr+'年',
       data: PARTS.map(p=>partCounts[p]||0),
-      backgroundColor: YEAR_COLORS[yi]||'#9ba3b5',
+      backgroundColor: YEAR_COLORS[yi]||THEME.axis,
       borderRadius: 4,
     };
   });
@@ -3947,7 +3937,7 @@ function renderAnaerobic(){
   const legendEl = document.getElementById('ana-yearly-legend');
   if(legendEl) legendEl.innerHTML = allYears.map((yr,yi)=>{
     const excluded = anaYearlyExcluded.has(yr);
-    const color = YEAR_COLORS[yi]||'#9ba3b5';
+    const color = YEAR_COLORS[yi]||THEME.axis;
     return `<span onclick="toggleAnaYear(${jsArg(yr)})" title="${excluded?'点击恢复':'点击排除'}"
       style="display:flex;align-items:center;gap:var(--space-5);font-size:var(--fs-sm);cursor:pointer;user-select:none;padding:3px 9px;border-radius:12px;border:1.5px solid ${excluded?'var(--border2)':color};color:${excluded?'var(--text3)':color};background:${excluded?'var(--bg3)':color+'18'};transition:all .15s;${excluded?'text-decoration:line-through;opacity:.6':''}">
       <span style="width:10px;height:10px;border-radius:2px;background:${color};flex-shrink:0;opacity:${excluded?'.4':'1'}"></span>${yr}年
@@ -3957,7 +3947,7 @@ function renderAnaerobic(){
   ChartKit.bar({
     canvasId:'yearlyChart', mode:'group', labels:PARTS, unit:' 次',
     series:yearlyDatasets.map(d=>({label:d.label, color:d.backgroundColor, data:d.data})),
-    xTicks:{color:'#5a6278', font:{size:13, weight:'600'}},
+    xTicks:{color:THEME.axisBold, font:{size:13, weight:'600'}},
     yTick:v=>v+' 次',
     plugins:[{id:'yearlyLabels',afterDatasetsDraw(chart){
       const {ctx}=chart;
@@ -4047,7 +4037,7 @@ function renderSportSummary(){
       <span class="sport-summary-icon" style="background:${hexToRgba(getSportColor(sport),0.14)}" onclick="showToast(${jsArg(sport)},1500)">${icon}</span>
       <span class="sport-summary-name">${escapeHtml(sport)}</span>
       <span class="sport-summary-stat">${count} 次${extra?`<span class="sport-summary-extra"> · ${extra}</span>`:''}</span>
-      <div class="sport-summary-bar-wrap"><div class="sport-summary-bar" style="width:${barPct}%;background:${getSportColor(sport)}"></div></div>
+      ${Meter.html({pct:barPct, color:getSportColor(sport)})}
     </div>`;
   }).join('');
 }
@@ -4127,11 +4117,13 @@ function runCycleStats(c){
 function renderRunCycleCard(c,isActive){
   const s=runCycleStats(c);
   const avgDist=s.count>0?(s.totalDist/s.count).toFixed(1):'—';
-  const extraContentHtml = `<div class="metrics" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr));margin-bottom:0">
-    <div class="metric green"><div class="metric-label">Total Distance</div><div class="metric-value" style="white-space:nowrap">${Math.round(s.totalDist)}<span class="metric-unit"> km</span></div></div>
-    <div class="metric blue"><div class="metric-label">Avg Pace</div><div class="metric-value" style="font-size:var(--fs-xl)">${fmtPace(s.avgP)}</div></div>
-    <div class="metric amber"><div class="metric-label">Avg HR</div><div class="metric-value">${s.avgHr||'—'}<span class="metric-unit">${s.avgHr?' bpm':''}</span></div></div>
-    <div class="metric coral"><div class="metric-label">Best Pace</div><div class="metric-value" style="font-size:var(--fs-xl)">${s.best?fmtPace(s.best):'—'}</div></div>
+  const extraContentHtml = `<div class="metrics" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">
+    ${[
+      {label:'Total Distance', value:Math.round(s.totalDist), unit:'km', color:'var(--green)'},
+      {label:'Avg Pace',       value:fmtPace(s.avgP),         color:'var(--blue)'},
+      {label:'Avg HR',         value:s.avgHr||'—', unit:s.avgHr?'bpm':'', color:'var(--amber)'},
+      {label:'Best Pace',      value:s.best?fmtPace(s.best):'—', color:'var(--coral)'},
+    ].map(m=>`<div class="metric">${StatBlock.html({...m, size:'md'})}</div>`).join('')}
   </div>`;
   return renderCycleCard({
     id:c.id, label:c.label, isActive, startDate:c.start, endDate:c.end,
@@ -4233,40 +4225,31 @@ function renderRunAnalysis(){
     const pct=Math.min(100,Math.round(stat.km/limit*100));
     const bar=pct>=90?'var(--coral)':pct>=70?'var(--amber)':'var(--green)';
     const warn=pct>=90?'⚠️ Near retirement':'';
-    return `<div style="padding:9px 0;border-bottom:1px solid var(--border)">
-      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-8);margin-bottom:var(--space-6)">
-        <div style="display:flex;align-items:baseline;gap:var(--space-8);min-width:0;flex-wrap:wrap">
-          <span style="font-size:var(--fs-sm);font-weight:600;color:var(--text);white-space:nowrap">${escapeHtml(name)}</span>
-          <span style="font-size:var(--fs-xs);color:var(--text3);white-space:nowrap">${stat.km.toFixed(0)} / ${limit} km · ${stat.cnt} ${stat.cnt===1?'run':'runs'}</span>
-          ${warn?`<span style="font-size:var(--fs-xs);color:var(--coral);white-space:nowrap">${warn}</span>`:''}
+    return `<div class="shoe-row">
+      <div class="shoe-head">
+        <div class="shoe-title">
+          <span class="shoe-name">${escapeHtml(name)}</span>
+          <span class="shoe-meta">${stat.km.toFixed(0)} / ${limit} km · ${stat.cnt} ${stat.cnt===1?'run':'runs'}</span>
+          ${warn?`<span class="shoe-warn">${warn}</span>`:''}
         </div>
-        <button onclick="editShoeRetire(${jsArg(name)},${limit})" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:var(--fs-xs);color:var(--text2);cursor:pointer;flex-shrink:0">Edit</button>
+        <button class="shoe-edit" onclick="editShoeRetire(${jsArg(name)},${limit})">Edit</button>
       </div>
-      <div style="position:relative;height:20px;background:var(--bg3);border-radius:10px;overflow:hidden">
-        <div style="width:${pct}%;height:100%;background:${bar};border-radius:10px;transition:width .3s"></div>
-        <span style="position:absolute;left:8px;top:0;height:100%;display:flex;align-items:center;font-size:10px;font-weight:700;color:#fff">${pct}%</span>
-      </div>
+      ${Meter.html({pct, color:bar, size:'lg', text:pct+'%'})}
     </div>`;
   }).join('');
 
   // 跑步总览：单张卡片，左边「累计跑量」做 hero 数字，右边其余统计做成无边框的
-  // 统计条（复用周期卡片的 .cycle-stat 样式），不再是一排各自独立的方块卡片
+  // 统计条（StatBlock），不再是一排各自独立的方块卡片
   document.getElementById('run-overview-stats').innerHTML=`
-    <div style="display:flex;flex-direction:column;gap:3px">
-      <span class="metric-label" style="margin-bottom:0">Total Distance</span>
-      <div style="display:flex;align-items:flex-end;gap:5px;line-height:1">
-        <span style="font-size:var(--fs-display);font-weight:800;color:var(--green);line-height:1;font-variant-numeric:tabular-nums">${totalDist.toFixed(0)}</span>
-        <span style="font-size:var(--fs-sm);color:var(--text3);padding-bottom:5px;white-space:nowrap">km</span>
-      </div>
-    </div>
+    ${StatBlock.html({label:'Total Distance', value:totalDist.toFixed(0), unit:'km', size:'hero', color:'var(--green)'})}
     <div class="run-overview-divider"></div>
-    <div class="cycle-stat"><span class="cycle-stat-label">Avg Pace</span><span class="cycle-stat-val">${fmtPace(avgP)}</span></div>
+    ${StatBlock.html({label:'Avg Pace',  value:fmtPace(avgP),                    size:'md', grow:true})}
     <div class="cycle-divider"></div>
-    <div class="cycle-stat"><span class="cycle-stat-label">Avg HR</span><span class="cycle-stat-val">${avgHr||'—'}</span></div>
+    ${StatBlock.html({label:'Avg HR',    value:avgHr||'—',                       size:'md', grow:true})}
     <div class="cycle-divider"></div>
-    <div class="cycle-stat"><span class="cycle-stat-label">Best Pace</span><span class="cycle-stat-val">${best===Infinity?'—':fmtPace(best)}</span></div>
+    ${StatBlock.html({label:'Best Pace', value:best===Infinity?'—':fmtPace(best), size:'md', grow:true})}
     <div class="cycle-divider"></div>
-    <div class="cycle-stat"><span class="cycle-stat-label">Total Runs</span><span class="cycle-stat-val">${runs.length}</span></div>
+    ${StatBlock.html({label:'Total Runs', value:runs.length,                      size:'md', grow:true})}
   `;
 
   // 距离分布：桌面端纵向柱状图，手机端横向条形列表（同一份数据，ChartKit.bar 统一生成）
@@ -4812,26 +4795,12 @@ function syncRunFilterTriggers(){
 }
 
 function toggleRunFilterDropdown(btn){
-  const forKey = 'runfilter-'+btn.dataset.filter;
-  if(miniDatePickerFor === forKey){ closeMiniDatePicker(); return; }
-  openRunFilterDropdown(btn);
+  Popup.toggle(btn, 'runfilter-'+btn.dataset.filter, pop=>buildRunFilterDropdown(pop, btn.dataset.filter), {maxHeight:'300px'});
 }
 
-function openRunFilterDropdown(btn){
-  closeMiniDatePicker();
-  const key = btn.dataset.filter;
+function buildRunFilterDropdown(pop, key){
   const sel = runFilterSel[key];
   const options = runFilterOptions[key] || [];
-  miniDatePickerFor = 'runfilter-'+key;
-  btn.setAttribute('aria-expanded','true');
-
-  const pop = document.createElement('div');
-  pop.className = 'mini-date-popup';
-  pop.style.maxHeight = '300px';
-  pop.style.overflowY = 'auto';
-  document.body.appendChild(pop);
-  miniDatePickerEl = pop;
-
   const rows = ['All', ...options];
   pop.innerHTML = rows.map(v=>
     `<label class="cal-filter-item"><input type="checkbox" data-val="${escapeHtml(v)}">${escapeHtml(v)}</label>`
@@ -4855,22 +4824,6 @@ function openRunFilterDropdown(btn){
       renderCombinedChart();
     };
   });
-
-  // 定位在按钮下方，并按实际尺寸收敛到视口内
-  const r = btn.getBoundingClientRect();
-  pop.style.top = (r.bottom + 6) + 'px';
-  pop.style.left = r.left + 'px';
-  requestAnimationFrame(()=>{
-    const pr = pop.getBoundingClientRect();
-    const vw = document.documentElement.clientWidth;
-    const vh = document.documentElement.clientHeight;
-    if(pr.right > vw - 8) pop.style.left = Math.max(8, vw - pr.width - 8) + 'px';
-    if(pr.bottom > vh - 8) pop.style.top = Math.max(8, r.top - pr.height - 6) + 'px';
-  });
-  setTimeout(()=>{
-    document.addEventListener('mousedown', onMiniDatePickerOutsideClick, true);
-    document.addEventListener('keydown', onMiniDatePickerKeydown, true);
-  }, 0);
 }
 
 function getFilteredRuns(){
@@ -4969,7 +4922,7 @@ function renderRunSummary(el, metrics, runs, i){
     `<div class="cs-meta">${r ? r.date+(r.dist?' · '+r.dist+'km':'')+(r.sub?' · '+r.sub:'') : '—'}</div>`+
     `<div class="cs-row">`+metrics.map(m=>{
       const v = (r && m.show) ? m.data[i] : null;
-      return `<div class="cs-cell${m.show?'':' off'}"><div class="cs-val" style="color:${m.color}">${v!=null?m.fmt(v):'—'}${v!=null?`<span class="cs-unit">${m.unit}</span>`:''}</div></div>`;
+      return StatBlock.html({value:v!=null?m.fmt(v):'—', unit:v!=null?m.unit:'', size:'sm', color:m.color, cls:m.show?'':'off'});
     }).join('')+`</div>`;
 }
 
@@ -5277,7 +5230,7 @@ function renderDayCell(recs, dateNum, isToday){
     if(parts.length===0){ strengthLabels.push(''); }
     else parts.forEach(p=>{ if(!strengthLabels.includes(p)) strengthLabels.push(p); });
   });
-  const strengthColor = SPORT_COLOR['Strength'] || '#9ba3b5';
+  const strengthColor = SPORT_COLOR['Strength'] || THEME.axis;
   const bar1 = strengthLabels.length>=1
     ? `<div class="cal-bar" style="background:${strengthColor}">${strengthLabels[0]}</div>`
     : `<div class="cal-bar is-empty"></div>`;
@@ -5287,7 +5240,7 @@ function renderDayCell(recs, dateNum, isToday){
 
   // —— 跑步：显示"公里数·平均心率" ——
   const runRec = visible.find(r=>r.sport==='Run');
-  const runColor = SPORT_COLOR['Run'] || '#9ba3b5';
+  const runColor = SPORT_COLOR['Run'] || THEME.axis;
   let bar3;
   if(runRec){
     const bits=[];
@@ -5311,7 +5264,7 @@ function renderDayCell(recs, dateNum, isToday){
   const otherBars = Array.from({length:OTHER_SLOT_CAP}, (_,i)=>{
     const sport = shownOther[i];
     if(!sport) return `<div class="cal-bar is-empty"></div>`;
-    const c = SPORT_COLOR[sport] || '#9ba3b5';
+    const c = SPORT_COLOR[sport] || THEME.axis;
     return `<div class="cal-bar" style="background:${c}">${shortSportLabel(sport)}</div>`;
   }).join('');
   const overflow = otherSports.length - OTHER_SLOT_CAP;
