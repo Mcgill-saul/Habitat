@@ -333,7 +333,10 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 
   /* ── 搜索行 → 竖排 ── */
   .search-row{ flex-direction: column; gap: 8px; }
-  .search-row input,.search-row select{ width: 100%; font-size:var(--fs-lg); }
+  .search-row input{ width: 100%; font-size:var(--fs-lg); }
+  .filter-pills{ width:100%; gap:8px; }
+  .filter-pills .dp-trigger{ flex:1; min-width:0; justify-content:space-between; height:40px; }
+  .filter-pills .dp-text{ min-width:0; overflow:hidden; text-overflow:ellipsis; }
 
   /* ── 总览数字卡片手机紧凑 ── */
   #dash-total{ font-size: 32px !important; }
@@ -416,6 +419,14 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
   .mobile-record-meta.meta-scroll::-webkit-scrollbar{ display:none; height:0; }
   .mobile-record-meta.meta-scroll .mobile-record-chip{ flex-shrink:0; white-space:nowrap; }
   .mobile-record-chip .k{ color:var(--text3); font-size:var(--fs-xs); }
+  /* 跑步记录卡片：主要指标两行网格，固定位置；超长文字省略（点开卡片进入编辑可看全文） */
+  .rec-grid{ display:grid; gap:var(--space-8); font-size:var(--fs-sm); color:var(--text); }
+  .rec-r1{ grid-template-columns:repeat(5,minmax(0,1fr)); }
+  .rec-r2{ grid-template-columns:minmax(0,.8fr) minmax(0,1.5fr) minmax(0,.8fr) minmax(0,1.5fr); }
+  .rf{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .rf-unit{ font-size:10px; color:var(--text3); margin-left:2px; }
+  .rf-ico{ font-size:11px; margin-right:2px; }
+  .rf-ico-hr{ color:var(--coral); }
 }
 
 /* ── 手机顶部导航（替代顶部 tabs） ── */
@@ -652,7 +663,15 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 /* Records */
 .search-row{display:flex;gap:var(--space-10);margin-bottom:var(--space-14);flex-wrap:wrap;}
 .search-row input,.search-row select{background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:var(--fs-sm);padding:8px 12px;font-family:var(--font);}
-.search-row input:focus,.search-row select:focus{outline:none;border-color:var(--green);}
+.search-row input:focus{outline:none;border-color:var(--green);}
+select[data-pill]{display:none;}
+.filter-pills{display:flex;gap:var(--space-10);}
+.search-row .dp-trigger{height:38px;padding:0 14px;font-size:var(--fs-sm);border-width:1.5px;}
+/* 选项列表型弹层（SelectPicker）：宽度随内容，选中项打勾 */
+.mini-date-popup.is-list{width:auto;min-width:150px;padding:6px;}
+.sp-opt{appearance:none;-webkit-appearance:none;display:flex;align-items:center;justify-content:space-between;gap:var(--space-12);width:100%;padding:9px 12px;border:none;background:none;border-radius:10px;font:500 var(--fs-sm)/1.2 var(--font);color:var(--text2);cursor:pointer;text-align:left;white-space:nowrap;}
+.sp-opt:hover{background:var(--bg3);}
+.sp-opt.is-sel{background:var(--brand-lt);color:var(--brand-dk);font-weight:600;}
 .records-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-10);}
 .records-title{font-size:var(--fs-base);font-weight:600;color:var(--text2);}
 .record-list{display:flex;flex-direction:column;gap:0;border:1.5px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;overflow-x:auto;}
@@ -1202,7 +1221,8 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
   <div id="page-records" style="display:none">
     <div class="search-row">
       <input type="text" id="searchInput" placeholder="搜索备注、部位、路线…" oninput="debouncedRenderRecords()" style="flex:1;min-width:160px">
-      <select id="filterSport" onchange="renderRecords()">
+      <div class="filter-pills">
+      <select id="filterSport" data-pill onchange="renderRecords()">
         <option value="">全部类型</option>
         <option value="Run">Run</option>
         <option value="Strength">Strength</option>
@@ -1210,15 +1230,16 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
         <option value="Badminton">Badminton</option>
         <option value="Hike">Hike</option>
       </select>
-      <select id="filterYear" onchange="renderRecords()">
+      <select id="filterYear" data-pill onchange="renderRecords()">
         <option value="">全部年份</option>
         <option value="2025">2025</option>
         <option value="2026">2026</option>
       </select>
-      <select id="sortOrder" onchange="renderRecords()">
+      <select id="sortOrder" data-pill onchange="renderRecords()">
         <option value="desc">最新在前</option>
         <option value="asc">最早在前</option>
       </select>
+      </div>
     </div>
     <div class="select-bar" id="selectBar">
       <input type="checkbox" id="selectAll" class="record-check" onchange="toggleSelectAll(this.checked)" title="全选当页">
@@ -1631,6 +1652,8 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 //                               + ChartCard.mountPickers()                  日 / 月精度由 data-mode 决定
 //  小弹层（下拉 / 选择器）      Popup.toggle(btn, key, pop=>{填内容}, opts)  外壳统一：互斥、定位、点外面/Esc 关闭
 //  日期 / 月份选择器            DatePicker.toggle(btn)                      自动按 .dp-trigger 的 data-mode 分日/月
+//  下拉选择（替代原生 select） <select data-pill>                           自动挂载为胶囊 + Popup 列表；动态改选项后 SelectPicker.sync(select)
+//  记录列表的字段显示           RUN_REC_FIELDS（字段表）                    手机端跑步卡片从表生成；其他运动还没接入
 //  “小标签 + 大数字”            StatBlock.html({label,value,unit,sub,       size: hero 40 / lg 28 / md 24 / sm 16；
 //                                 size,color,grow})                         静态 HTML 可直接写 .sb .sb-lg 等类
 //  横向进度条                   Meter.html({pct,color,size,text})           size: sm 6px / lg 20px（条内写文字）
@@ -2683,7 +2706,51 @@ let currentPage=1;
 const PAGE_SIZE = 30;
 function renderRecords(){ currentPage=1; renderRecordPage(); }
 const debouncedRenderRecords = debounce(renderRecords, 200);
+// ══════════════════════════════════════
+//  记录字段表（Run）—— 每个字段定义一次：标题 / 手机卡片所在行 / 显示内容（带单位）
+//  手机卡片的主要指标按 row 分行、按表内顺序固定位置排列；没有值显示「—」，后面的字段不会左移。
+//  以后要给其他运动做同样的卡片，照这个格式再写一张表即可；桌面端表格暂未接入这张表。
+//  secondary：不在主要指标里的字段，仍以「标题 + 值」的小标签放在卡片第三行。
+// ══════════════════════════════════════
+const recNum = v => { const n = Number(v); return isFinite(n) && v!=='' ? Math.round(n) : escapeHtml(v); };
+const recUnit = u => `<span class="rf-unit">${u}</span>`;
+const RUN_REC_FIELDS = [
+  {key:'period',  label:'时段',     row:1, html:r=>escapeHtml(r.period)},
+  {key:'dist',    label:'距离',     row:1, html:r=>r.dist ? r.dist+recUnit('km') : ''},
+  {key:'pace',    label:'配速',     row:1, html:r=>r.pace ? fmtPace(r.pace) : ''},
+  {key:'hr',      label:'平均心率', row:1, html:r=>r.hr ? `<span class="rf-ico rf-ico-hr">♥</span>${recNum(r.hr)}` : ''},
+  {key:'cadence', label:'步频',     row:1, html:r=>r.cadence ? recNum(r.cadence)+recUnit('spm') : ''},
+  {key:'weather', label:'天气',     row:2, html:r=>escapeHtml(r.weather)},
+  {key:'route',   label:'路线',     row:2, html:r=>r.route ? `<span class="rf-ico">📍</span>${escapeHtml(r.route)}` : ''},
+  {key:'feel',    label:'体感',     row:2, html:r=>r.feel ? `<span class="feel-badge">${escapeHtml(r.feel)}</span>` : ''},
+  {key:'body',    label:'身体感受', row:2, html:r=>r.body ? `<span class="rf-ico">💬</span>${escapeHtml(r.body)}` : ''},
+];
+const RUN_REC_SECONDARY = [
+  {label:'最大心率', html:r=>r.maxhr ? recNum(r.maxhr) : ''},
+  {label:'跑鞋',     html:r=>escapeHtml(r.shoe)},
+  {label:'设备',     html:r=>r.devices?.length ? escapeHtml(r.devices.join('/')) : ''},
+  {label:'备注',     html:r=>escapeHtml(r.note)},
+];
+function runRecordFieldsHTML(r){
+  const rowHtml = n => `<div class="rec-grid rec-r${n}">`+RUN_REC_FIELDS.filter(f=>f.row===n).map(f=>{
+    const v = f.html(r);
+    return `<span class="rf rf-${f.key}">${v || '<span class="rc-empty">—</span>'}</span>`;
+  }).join('')+`</div>`;
+  const sec = RUN_REC_SECONDARY.map(f=>{ const v=f.html(r); return v ? `<span class="mobile-record-chip"><span class="k">${f.label}</span> ${v}</span>` : ''; }).join('');
+  return rowHtml(1)+rowHtml(2)+(sec?`<div class="mobile-record-meta">${sec}</div>`:'');
+}
+
+// 年份筛选的选项按记录里实际出现的年份生成（新的一年有记录就自动出现），并保留当前选择
+function refreshYearFilter(){
+  const sel = document.getElementById('filterYear'); if(!sel) return;
+  const years = [...new Set(records.map(r=>r.date?.slice(0,4)).filter(Boolean))].sort();
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">全部年份</option>' + years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  sel.value = years.includes(cur) ? cur : '';
+  SelectPicker.sync(sel);
+}
 function renderRecordPage(){
+  refreshYearFilter();
   const q=document.getElementById('searchInput').value.toLowerCase();
   const sport=document.getElementById('filterSport').value;
   const year=document.getElementById('filterYear').value;
@@ -2719,35 +2786,13 @@ function renderRecordPage(){
       if(r.sport==='Hike'&&r.sub) badgeTxt+=' · '+escapeHtml(r.sub);
 
       if(r.sport==='Run'){
-        // 跑步记录：手机端固定 3 行字段顺序
-        // 第1行：时段 距离 配速 平均心率 最大心率
-        // 第2行：步频 天气 路线 跑鞋 设备
-        // 第3行：体感 身体感受 备注
-        const row1=[], row2=[], row3=[];
-        if(r.period)  row1.push(`<span class="mobile-record-chip"><span class="k">时段</span> ${escapeHtml(r.period)}</span>`);
-        if(r.dist)    row1.push(`<span class="mobile-record-chip"><span class="k">距离</span> ${r.dist}km</span>`);
-        if(r.pace)    row1.push(`<span class="mobile-record-chip"><span class="k">配速</span> ${fmtPace(r.pace)}</span>`);
-        if(r.hr)      row1.push(`<span class="mobile-record-chip"><span class="k">平均心率</span> ${escapeHtml(r.hr)}</span>`);
-        if(r.maxhr)   row1.push(`<span class="mobile-record-chip"><span class="k">最大心率</span> ${escapeHtml(r.maxhr)}</span>`);
-
-        if(r.cadence) row2.push(`<span class="mobile-record-chip"><span class="k">步频</span> ${escapeHtml(r.cadence)}</span>`);
-        if(r.weather) row2.push(`<span class="mobile-record-chip"><span class="k">天气</span> ${escapeHtml(r.weather)}</span>`);
-        if(r.route)   row2.push(`<span class="mobile-record-chip"><span class="k">路线</span> ${escapeHtml(r.route)}</span>`);
-        if(r.shoe)    row2.push(`<span class="mobile-record-chip"><span class="k">跑鞋</span> ${escapeHtml(r.shoe)}</span>`);
-        if(r.devices?.length) row2.push(`<span class="mobile-record-chip"><span class="k">设备</span> ${escapeHtml(r.devices.join('/'))}</span>`);
-
-        if(r.feel) row3.push(`<span class="feel-badge">${escapeHtml(r.feel)}</span>`);
-        if(r.body) row3.push(`<span class="mobile-record-chip"><span class="k">身体感受</span> ${escapeHtml(r.body)}</span>`);
-        if(r.note) row3.push(`<span class="mobile-record-chip"><span class="k">备注</span> ${escapeHtml(r.note)}</span>`);
-
+        // 跑步记录：主要指标两行固定位置（字段表 RUN_REC_FIELDS），其余字段放第三行
         return `<div class="record-item" onclick="editRecord(${jsArg(r.id)})">
           <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
             <span style="font-size:var(--fs-sm);color:var(--text3)">${r.date}</span>
             <span class="record-badge ${badgeClass(r.sport)}">${badgeTxt}</span>
           </div>
-          ${row1.length?`<div class="mobile-record-meta meta-scroll">${row1.join('')}</div>`:''}
-          ${row2.length?`<div class="mobile-record-meta meta-scroll">${row2.join('')}</div>`:''}
-          ${row3.length?`<div class="mobile-record-meta">${row3.join('')}</div>`:''}
+          ${runRecordFieldsHTML(r)}
         </div>`;
       }
 
@@ -2956,6 +3001,7 @@ const Popup = (() => {
     btn.setAttribute('aria-expanded','true');
     const pop = document.createElement('div');
     pop.className = 'mini-date-popup';
+    if(opts.cls) pop.classList.add(opts.cls);
     if(opts.label){ pop.setAttribute('role','dialog'); pop.setAttribute('aria-label', opts.label); }
     if(opts.maxHeight){ pop.style.maxHeight = opts.maxHeight; pop.style.overflowY = 'auto'; }
     document.body.appendChild(pop);
@@ -3145,6 +3191,54 @@ const DatePicker = (() => {
   return {toggle};
 })();
 
+
+// ══════════════════════════════════════
+//  SelectPicker —— 把原生 <select> 换成「胶囊触发按钮 + Popup 选项列表」
+//  用法：<select id="x" data-pill onchange="…"> 加 data-pill 即可，页面加载时自动挂载；
+//  原 <select> 隐藏保留，仍是 value / onchange 的数据容器（和日期选择器同一套做法），业务代码不用改。
+//  选的不是第一项（即非默认）时胶囊高亮。选项被 JS 改写后调 SelectPicker.sync(select)。
+// ══════════════════════════════════════
+const SelectPicker = (() => {
+  const CHEV = '<svg class="dp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+  const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>';
+  const btnOf = sel => document.querySelector('.dp-trigger[data-select="'+sel.id+'"]');
+  function sync(sel){
+    const btn = btnOf(sel); if(!btn) return;
+    const o = sel.options[sel.selectedIndex];
+    btn.querySelector('.dp-text').textContent = o ? o.textContent : '';
+    btn.classList.toggle('dp-active', sel.selectedIndex > 0);
+  }
+  function build(pop, sel){
+    pop.innerHTML = [...sel.options].map((o,i)=>
+      `<button type="button" class="sp-opt${i===sel.selectedIndex?' is-sel':''}" data-i="${i}"><span>${escapeHtml(o.textContent)}</span>${i===sel.selectedIndex?CHECK:''}</button>`).join('');
+    pop.querySelectorAll('.sp-opt').forEach(b=>{
+      b.onclick = ()=>{
+        sel.selectedIndex = parseInt(b.dataset.i,10);
+        sel.dispatchEvent(new Event('change', {bubbles:true}));
+        Popup.close();
+      };
+    });
+  }
+  function toggle(btn){
+    const sel = document.getElementById(btn.dataset.select); if(!sel) return;
+    Popup.toggle(btn, 'select-'+sel.id, pop=>build(pop, sel), {cls:'is-list'});
+  }
+  function mountAll(){
+    document.querySelectorAll('select[data-pill]').forEach(sel=>{
+      if(btnOf(sel)) return;
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'dp-trigger'; btn.dataset.select = sel.id;
+      btn.setAttribute('aria-haspopup','listbox');
+      btn.innerHTML = '<span class="dp-text"></span>' + CHEV;
+      btn.onclick = ()=>toggle(btn);
+      sel.insertAdjacentElement('beforebegin', btn);
+      sel.addEventListener('change', ()=>sync(sel));
+      sync(sel);
+    });
+  }
+  return {mountAll, sync};
+})();
+SelectPicker.mountAll();
 
 // ══════════════════════════════════════
 //  ChartStart —— 各图表「起始日期」筛选的统一注册表
