@@ -206,10 +206,14 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 .bar-rows{ display:none; }
 .landscape-btn{ display:none; }
 
-/* ── 图表卡片 ChartCard（所有图表卡片共用：头部 / 控件 / 筛选行 / 摘要行 / 图表区；手机端规则见下方 @media） ── */
+/* ── 图表卡片 ChartCard（所有图表卡片共用：头部 / 控件 / 图例 / 筛选行 / 摘要行 / 图表区；手机端规则见下方 @media） ── */
+/* 卡片内各区块的纵向间距只在这一条规则里定义：区块之间统一 12px，各区块自己不再写 margin */
+.cc-card > * + *{margin-top:var(--space-12);}
 .cc-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-8);flex-wrap:wrap;}
-.cc-head.is-rich{align-items:flex-start;gap:var(--space-12);margin-bottom:var(--space-14);}
-.cc-head.is-donut{margin-bottom:var(--space-10);flex-wrap:nowrap;}
+.cc-head.is-rich{align-items:flex-start;gap:var(--space-12);}
+.cc-head.is-donut{flex-wrap:nowrap;}
+.cc-head.has-icon{justify-content:flex-start;gap:9px;flex-wrap:nowrap;}
+.cc-title .chart-title{margin:0;}
 .cc-controls{display:flex;gap:var(--space-6);flex-wrap:wrap;align-items:center;}
 .cc-head.is-rich .cc-controls{gap:var(--space-8);}
 .cc-toggles{display:flex;gap:var(--space-8);flex-wrap:wrap;align-items:center;}
@@ -217,14 +221,15 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 .cc-actions{display:flex;gap:var(--space-8);align-items:center;}
 .cc-divider{width:1px;height:20px;background:var(--border);margin:0 4px;}
 .cc-inline{display:flex;align-items:center;gap:var(--space-6);}
-.cc-filters{display:flex;gap:var(--space-12);flex-wrap:wrap;margin-bottom:var(--space-14);padding-bottom:12px;border-bottom:1px solid var(--border);}
+.cc-card > .legend{margin-bottom:0;}
+.cc-filters{display:flex;gap:var(--space-12);flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid var(--border);}
 .cc-filter-label{font-size:var(--fs-xs);color:var(--text3);margin-bottom:var(--space-6);}
-.cc-chart{position:relative;height:var(--cc-h,220px);margin-top:var(--space-10);}
-.legend + .cc-chart, .cc-summary + .cc-chart{margin-top:0;}
-.cc-donut{position:relative;width:100%;max-width:190px;height:190px;margin:0 auto;}
-.cc-legend-pills{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:var(--space-12);}
+.cc-chart{position:relative;height:var(--cc-h,220px);}
+.cc-card > .cc-summary + .cc-chart{margin-top:0;}
+.cc-donut{position:relative;width:100%;max-width:190px;height:190px;margin-left:auto;margin-right:auto;}
+.cc-legend-pills{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;}
 /* 摘要行（手机端：滑动图表时显示当前这一次的数值；桌面端改用图内悬停提示，故隐藏） */
-.cc-summary{margin:var(--space-8) 0 var(--space-4);min-height:52px;}
+.cc-summary{min-height:52px;}
 .cs-meta{font-size:var(--fs-xs);color:var(--text3);margin-bottom:4px;font-variant-numeric:tabular-nums;}
 .cs-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--space-8);}
 .cs-cell{min-width:0;}
@@ -372,7 +377,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
   /* 第 1 行：标题 + 图标按钮；第 2 行：开关 chip 等宽一排；第 3 行：筛选项一排 */
   .cc-chart{ height:var(--cc-h-m,var(--cc-h,220px)); }
   .cc-head.is-rich .cc-controls{ display:contents; }
-  .cc-head.is-rich{ flex-wrap:wrap; align-items:center; gap:12px 8px; margin-bottom:12px; }
+  .cc-head.is-rich{ flex-wrap:wrap; align-items:center; gap:12px 8px; }
   .cc-head.is-rich > .cc-title{ flex:1; min-width:0; }
   .cc-actions{ order:2; gap:6px; }
   .cc-actions .btn{ width:34px; height:34px; padding:0; display:inline-flex; align-items:center; justify-content:center; border-radius:10px; font-size:var(--fs-base) !important; }
@@ -549,6 +554,16 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 .mdp-cell.mdp-disabled{color:var(--border2);cursor:not-allowed;}
 .mdp-cell.mdp-today{box-shadow:inset 0 0 0 1.5px var(--brand);}
 .mdp-cell.mdp-selected{background:var(--brand);color:#fff;font-weight:700;}
+
+/* 弹层底部「All time」整行胶囊（日 / 月两种弹层共用） */
+.dp-alltime{
+  appearance:none;-webkit-appearance:none;display:block;width:100%;margin-top:10px;
+  height:34px;padding:0;border:none;border-radius:20px;background:var(--bg3);
+  color:var(--text2);font:600 var(--fs-xs)/1 var(--font);cursor:pointer;
+  transition:background .15s,color .15s;
+}
+.dp-alltime:hover{background:var(--brand-lt);color:var(--brand-dk);}
+.dp-alltime.is-on{background:var(--brand);color:#fff;}
 
 /* 月精度弹层：年份翻页 + 3×4 月份网格 */
 .mp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
@@ -1069,9 +1084,9 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
       <div class="chart-card" id="dash-donut-card"></div>
 
       <!-- 卡片 3：分类速览 -->
-      <div class="chart-card" id="dash-summary-card">
-        <div class="chart-title">分类速览</div>
-        <div id="sport-summary-list" style="margin-top:var(--space-10)"></div>
+      <div class="chart-card cc-card" id="dash-summary-card">
+        <div class="cc-head"><div class="cc-title"><div class="chart-title">分类速览</div></div></div>
+        <div id="sport-summary-list"></div>
       </div>
     </div>
 
@@ -1085,12 +1100,10 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
   <div id="page-anaerobic" style="display:none">
 
     <!-- 坚持周期 -->
-    <div class="chart-card full" style="margin-bottom:var(--space-14)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-16);flex-wrap:wrap;gap:var(--space-8)">
-        <div>
-          <div class="chart-title">无氧坚持周期</div>
-        </div>
-        <div style="display:flex;gap:var(--space-8)">
+    <div class="chart-card cc-card full" style="margin-bottom:var(--space-14)">
+      <div class="cc-head">
+        <div class="cc-title"><div class="chart-title">无氧坚持周期</div></div>
+        <div class="cc-controls">
           <button class="btn btn-secondary btn-sm" id="ana-cycle-toggle" onclick="toggleCycleHistory()" style="display:none">查看历史周期</button>
           <button class="btn btn-secondary btn-sm" onclick="addCycle()">＋ 添加周期</button>
         </div>
@@ -1114,16 +1127,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
     </div>
 
     <!-- 年度战报：分组柱状图 -->
-    <div class="chart-card full" style="margin-bottom:var(--space-14)">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:var(--space-4)">
-        <div>
-          <div class="chart-title">年度战报</div>
-        </div>
-        <div id="ana-yearly-legend" style="display:flex;gap:var(--space-8);flex-wrap:wrap"></div>
-      </div>
-      <div class="bar-chart-wrap" style="position:relative;height:280px"><canvas id="yearlyChart"></canvas></div>
-      <div class="bar-rows" id="yearlyChartRows"></div>
-    </div>
+    <div class="chart-card full" id="ana-yearly-card" style="margin-bottom:var(--space-14)"></div>
   </div>
 
   <!-- ══════════ HIKE ANALYSIS ══════════ -->
@@ -1138,36 +1142,28 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
     <!-- 跑步总览 + 距离分布 + 跑鞋里程：三卡网格。左侧「跑步总览」+「跑鞋里程」上下堆叠，
          右侧「距离分布」（改成图表后高度固定）跨两行。 -->
     <div class="charts-grid" style="margin-bottom:var(--space-14)" id="run-overview-grid">
-      <div class="chart-card" id="run-overview-card" style="grid-column:1;grid-row:1;display:flex;flex-direction:column">
-        <div style="display:flex;align-items:center;gap:9px;margin-bottom:var(--space-16)">
+      <div class="chart-card cc-card" id="run-overview-card" style="grid-column:1;grid-row:1;display:flex;flex-direction:column">
+        <div class="cc-head has-icon">
           <span style="width:34px;height:34px;border-radius:10px;background:var(--green-lt);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🏃</span>
-          <div>
-            <div class="chart-title" style="margin-bottom:1px">Running Overview</div>
-          </div>
+          <div class="cc-title"><div class="chart-title">Running Overview</div></div>
         </div>
         <div id="run-overview-stats" style="flex:1;display:flex;align-items:flex-end;gap:var(--space-20);flex-wrap:wrap"></div>
       </div>
 
       <!-- 跑鞋里程（没有跑鞋数据时整卡隐藏） -->
-      <div class="chart-card" id="run-shoe-card" style="grid-column:1;grid-row:2;display:none">
-        <div class="chart-title" style="margin-bottom:var(--space-12)">Distance by Shoe</div>
+      <div class="chart-card cc-card" id="run-shoe-card" style="grid-column:1;grid-row:2;display:none">
+        <div class="cc-head"><div class="cc-title"><div class="chart-title">Distance by Shoe</div></div></div>
         <div id="run-shoe-list"></div>
       </div>
 
-      <div class="chart-card" id="run-dist-card" style="grid-column:2;grid-row:1 / span 2">
-        <div class="chart-title" style="margin-bottom:2px">Distance Breakdown</div>
-        <div id="run-dist-chart-wrap" class="bar-chart-wrap" style="position:relative;height:280px;margin-top:var(--space-14)"><canvas id="runDistBarChart"></canvas></div>
-        <div class="bar-rows" id="runDistBarChartRows"></div>
-      </div>
+      <div class="chart-card" id="run-dist-card" style="grid-column:2;grid-row:1 / span 2"></div>
     </div>
 
     <!-- 跑步周期 -->
-    <div class="chart-card full" style="margin-bottom:var(--space-14)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-16);flex-wrap:wrap;gap:var(--space-8)">
-        <div>
-          <div class="chart-title">Training Cycles</div>
-        </div>
-        <div style="display:flex;gap:var(--space-8)">
+    <div class="chart-card cc-card full" style="margin-bottom:var(--space-14)">
+      <div class="cc-head">
+        <div class="cc-title"><div class="chart-title">Training Cycles</div></div>
+        <div class="cc-controls">
           <button class="btn btn-secondary btn-sm" id="run-cycle-toggle" onclick="toggleRunCycleHistory()" style="display:none">View Past Cycles</button>
           <button class="btn btn-secondary btn-sm" onclick="addRunCycle()">+ Add Cycle</button>
         </div>
@@ -2885,6 +2881,25 @@ function onMiniDatePickerKeydown(e){
   if(e.key==='Escape') closeMiniDatePicker();
 }
 
+// 弹层底部的「All time」整行胶囊：点一下清空自定义起点（回到默认）。日精度 / 月精度两种弹层共用。
+// 当前已经是默认（值为空或不晚于最早日期）时高亮显示；清空 = 把隐藏 input 置空并触发 change，
+// 后续存储 / 重绘走 ChartStart 的统一路径，按钮文案由 syncMiniDateTrigger 自动变回 All time。
+function appendAllTimeButton(pop, input, mode){
+  const v = input.value || '', min = input.min || '';
+  const cut = mode==='month' ? 7 : 10;
+  const isDefault = !v || (min && v.slice(0,cut) <= min.slice(0,cut));
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'dp-alltime' + (isDefault ? ' is-on' : '');
+  btn.textContent = 'All time';
+  btn.onclick = ()=>{
+    input.value = '';
+    input.dispatchEvent(new Event('change', {bubbles:true}));
+    closeMiniDatePicker();
+  };
+  pop.appendChild(btn);
+}
+
 function toggleMiniDatePicker(btn){
   const inputId = btn.dataset.for;
   if(miniDatePickerFor === inputId){ closeMiniDatePicker(); return; }
@@ -2948,6 +2963,7 @@ function openMonthPicker(btn, inputId){
         closeMiniDatePicker();
       };
     });
+    appendAllTimeButton(pop, input, 'month');
   }
   render();
 
@@ -3034,6 +3050,7 @@ function openMiniDatePicker(btn, inputId){
         closeMiniDatePicker();
       };
     });
+    appendAllTimeButton(pop, input, 'day');
   }
 
   // 年月选择视图：左右箭头切换整年，12 个月份格子一次点选，
@@ -3065,6 +3082,7 @@ function openMiniDatePicker(btn, inputId){
         render();
       };
     });
+    appendAllTimeButton(pop, input, 'day');
   }
 
   render();
@@ -3130,7 +3148,7 @@ const ChartCard = (() => {
   }
   // 开关 chip（颜色圆点 + 文字）
   function chip({id, label, color, checked=true, onChange, cls='', style=''}){
-    return `<label class="line-toggle ${cls}" style="--c:${color};${style}"><input type="checkbox" id="${id}"${checked?' checked':''} onchange="${onChange}"><span>${label}</span></label>`;
+    return `<label class="line-toggle ${cls}" id="${id}-label" style="--c:${color};${style}"><input type="checkbox" id="${id}"${checked?' checked':''} onchange="${onChange}"><span>${label}</span></label>`;
   }
   // 把页面里预留的 <span data-start-picker="名字"> 占位填成日期选择器
   function mountPickers(){
@@ -3170,6 +3188,7 @@ const ChartCard = (() => {
     host.innerHTML =
       `<div class="cc-head${rich?' is-rich':''}${kind==='donut'?' is-donut':''}"><div class="cc-title"><div class="chart-title">${escapeHtml(o.title)}</div></div>${controls?`<div class="cc-controls">${controls}</div>`:''}</div>`+
       filters+body;
+    host.classList.add('cc-card');
     host.dataset.built = '1';
   }
   return {render, startPicker, dropdown, chip, mountPickers};
@@ -3342,15 +3361,19 @@ const ChartKit = (() => {
   }
   const isIsoDate = s => /^\d{4}-\d{2}-\d{2}/.test(s || '');
 
-  // 数据集：fill 'gradient' = 渐变填充；dots = 稀疏/断续数据才画小圆点（否则孤立的点会看不见）
+  // 数据集。外观由规则决定，不在各图里单独指定：
+  //   fill 默认 'auto'：整张图只有 1 条线时自动铺渐变；多条线叠在一起会糊，则不铺。传 false 强制不铺，传 'gradient' 强制铺。
+  //   dots 默认 'auto'：数据断续（超过三成是空值）时才画小圆点——否则孤立的单点会看不见；连续的数据不画点。
   function dataset(data, color, o={}){
-    const {label, width=1.8, dash, axis, fill=false, dots=false, spanGaps=true, tension=0.3} = o;
+    const {label, width=1.8, dash, axis, fill='auto', dots='auto', spanGaps=true, tension=0.3} = o;
+    const sparse = data.length>0 && data.filter(v=>v==null).length/data.length > 0.3;
+    const showDots = dots==='auto' ? sparse : !!dots;
     return {
       ...(label ? {label} : {}), ...(axis ? {yAxisID:axis} : {}),
       data, borderColor:color, borderWidth:width, borderDash:dash||[], tension, spanGaps,
-      ...(fill==='gradient' ? {fill:'start', backgroundColor:gradient(color)} : {fill:false}),
-      pointRadius:dots?3.5:0, pointHoverRadius:0, pointHitRadius:20,
-      pointBackgroundColor:color, pointBorderColor:'#fff', pointBorderWidth:dots?1.5:0,
+      fill:false, _ckFill:fill, _ckColor:color,
+      pointRadius:showDots?3.5:0, pointHoverRadius:0, pointHitRadius:20,
+      pointBackgroundColor:color, pointBorderColor:'#fff', pointBorderWidth:showDots?1.5:0,
     };
   }
 
@@ -3362,7 +3385,10 @@ const ChartKit = (() => {
   //   plugins[]                    额外插件（例如目标线）
   //   landscape, rotated           横屏弹层 / 被 CSS 旋转的弹层（此时图表自带事件坐标不对，需关掉）
   function lineChart(o){
-    const {labels, datasets, scrub, plugins:extra=[], landscape=false, rotated=false} = o;
+    const {labels, scrub, plugins:extra=[], landscape=false, rotated=false} = o;
+    // 渐变填充规则：显式 'gradient'，或 'auto' 且整张图只有 1 条线
+    const datasets = o.datasets.map(d => (d._ckFill==='gradient' || (d._ckFill==='auto' && o.datasets.length===1))
+      ? {...d, fill:'start', backgroundColor:gradient(d._ckColor)} : d);
     const axes = (o.axes && o.axes.length ? o.axes : [{id:'y', side:'left'}]).map(a=>({
       show:true, color:'#8a93a6', fmt:defaultFmt, side:'left', ...a,
     }));
@@ -3912,6 +3938,11 @@ function renderAnaerobic(){
     };
   });
 
+  ChartCard.render({
+    containerId:'ana-yearly-card', kind:'bar', title:'年度战报', chartId:'yearlyChart', chartHeight:280,
+    controlsHtml:'<div id="ana-yearly-legend" class="cc-controls"></div>'
+  });
+
   // 图例（可点击：排除/恢复某一年）
   const legendEl = document.getElementById('ana-yearly-legend');
   if(legendEl) legendEl.innerHTML = allYears.map((yr,yi)=>{
@@ -3957,7 +3988,7 @@ function renderAnaerobic(){
   const months = getMonthRange(amStart);
   upsertChart('anaMonthlyChart', document.getElementById('anaMonthlyChart'), ChartKit.lineChart({
     labels: months.map(fmtMonthLabel),
-    datasets:[ChartKit.dataset(months.map(m=>ana.filter(r=>r.date?.startsWith(m)).length), THEME.blue, {fill:'gradient'})],
+    datasets:[ChartKit.dataset(months.map(m=>ana.filter(r=>r.date?.startsWith(m)).length), THEME.blue)],
     axes:[{id:'y', side:'left', fmt:v=>String(Math.round(v)), scale:{min:0, grace:'8%', ticks:{precision:0}}}],
     tooltip:{label:c=> c.parsed.y==null ? null : ` ${c.parsed.y} 次`},
   }));
@@ -4124,11 +4155,13 @@ function renderHikeAnalysis(){
   ChartCard.render({
     containerId:'hike-dist-line-card', kind:'line', title:'步数趋势',
     chartId:'hikeDistChart', start:{name:'hike'}, chartHeight:320,
-    controlsHtml:`
-      <span class="cc-show-label">显示：</span>
-      ${ChartCard.chip({id:'hlt-hike', label:'⛰ Hike', color:getSportColor('Hike'), onChange:'renderHikeAnalysis()'})}
-      ${ChartCard.chip({id:'hlt-walk', label:'🚶 Walk', color:getSportColor('Walk'), onChange:'renderHikeAnalysis()'})}
-      <div class="cc-divider"></div>`
+    toggles:{
+      label:'显示：', onChange:'renderHikeAnalysis()',
+      items:[
+        {id:'hlt-hike', label:'⛰ Hike', color:getSportColor('Hike')},
+        {id:'hlt-walk', label:'🚶 Walk', color:getSportColor('Walk')},
+      ],
+    },
   });
   const hikes = records.filter(r=>r.sport==='Hike').sort((a,b)=>a.date.localeCompare(b.date));
   const showHike = document.getElementById('hlt-hike')?.checked ?? true;
@@ -4156,8 +4189,8 @@ function renderHikeAnalysis(){
   if(!ctx) return;
 
   const datasets = [];
-  if(showHike) datasets.push(ChartKit.dataset(hikeData, getSportColor('Hike'), {label:'⛰ Hike', dots:true, spanGaps:false}));
-  if(showWalk) datasets.push(ChartKit.dataset(walkData, getSportColor('Walk'), {label:'🚶 Walk', dots:true, spanGaps:false}));
+  if(showHike) datasets.push(ChartKit.dataset(hikeData, getSportColor('Hike'), {label:'⛰ Hike', spanGaps:false}));
+  if(showWalk) datasets.push(ChartKit.dataset(walkData, getSportColor('Walk'), {label:'🚶 Walk', spanGaps:false}));
 
   upsertChart('hikeDistChart', ctx, ChartKit.lineChart({
     labels, datasets,
@@ -4168,6 +4201,7 @@ function renderHikeAnalysis(){
 
 function renderRunAnalysis(){
   ensureRunCombinedCard();
+  ChartCard.render({containerId:'run-dist-card', kind:'bar', title:'Distance Breakdown', chartId:'runDistBarChart', chartHeight:280});
   const runs=records.filter(r=>r.sport==='Run').sort((a,b)=>a.date.localeCompare(b.date));
   const totalDist=runs.reduce((a,r)=>a+(r.dist||0),0);
   const hrR=runs.filter(r=>r.hr); const avgHr=hrR.length?Math.round(hrR.reduce((a,r)=>a+r.hr,0)/hrR.length):null;
@@ -4317,7 +4351,7 @@ function renderRunAnalysis(){
   const lbs=runsForDist.map(r=>r.date.slice(5));
   upsertChart('distChart', document.getElementById('distChart'), ChartKit.lineChart({
     labels: runsForDist.map(r=>r.date),
-    datasets:[ChartKit.dataset(runsForDist.map(r=>r.dist||null), THEME.green, {label:'Distance', fill:'gradient'})],
+    datasets:[ChartKit.dataset(runsForDist.map(r=>r.dist||null), THEME.green, {label:'Distance'})],
     axes:[{id:'y', side:'left', scale:{min:0, grace:'8%'}}],
     tooltip:{label:c=> c.parsed.y==null ? null : ` Distance  ${c.parsed.y} km`},
   }));
@@ -4963,7 +4997,7 @@ function renderCombinedChart(){
   function build(landscape){
     return ChartKit.lineChart({
       labels: runs.map(r=>r.date),
-      datasets: shown.map(m=>ChartKit.dataset(m.data, m.color, {label:m.name, width:m.width, dash:m.dash, axis:m.axis})),
+      datasets: shown.map(m=>ChartKit.dataset(m.data, m.color, {label:m.name, width:m.width, dash:m.dash, axis:m.axis, fill:false})),
       axes:[
         {id:'yPace', side:'left',  show:paceUsed, color:hexToRgba(THEME.blue,0.9), fmt:v=>fmtPace(v), grid:paceUsed,
          scale:{reverse:true, min:rg.paceMin, max:rg.paceMax, ticks:{stepSize:rg.paceStep}}},
