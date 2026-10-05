@@ -420,13 +420,10 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
   .mobile-record-meta.meta-scroll .mobile-record-chip{ flex-shrink:0; white-space:nowrap; }
   .mobile-record-chip .k{ color:var(--text3); font-size:var(--fs-xs); }
   /* 跑步记录卡片：主要指标两行网格，固定位置；超长文字省略（点开卡片进入编辑可看全文） */
-  .rec-grid{ display:grid; gap:var(--space-8); font-size:var(--fs-sm); color:var(--text); }
-  .rec-r1{ grid-template-columns:repeat(5,minmax(0,1fr)); }
-  .rec-r2{ grid-template-columns:minmax(0,.8fr) minmax(0,1.5fr) minmax(0,.8fr) minmax(0,1.5fr); }
+  .rec-grid{ display:grid; grid-template-columns:.85fr .9fr 1.05fr 1.3fr 1.3fr 1.25fr; column-gap:6px; row-gap:var(--space-8); font-size:var(--fs-sm); color:var(--text); }
   .rf{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-variant-numeric:tabular-nums; }
-  .rf-unit{ font-size:10px; color:var(--text3); margin-left:2px; }
+  .rf-unit{ font-size:10px; color:var(--text3); margin-left:1px; }
   .rf-ico{ font-size:11px; margin-right:2px; }
-  .rf-ico-hr{ color:var(--coral); }
 }
 
 /* ── 手机顶部导航（替代顶部 tabs） ── */
@@ -2710,34 +2707,35 @@ const debouncedRenderRecords = debounce(renderRecords, 200);
 //  记录字段表（Run）—— 每个字段定义一次：标题 / 手机卡片所在行 / 显示内容（带单位）
 //  手机卡片的主要指标按 row 分行、按表内顺序固定位置排列；没有值显示「—」，后面的字段不会左移。
 //  以后要给其他运动做同样的卡片，照这个格式再写一张表即可；桌面端表格暂未接入这张表。
-//  secondary：不在主要指标里的字段，仍以「标题 + 值」的小标签放在卡片第三行。
+//  secondary：不在主要指标里的字段（跑鞋/设备/备注），仍以「标题 + 值」的小标签放在卡片第三行。
 // ══════════════════════════════════════
 const recNum = v => { const n = Number(v); return isFinite(n) && v!=='' ? Math.round(n) : escapeHtml(v); };
 const recUnit = u => `<span class="rf-unit">${u}</span>`;
 const RUN_REC_FIELDS = [
-  {key:'period',  label:'时段',     row:1, html:r=>escapeHtml(r.period)},
-  {key:'dist',    label:'距离',     row:1, html:r=>r.dist ? r.dist+recUnit('km') : ''},
-  {key:'pace',    label:'配速',     row:1, html:r=>r.pace ? fmtPace(r.pace) : ''},
-  {key:'hr',      label:'平均心率', row:1, html:r=>r.hr ? `<span class="rf-ico rf-ico-hr">♥</span>${recNum(r.hr)}` : ''},
-  {key:'cadence', label:'步频',     row:1, html:r=>r.cadence ? recNum(r.cadence)+recUnit('spm') : ''},
-  {key:'weather', label:'天气',     row:2, html:r=>escapeHtml(r.weather)},
-  {key:'route',   label:'路线',     row:2, html:r=>r.route ? `<span class="rf-ico">📍</span>${escapeHtml(r.route)}` : ''},
-  {key:'feel',    label:'体感',     row:2, html:r=>r.feel ? `<span class="feel-badge">${escapeHtml(r.feel)}</span>` : ''},
-  {key:'body',    label:'身体感受', row:2, html:r=>r.body ? `<span class="rf-ico">💬</span>${escapeHtml(r.body)}` : ''},
+  // row/col/span：全部放进同一张 6 列网格，所以上下行的列天然对齐（天气↔时段、路线↔距离、体感↔平均心率、身体感受↔最大心率）
+  {key:'period',  label:'时段',     row:1, col:1, html:r=>escapeHtml(r.period)},
+  {key:'dist',    label:'距离',     row:1, col:2, html:r=>r.dist ? r.dist+recUnit('km') : ''},
+  {key:'pace',    label:'配速',     row:1, col:3, html:r=>r.pace ? fmtPace(r.pace) : ''},
+  {key:'hr',      label:'平均心率', row:1, col:4, html:r=>r.hr ? recNum(r.hr)+recUnit('bpm') : ''},
+  {key:'maxhr',   label:'最大心率', row:1, col:5, html:r=>r.maxhr ? recNum(r.maxhr)+recUnit('bpm') : ''},
+  {key:'cadence', label:'步频',     row:1, col:6, html:r=>r.cadence ? recNum(r.cadence)+recUnit('spm') : ''},
+  {key:'weather', label:'天气',     row:2, col:1, html:r=>escapeHtml(r.weather)},
+  {key:'route',   label:'路线',     row:2, col:2, span:2, html:r=>r.route ? `<span class="rf-ico">📍</span>${escapeHtml(r.route)}` : ''},
+  {key:'feel',    label:'体感',     row:2, col:4, html:r=>r.feel ? `<span class="feel-badge">${escapeHtml(r.feel)}</span>` : ''},
+  {key:'body',    label:'身体感受', row:2, col:5, span:2, html:r=>r.body ? `<span class="rf-ico">💬</span>${escapeHtml(r.body)}` : ''},
 ];
 const RUN_REC_SECONDARY = [
-  {label:'最大心率', html:r=>r.maxhr ? recNum(r.maxhr) : ''},
-  {label:'跑鞋',     html:r=>escapeHtml(r.shoe)},
-  {label:'设备',     html:r=>r.devices?.length ? escapeHtml(r.devices.join('/')) : ''},
-  {label:'备注',     html:r=>escapeHtml(r.note)},
+  {label:'跑鞋', html:r=>escapeHtml(r.shoe)},
+  {label:'设备', html:r=>r.devices?.length ? escapeHtml(r.devices.join('/')) : ''},
+  {label:'备注', html:r=>escapeHtml(r.note)},
 ];
 function runRecordFieldsHTML(r){
-  const rowHtml = n => `<div class="rec-grid rec-r${n}">`+RUN_REC_FIELDS.filter(f=>f.row===n).map(f=>{
+  const cells = RUN_REC_FIELDS.map(f=>{
     const v = f.html(r);
-    return `<span class="rf rf-${f.key}">${v || '<span class="rc-empty">—</span>'}</span>`;
-  }).join('')+`</div>`;
+    return `<span class="rf rf-${f.key}" style="grid-row:${f.row};grid-column:${f.col} / span ${f.span||1}">${v || '<span class="rc-empty">—</span>'}</span>`;
+  }).join('');
   const sec = RUN_REC_SECONDARY.map(f=>{ const v=f.html(r); return v ? `<span class="mobile-record-chip"><span class="k">${f.label}</span> ${v}</span>` : ''; }).join('');
-  return rowHtml(1)+rowHtml(2)+(sec?`<div class="mobile-record-meta">${sec}</div>`:'');
+  return `<div class="rec-grid">${cells}</div>`+(sec?`<div class="mobile-record-meta">${sec}</div>`:'');
 }
 
 // 年份筛选的选项按记录里实际出现的年份生成（新的一年有记录就自动出现），并保留当前选择
