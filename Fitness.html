@@ -783,6 +783,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
    不再是撑满整行的横条，多个周期存在时并排成网格，不会出现中间大片空白 ── */
 .cycle-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:var(--space-12);}
 .cycle-grid > *{min-width:0;}
+.cycle-grid-active{grid-template-columns:repeat(auto-fill,340px);flex:0 0 auto;}
 .cycle-card{background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:var(--space-12);}
 .cycle-card.active{border-color:var(--cycle-accent,var(--green));background:var(--cycle-accent-lt,var(--green-lt));}
 .cycle-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-8);}
@@ -1113,7 +1114,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
       </div>
       <div class="cycle-layout">
         <!-- 当前进行中 -->
-        <div id="ana-cycle-active" class="cycle-grid" style="grid-template-columns:repeat(auto-fill,340px);flex:0 0 auto"></div>
+        <div id="ana-cycle-active" class="cycle-grid cycle-grid-active"></div>
         <!-- 历史周期（桌面端紧贴在进行中右侧，移动端自动切回下方） -->
         <div id="ana-cycle-history-wrap" class="cycle-history-panel" style="display:none">
           <div id="ana-cycle-history" class="cycle-grid" style="display:none"></div>
@@ -1173,7 +1174,7 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
       </div>
       <div class="cycle-layout">
         <!-- 当前进行中 -->
-        <div id="run-cycle-active" class="cycle-grid" style="grid-template-columns:repeat(auto-fill,340px);flex:0 0 auto"></div>
+        <div id="run-cycle-active" class="cycle-grid cycle-grid-active"></div>
         <!-- 历史周期（桌面端紧贴在进行中右侧，移动端自动切回下方） -->
         <div id="run-cycle-history-wrap" class="cycle-history-panel" style="display:none">
           <div id="run-cycle-history" class="cycle-grid" style="display:none"></div>
@@ -1610,6 +1611,43 @@ body{min-height:100vh;padding-bottom:4rem;overflow-x:clip;}
 </div>
 
 <script>
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║  组件索引 —— 新增图表 / 卡片 / 样式之前，先看这里                     ║
+// ║  原则：能共用就共用，除非不能共用；手机端为基准，桌面端只在「更宽」  ║
+// ║  「能悬停」两处放宽；改一处，全局跟着改。找定义：全文搜「const 名字」。 ║
+// ╚══════════════════════════════════════════════════════════════════════╝
+//
+//  我要做…                      用这个                                      调用要点
+//  ────────────────────────────────────────────────────────────────────────────
+//  任何颜色                     THEME                                       读 THEME.xxx / MUSCLE_COLORS，不写十六进制；
+//                                                                           图表灰色用 THEME.axis / axisHi / axisBold
+//  一张图表卡片的外壳           ChartCard.render({containerId,title,kind,   外壳 + 标题 + 控件（chip/日期/下拉/摘要行）
+//                               chartId,start,toggles,filters,…})            kind: 'line' | 'bar' | 'donut'
+//  折线图                       upsertChart(id, canvas,                     数据集用 ChartKit.dataset(data,color,opts)；
+//                                 ChartKit.lineChart({labels,datasets,…}))  单线自动渐变，多线不填充
+//  柱状图（堆叠/分组/单系列）   ChartKit.bar({canvasId,labels,series,…})    桌面纵向 Chart.js，手机自动变横向条形列表
+//  环形图                       renderDonutCard(…) 内部用 ChartKit.donut     整卡外壳 + 图例 + 数字开关
+//  起始日期筛选（“All time”）   ChartStart.register(名,存储key,input id,重绘)  返回 {value}；页面放 <span data-start-picker="名">
+//                               + ChartCard.mountPickers()                  日 / 月精度由 data-mode 决定
+//  小弹层（下拉 / 选择器）      Popup.toggle(btn, key, pop=>{填内容}, opts)  外壳统一：互斥、定位、点外面/Esc 关闭
+//  日期 / 月份选择器            DatePicker.toggle(btn)                      自动按 .dp-trigger 的 data-mode 分日/月
+//  “小标签 + 大数字”            StatBlock.html({label,value,unit,sub,       size: hero 40 / lg 28 / md 24 / sm 16；
+//                                 size,color,grow})                         静态 HTML 可直接写 .sb .sb-lg 等类
+//  横向进度条                   Meter.html({pct,color,size,text})           size: sm 6px / lg 20px（条内写文字）
+//  周期卡片                     renderCycleCard({…}) + StatBlock             无氧 / 跑步共用
+//  周期的增删改 / 历史 / 列表   CycleManager({getList,save,rerender,ids,    无氧 / 跑步各建一个实例，只传存储与文案差异
+//                                 renderCard,text})
+//  卡片之间的垂直间距           .page-stack（加在页面容器上）                块自己不写 margin-bottom
+//  卡片内部各段之间的间距       .cc-card > * + *                            唯一定义处，别在子元素上补 margin
+//
+//  硬规则（违反会让“改一处”失效）：
+//    1. 不直接 new Chart —— 一律 upsertChart + ChartKit.xxx。
+//    2. 不在 JS/CSS 里新写灰色、肌群色等十六进制 —— 加到 THEME。
+//    3. 不手写“标签 + 数字”或进度条的 HTML —— 用 StatBlock / Meter。
+//    4. 不手写弹层外壳 —— 用 Popup。
+//    5. 图表的 scales/options 每次生成全新对象（Chart.js 会写回），不要共享。
+//    6. 手机 / 桌面断点只有一个：768px（ChartKit.isMobile() 与 CSS 媒体查询一致）。
+//
 // ══════════════════════════════════════
 //  安全工具：HTML 转义
 // ══════════════════════════════════════
@@ -3737,6 +3775,67 @@ function renderDashboardOverview(){
 }
 
 // ══════════════════════════════════════
+//  CycleManager —— 「周期」的增删改 / 历史展开 / 列表渲染（无氧、跑步共用，只传配置差异）
+//  cfg: getList() · setList(v) · save(list) · rerender() · ids{active,historyWrap,history,toggle}
+//       renderCard(c,isActive) · text{…各处文案，中英文由各页自己决定}
+// ══════════════════════════════════════
+function CycleManager(cfg){
+  const t = cfg.text, ids = cfg.ids;
+  let open = false;
+  const dateOk = s => /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const parseEnd = s => (s && dateOk(s.trim())) ? s.trim() : null;
+  const $ = id => document.getElementById(id);
+  return {
+    add(){
+      const label = prompt(t.pName + t.pAddHint, ''); if(label===null) return;
+      const start = prompt(t.pStartAdd, localDateStr());
+      if(!start || !dateOk(start)){ showToast(t.badDate); return; }
+      const end = parseEnd(prompt(t.pEndAdd, ''));
+      const list = cfg.getList();
+      list.push({id:genId(), label:label||t.untitled, start, end});
+      list.sort((a,b)=>a.start.localeCompare(b.start));
+      cfg.save(list); cfg.rerender();
+    },
+    edit(id){
+      const c = cfg.getList().find(x=>x.id===id); if(!c) return;
+      const label = prompt(t.pName, c.label); if(label===null) return;
+      const start = prompt(t.pStart, c.start); if(!start) return;
+      const endStr = prompt(t.pEnd, c.end||'');
+      c.label = label||c.label; c.start = start; c.end = parseEnd(endStr);
+      cfg.save(cfg.getList()); cfg.rerender();
+    },
+    remove(id){
+      if(!confirm(t.confirmDel)) return;
+      cfg.setList(cfg.getList().filter(x=>x.id!==id));
+      cfg.save(cfg.getList()); cfg.rerender();
+    },
+    toggle(){
+      open = !open;
+      $(ids.historyWrap).style.display = open ? '' : 'none';
+      $(ids.history).style.display = open ? 'flex' : 'none';
+      $(ids.toggle).textContent = open ? t.hide : t.show;
+    },
+    // 当前进行中 + 历史两块列表；没有历史时隐藏按钮并复位展开状态
+    renderLists(){
+      const list = cfg.getList();
+      const active = list.filter(c=>!c.end);
+      const history = list.filter(c=>c.end).sort((a,b)=>b.start.localeCompare(a.start));
+      $(ids.active).innerHTML = active.length===0
+        ? `<div style="color:var(--text3);font-size:var(--fs-sm);padding:12px 0">${t.empty}</div>`
+        : active.map(c=>cfg.renderCard(c,true)).join('');
+      if(history.length>0){
+        $(ids.toggle).style.display = '';
+        $(ids.history).innerHTML = history.map(c=>cfg.renderCard(c,false)).join('');
+      } else {
+        $(ids.toggle).style.display = 'none';
+        $(ids.historyWrap).style.display = 'none';
+        open = false;
+      }
+    },
+  };
+}
+
+// ══════════════════════════════════════
 //  无氧训练周期（存储）
 // ══════════════════════════════════════
 const LS_CYCLES = 'fitness_ana_cycles_v1';
@@ -3744,41 +3843,16 @@ function loadCycles(){ return _loadCyclesFrom(LS_CYCLES); }
 function saveCycles(c){ lsSet(LS_CYCLES,JSON.stringify(c)); }
 let anaCycles = loadCycles();
 
-function addCycle(){
-  const label = prompt('周期名称（如：第一阶段）：','');
-  if(label===null) return;
-  const start = prompt('开始日期（格式 YYYY-MM-DD）：', localDateStr());
-  if(!start||!/^\d{4}-\d{2}-\d{2}$/.test(start)){ showToast('日期格式不正确'); return; }
-  const endStr = prompt('结束日期（进行中请留空，直接回车）：','');
-  const end = (endStr&&/^\d{4}-\d{2}-\d{2}$/.test(endStr.trim())) ? endStr.trim() : null;
-  anaCycles.push({ id: genId(), label: label||'无名周期', start, end });
-  anaCycles.sort((a,b)=>a.start.localeCompare(b.start));
-  saveCycles(anaCycles);
-  renderAnaerobic();
-}
-function editCycle(id){
-  const c = anaCycles.find(x=>x.id===id); if(!c) return;
-  const label = prompt('周期名称：', c.label); if(label===null) return;
-  const start = prompt('开始日期：', c.start); if(!start) return;
-  const endStr = prompt('结束日期（进行中留空）：', c.end||'');
-  c.label = label||c.label;
-  c.start = start;
-  c.end = (endStr&&/^\d{4}-\d{2}-\d{2}$/.test(endStr.trim())) ? endStr.trim() : null;
-  saveCycles(anaCycles);
-  renderAnaerobic();
-}
-function deleteCycle(id){
-  if(!confirm('确认删除此周期记录？')) return;
-  anaCycles = anaCycles.filter(x=>x.id!==id);
-  saveCycles(anaCycles); renderAnaerobic();
-}
-let cycleHistoryOpen = false;
-function toggleCycleHistory(){
-  cycleHistoryOpen = !cycleHistoryOpen;
-  document.getElementById('ana-cycle-history-wrap').style.display = cycleHistoryOpen ? '' : 'none';
-  document.getElementById('ana-cycle-history').style.display = cycleHistoryOpen ? 'flex' : 'none';
-  document.getElementById('ana-cycle-toggle').textContent = cycleHistoryOpen ? '收起历史周期' : '查看历史周期';
-}
+const anaCycleMgr = CycleManager({
+  getList:()=>anaCycles, setList:v=>{ anaCycles=v; }, save:saveCycles, rerender:()=>renderAnaerobic(),
+  ids:{active:'ana-cycle-active', historyWrap:'ana-cycle-history-wrap', history:'ana-cycle-history', toggle:'ana-cycle-toggle'},
+  renderCard:(c,a)=>renderCycleCard_ana(c,a),
+  text:{pName:'周期名称', pAddHint:'（如：第一阶段）：', pStartAdd:'开始日期（格式 YYYY-MM-DD）：', pEndAdd:'结束日期（进行中请留空，直接回车）：',
+        pStart:'开始日期：', pEnd:'结束日期（进行中留空）：', badDate:'日期格式不正确', untitled:'无名周期',
+        confirmDel:'确认删除此周期记录？', show:'查看历史周期', hide:'收起历史周期',
+        empty:'暂无进行中的周期，点右上角「+ 添加周期」开始记录'},
+});
+const addCycle = ()=>anaCycleMgr.add(), editCycle = id=>anaCycleMgr.edit(id), deleteCycle = id=>anaCycleMgr.remove(id), toggleCycleHistory = ()=>anaCycleMgr.toggle();
 
 // 模板 3：整张「周期卡片」——身份信息/状态徽章/日期/统计数字/操作按钮/可选额外内容区块，
 // 无氧和跑步共用同一份函数。跑步比无氧多一段"额外统计数据"（累计跑量/配速等），
@@ -3875,27 +3949,7 @@ function renderAnaerobic(){
   const ana = records.filter(r=>r.sport==='Strength').sort((a,b)=>a.date.localeCompare(b.date));
 
   // ── 坚持周期 ──
-  const active = anaCycles.filter(c=>!c.end);
-  const history = anaCycles.filter(c=>c.end).sort((a,b)=>b.start.localeCompare(a.start));
-
-  const activeEl = document.getElementById('ana-cycle-active');
-  if(active.length === 0){
-    activeEl.innerHTML = `<div style="color:var(--text3);font-size:var(--fs-sm);padding:12px 0">暂无进行中的周期，点右上角「+ 添加周期」开始记录</div>`;
-  } else {
-    activeEl.innerHTML = active.map(c=>renderCycleCard_ana(c,true)).join('');
-  }
-
-  const histWrap = document.getElementById('ana-cycle-history-wrap');
-  const histToggleBtn = document.getElementById('ana-cycle-toggle');
-  const histEl = document.getElementById('ana-cycle-history');
-  if(history.length > 0){
-    histToggleBtn.style.display = '';
-    histEl.innerHTML = history.map(c=>renderCycleCard_ana(c,false)).join('');
-  } else {
-    histToggleBtn.style.display = 'none';
-    histWrap.style.display = 'none';
-    cycleHistoryOpen = false;
-  }
+  anaCycleMgr.renderLists();
 
   // ── 肌群分布（饼图）──
   const mm = {};
@@ -4070,36 +4124,16 @@ function loadRunCycles(){ return _loadCyclesFrom(LS_RUN_CYCLES); }
 function saveRunCycles(c){ lsSet(LS_RUN_CYCLES,JSON.stringify(c)); }
 let runCycles = loadRunCycles();
 
-function addRunCycle(){
-  const label=prompt('Cycle name (e.g. Base Building):',''); if(label===null) return;
-  const start=prompt('Start date (YYYY-MM-DD):',localDateStr()); if(!start||!/^\d{4}-\d{2}-\d{2}$/.test(start)){showToast('Invalid date format');return;}
-  const endStr=prompt('End date (leave blank if still in progress):','');
-  const end=(endStr&&/^\d{4}-\d{2}-\d{2}$/.test(endStr.trim()))?endStr.trim():null;
-  runCycles.push({id:genId(),label:label||'Untitled Cycle',start,end});
-  runCycles.sort((a,b)=>a.start.localeCompare(b.start));
-  saveRunCycles(runCycles); renderRunAnalysis();
-}
-function editRunCycle(id){
-  const c=runCycles.find(x=>x.id===id); if(!c) return;
-  const label=prompt('Cycle name:',c.label); if(label===null) return;
-  const start=prompt('Start date:',c.start); if(!start) return;
-  const endStr=prompt('End date (leave blank if still in progress):',c.end||'');
-  c.label=label||c.label; c.start=start;
-  c.end=(endStr&&/^\d{4}-\d{2}-\d{2}$/.test(endStr.trim()))?endStr.trim():null;
-  saveRunCycles(runCycles); renderRunAnalysis();
-}
-function deleteRunCycle(id){
-  if(!confirm('Delete this training cycle?')) return;
-  runCycles=runCycles.filter(x=>x.id!==id);
-  saveRunCycles(runCycles); renderRunAnalysis();
-}
-let runCycleHistoryOpen=false;
-function toggleRunCycleHistory(){
-  runCycleHistoryOpen=!runCycleHistoryOpen;
-  document.getElementById('run-cycle-history-wrap').style.display=runCycleHistoryOpen?'':'none';
-  document.getElementById('run-cycle-history').style.display=runCycleHistoryOpen?'flex':'none';
-  document.getElementById('run-cycle-toggle').textContent=runCycleHistoryOpen?'Hide Past Cycles':'View Past Cycles';
-}
+const runCycleMgr = CycleManager({
+  getList:()=>runCycles, setList:v=>{ runCycles=v; }, save:saveRunCycles, rerender:()=>renderRunAnalysis(),
+  ids:{active:'run-cycle-active', historyWrap:'run-cycle-history-wrap', history:'run-cycle-history', toggle:'run-cycle-toggle'},
+  renderCard:(c,a)=>renderRunCycleCard(c,a),
+  text:{pName:'Cycle name', pAddHint:' (e.g. Base Building):', pStartAdd:'Start date (YYYY-MM-DD):', pEndAdd:'End date (leave blank if still in progress):',
+        pStart:'Start date:', pEnd:'End date (leave blank if still in progress):', badDate:'Invalid date format', untitled:'Untitled Cycle',
+        confirmDel:'Delete this training cycle?', show:'View Past Cycles', hide:'Hide Past Cycles',
+        empty:'No active cycle yet — tap "+ Add Cycle" in the top right to start logging.'},
+});
+const addRunCycle = ()=>runCycleMgr.add(), editRunCycle = id=>runCycleMgr.edit(id), deleteRunCycle = id=>runCycleMgr.remove(id), toggleRunCycleHistory = ()=>runCycleMgr.toggle();
 
 function runCycleStats(c){
   const today=localDateStr();
@@ -4273,24 +4307,7 @@ function renderRunAnalysis(){
   }
 
   // 跑步周期
-  const active=runCycles.filter(c=>!c.end);
-  const history=runCycles.filter(c=>c.end).sort((a,b)=>b.start.localeCompare(a.start));
-  const activeEl=document.getElementById('run-cycle-active');
-  activeEl.innerHTML=active.length===0
-    ?`<div style="color:var(--text3);font-size:var(--fs-sm);padding:12px 0">No active cycle yet — tap "+ Add Cycle" in the top right to start logging.</div>`
-    :active.map(c=>renderRunCycleCard(c,true)).join('');
-
-  const histWrap=document.getElementById('run-cycle-history-wrap');
-  const histToggleBtn=document.getElementById('run-cycle-toggle');
-  const histEl=document.getElementById('run-cycle-history');
-  if(history.length>0){
-    histToggleBtn.style.display='';
-    histEl.innerHTML=history.map(c=>renderRunCycleCard(c,false)).join('');
-  } else {
-    histToggleBtn.style.display='none';
-    histWrap.style.display='none';
-    runCycleHistoryOpen=false;
-  }
+  runCycleMgr.renderLists();
 
   // 趋势图表
   const runDatesAll = runs.map(r=>r.date).sort();
