@@ -1480,6 +1480,15 @@ const Parser = {
       }
     };
 
+    // 没在展示位表里登记的分类：它们的单日期、「## 时间线」「## 记事」内容没有任何视图会读，
+    // 汇总成一条警告，免得静默丢掉（跨度不算，它们会落进圆环的"其他"卡）。
+    const registeredCategories = new Set(displayRows.map(r=>r.category));
+    const dropped = new Map();
+    const markDropped = (category, name)=>{
+      if(registeredCategories.size===0 || registeredCategories.has(category)) return;
+      if(!dropped.has(category)) dropped.set(category, new Set());
+      dropped.get(category).add(name);
+    };
     const addNoteEntry = (d, category, text, calOnly, prefix, notes)=>{
       const {year, month, day} = d;
       const entry = { text, month: month||null, day: day||null, rawTag:null, src:'note', prefix: prefix||null, notes: notes||null };
@@ -1551,6 +1560,7 @@ const Parser = {
       if(fm.category){
         const nt = Parser.parseTimelineSection(body, '记事', noteYear);
         nt.skipped.forEach(line=> warnings.push(`${basename}：「## 记事」里有一行没识别出年份，已跳过——${line}`));
+        if(nt.items.length) markDropped(fm.category, basename);
         nt.items.forEach(it=> addNoteItem(it, fm.category, mediaCategories.has(fm.category) ? basename : null));
       }
 
@@ -1631,10 +1641,12 @@ const Parser = {
             start: dateInfo.start, end: dateInfo.end, region,
             stages: hidden ? [] : Parser.parseStageSection(body, noteYear, basename, warnings),
           });
-        } else if(fm.category && items.length===0){
-          // 单值date的"文件名兜底"只在「## 时间线」没产出任何真实内容时才用——
-          // 不然文件名和时间线内容会同时显示，变成两条重复的记录。
-          addPointEntry(dateInfo.start, fm.category, basename);
+        } else if(fm.category){
+          // 单值date总是它自己的一个点（Media里就是"第一次出场"）；只有「## 时间线」里
+          // 已经有一行落在同一天时才不重复画，免得同一天出现两条。
+          const k = o=> `${o.year}-${o.month||0}-${o.day||0}`;
+          if(!items.some(it=> k(it)===k(dateInfo.start))) addPointEntry(dateInfo.start, fm.category, basename);
+          markDropped(fm.category, basename);
         }
       }
 
@@ -1642,6 +1654,7 @@ const Parser = {
         // 「## 时间线」里的每一行，由它自己的日期写法决定是点（addPointEntry）还是跨度（rowSpans），
         // 跟笔记主date是不是跨度无关；只写日期、没写文字的点行用笔记名兜底。
         items.forEach(it=>{
+          markDropped(fm.category, basename);
           if(it.end){
             rowSpans.push({ category: fm.category, title: it.text || basename,
               start:{year:it.year, month:it.month, day:it.day, precision: it.day?'day':it.month?'month':'year'}, end: it.end, notes: it.notes||null });
@@ -1654,6 +1667,9 @@ const Parser = {
       }
     });
 
+    if(dropped.size){
+      warnings.push(`「## 展示位」里没有登记这些分类，它们的单日期、「## 时间线」「## 记事」内容不会显示：${[...dropped].map(([c,set])=>`${c}（${set.size}篇）`).join('、')}`);
+    }
     const fd = d=> d==='ongoing' ? '' : [d.year, d.month && String(d.month).padStart(2,'0'), d.day && String(d.day).padStart(2,'0')].filter(Boolean).join('-');
     [...spanEvents, ...hiddenSpanEvents, ...rowSpans].forEach(ev=>{
       if(!spanYearCategories.has(ev.category)) return;
