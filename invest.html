@@ -140,6 +140,12 @@
    不管写在样式表前面还是后面，都不会反超这几条，不用再操心谁在样式表里出现得晚。 */
 .card.card-hero-soft{background:linear-gradient(160deg,#FFF1E8,#FFFAF7);box-shadow:0 3px 14px -6px rgba(244,81,30,.18)}
 .card-hero-soft .card-title{color:#C2540E}
+/* 市值趋势卡底部的「历史峰值回撤 / 历史最大涨幅」两行（总览和看板共用）：标签 + 粗体数值 + 灰色说明 */
+.snap-stat-row{margin-top:4px}
+.snap-stat-first{margin-top:12px}
+.snap-stat-label{font-size:var(--fs-11);color:var(--text3)}
+.snap-stat-val{font-weight:700;margin-left:var(--sp-1-5)}
+.snap-stat-sub{color:var(--text3);margin-left:var(--sp-1-5);font-size:var(--fs-11)}
 
 .bento-grid{
   display:grid;
@@ -248,6 +254,8 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 /* 数据管理页顶栏按钮（Gist / 导出）：不被压缩、与页签底边留同样的间距 */
 .btn-hd{flex-shrink:0;margin-bottom:8px}
 .btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.btn .btn-ico{margin-right:var(--sp-1)}                         /* 按钮里「图标 + 文字」的图标：图标样式继承自上面的 .btn svg，这里只管和文字的间距 */
+.btn-snap{background:linear-gradient(160deg,#FF6B35,#F4511E);color:#fff;border:none}  /* 「录入快照」橙色渐变按钮（总览/看板共用） */
 .content{padding:var(--sp-6)}
 .page{display:none}
 .page.active{display:block}
@@ -363,14 +371,22 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 .bd-thresh-sep{color:var(--border2)}
 .fi-mini{padding:2px 6px;font-size:var(--fs-11);border:1px solid var(--border2);border-radius:var(--rs);font-family:inherit;background:var(--surface);color:var(--text);outline:none}
 .fi-mini-amt{width:72px}.fi-mini-pct{width:56px}
+/* 看板响应式（三档）：
+   ≥1400  左窄列 1fr + 右宽列 3fr（上面的基础定义）
+   1310~1399  版式不变，左列固定 280px——品种明细表格最小 860px（+卡片内边距），右列必须 ≥896px 才不出横向滚动条，
+              所以不能再按比例收窄左列，也别把 1310 这个临界值往下调（= 896 + 280 + 列间距 14 + 页面左右留白 120）
+   <1310  单列堆叠；顺序 当前市值 → 品种明细 → 配置偏差 → 结构分布 → 市值趋势（先看总览，再看明细，辅助图表放后面） */
 @media (max-width:1399px){
+  .board-bento{grid-template-columns:280px minmax(0,1fr)}
+}
+@media (max-width:1309px){
   .board-bento{
     grid-template-columns:minmax(0,1fr);
     grid-template-areas:
-      "btarget"
-      "bprod"
-      "bstruct"
       "bkpi"
+      "bprod"
+      "btarget"
+      "bstruct"
       "btrend";
   }
   .board-lower2{grid-template-columns:minmax(0,1fr)}
@@ -436,6 +452,13 @@ tbody tr:hover td{background:var(--surface2)}
 .kpi-v-label{font-size:var(--fs-11);font-weight:600;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px}
 .kpi-v-val{font-size:19px;font-weight:700;line-height:1.2}
 .kpi-v-sub{font-size:11px;color:var(--text3);margin-top:2px}
+/* 主 KPI 橙卡里的 2×2 数值格（本金/浮动盈亏/盈亏比例/持仓起始/全程XIRR）：15px 粗体，白字；
+   .kpi-v-num-2 = 双币种时第二行（外币金额），行距更紧、颜色略淡。.kpi-stats 里每格居中 */
+.kpi-stats>div{text-align:center}
+.kpi-v-num{font-size:var(--fs-15);font-weight:700;margin-top:var(--sp-1)}
+.card-hero .kpi-v-num{color:#fff}
+.kpi-v-num-2{margin-top:2px}
+.card-hero .kpi-v-num-2:not(.pos):not(.neg){color:rgba(255,255,255,.85)}
 /* kebab menu */
 .kebab-btn{background:none;border:none;cursor:pointer;padding:2px 7px;font-size:18px;color:var(--text3);border-radius:4px;line-height:1;letter-spacing:-.5px}
 .kebab-btn:hover{background:var(--surface2);color:var(--text)}
@@ -480,7 +503,7 @@ input.fi.fi-auto{background:var(--bg);color:var(--text3);cursor:default}
 .modal-toolbar{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-2);flex-wrap:wrap;flex-shrink:0;margin-bottom:var(--sp-3)}
 .toolbar-group{display:flex;align-items:center;gap:var(--sp-1-5);flex-shrink:0}
 .toolbar-group .btn{flex-shrink:0}
-.modal-scroll{display:flex;flex-direction:column;gap:var(--sp-2);overflow-y:auto;padding-right:var(--sp-1);flex:1;min-height:0}
+.modal-scroll{display:flex;flex-direction:column;gap:var(--sp-2);overflow-y:auto;flex:1;min-height:0}   /* 滚动条间距走 .scroll-gutter，别在这里写 padding-right */
 .notice{font-size:var(--fs-11);color:var(--text3);margin-top:var(--sp-2);padding:var(--sp-2) var(--sp-3);background:var(--surface2);border-radius:var(--rs);flex-shrink:0}
 .t-strong{font-size:var(--fs-13);font-weight:700;color:var(--text)}
 .btn-row{display:flex;gap:var(--sp-2);margin:var(--sp-3) 0 var(--sp-2)}
@@ -488,7 +511,7 @@ input.fi.fi-auto{background:var(--bg);color:var(--text3);cursor:default}
 .btn-block{width:100%;justify-content:center}
 .link{color:var(--blue)}
 /* 小工具类（只用令牌，不写新数值） */
-.mt-1{margin-top:var(--sp-1)}.mt-4{margin-top:var(--sp-4)}
+.mt-1{margin-top:var(--sp-1)}
 .mb-1{margin-bottom:var(--sp-1)}.mb-3{margin-bottom:var(--sp-3)}.mb-4{margin-bottom:var(--sp-4)}
 .check-row{display:flex;align-items:center;gap:var(--sp-1-5);padding:var(--sp-1) 0;font-size:var(--fs-12)}
 .grow{flex:1}.grow-min{flex:1;min-width:0}
@@ -654,14 +677,20 @@ input[type=number]{-moz-appearance:textfield}
 .card-slim{display:flex;align-items:center;gap:var(--sp-3);padding-top:var(--sp-3);padding-bottom:var(--sp-3)}
 .board-l1-cards{display:flex;gap:10px;overflow-x:auto;padding:var(--sp-1);margin:calc(-1*var(--sp-1)) calc(-1*var(--sp-1)) var(--sp-5);scrollbar-width:thin}
 .board-l1-cards::-webkit-scrollbar{height:4px}.board-l1-cards::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
-.bl1-card{flex-shrink:0;background:var(--surface);border:none;border-radius:20px;padding:14px 18px;box-shadow:0 4px 16px -6px rgba(0,0,0,.08);cursor:pointer;transition:background .18s,box-shadow .18s;min-width:140px;position:relative;user-select:none}
+.bl1-card{flex-shrink:0;background:var(--surface);border:none;border-radius:20px;padding:var(--sp-3-5) var(--card-pad);box-shadow:0 4px 16px -6px rgba(0,0,0,.08);cursor:pointer;transition:background .18s,box-shadow .18s;min-width:140px;position:relative;user-select:none}
 .bl1-card:hover{background:var(--blue-bg)}
 .bl1-card.active{background:var(--blue-bg);box-shadow:0 0 0 2px var(--blue)}
-.bl1-card-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bl1-card-val{font-size:12px;color:var(--text);font-weight:700}
-.bl1-card-sub{display:flex;gap:8px;margin-top:3px;font-size:11px;color:var(--text3)}
-.bl1-card-xirr{font-size:11px;font-weight:600;margin-top:2px}
+.bl1-card-name{font-size:13px;line-height:18px;font-weight:700;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bl1-card-val{font-size:12px;line-height:16px;color:var(--text);font-weight:700}
+.bl1-card-sub{display:flex;gap:8px;margin-top:3px;font-size:11px;line-height:15px;color:var(--text3)}
+.bl1-card-xirr{font-size:11px;line-height:15px;font-weight:600;margin-top:2px}
+/* 组合卡一行放不下时横向滚动；两端还有内容时用渐隐遮罩提示（.fade-l/.fade-r 由 _syncL1Fade() 按滚动位置加减）。
+   行高全部写死：中文名和英文名回退到不同字体，行高不固定的话中文名卡片会整体低约 2px */
+.board-l1-cards.fade-r{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent)}
+.board-l1-cards.fade-l{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(to left,#000 calc(100% - 36px),transparent)}
+.board-l1-cards.fade-l.fade-r{-webkit-mask-image:linear-gradient(to right,transparent,#000 36px,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(to right,transparent,#000 36px,#000 calc(100% - 36px),transparent)}
 .bl1-empty{padding:80px;text-align:center;color:var(--text3);font-size:13px}
+.bl1-empty-cta{margin-top:var(--sp-4)}
 .dev-pos{color:var(--red)}.dev-neg{color:var(--green)}.dev-ok{color:var(--text3)}
 .cf-mini-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px}
 .cf-mini-row:last-child{border-bottom:none}
@@ -821,7 +850,6 @@ const LS = 'portfolio_v1';
 // 当下这一刻的真实时间，必然比文件本身的时间戳新——不会再出现"拉取的云端数据版本号比文件
 // 自带的还旧，刷新后被文件数据覆盖回去"这种情况。
 const LS_WRITE_AT = 'invest_ls_write_at';
-const LS_KEYS = ['FX','HIERARCHY','PRODUCTS','CASHFLOWS','TYPE_TABLE'];
 
 // ── Defaults (first-run only, no sample data) ──
 const DEFAULTS = {
@@ -998,18 +1026,18 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
         <div class="card card-hero-soft bento-area-trend">
           <div class="card-header">
             <div class="card-title">市值趋势</div>
-            <button class="btn btn-sm" style="background:linear-gradient(160deg,#FF6B35,#F4511E);color:#fff;border:none" onclick="openSnapshotModal('total',0,null)"><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-right:4px"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>录入快照</button>
+            <button class="btn btn-sm btn-snap" onclick="openSnapshotModal('total',0,null)"><svg viewBox="0 0 24 24" class="btn-ico"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>录入快照</button>
           </div>
           <div style="position:relative;height:260px;margin-top:6px"><canvas id="c-snap-total"></canvas></div>
-          <div id="snap-drawdown" style="margin-top:12px">
-            <span style="font-size:11px;color:var(--text3)">历史峰值回撤</span>
-            <span id="snap-drawdown-val" style="font-weight:700;margin-left:6px" class="neg"></span>
-            <span id="snap-drawdown-sub" style="color:var(--text3);margin-left:6px;font-size:11px"></span>
+          <div id="snap-drawdown" class="snap-stat-row snap-stat-first">
+            <span class="snap-stat-label">历史峰值回撤</span>
+            <span id="snap-drawdown-val" class="snap-stat-val neg"></span>
+            <span id="snap-drawdown-sub" class="snap-stat-sub"></span>
           </div>
-          <div id="snap-growth" style="margin-top:4px">
-            <span style="font-size:11px;color:var(--text3)">历史最大涨幅</span>
-            <span id="snap-growth-val" style="font-weight:700;margin-left:6px" class="pos"></span>
-            <span id="snap-growth-sub" style="color:var(--text3);margin-left:6px;font-size:11px"></span>
+          <div id="snap-growth" class="snap-stat-row">
+            <span class="snap-stat-label">历史最大涨幅</span>
+            <span id="snap-growth-val" class="snap-stat-val pos"></span>
+            <span id="snap-growth-sub" class="snap-stat-sub"></span>
           </div>
         </div>
 
@@ -1772,7 +1800,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
         <button id="batch-sort-btn" class="btn btn-sm" onclick="cycleBatchSort()">金额排序</button>
       </div>
     </div>
-    <div id="batch-rows" class="modal-scroll"></div>
+    <div id="batch-rows" class="modal-scroll scroll-gutter"></div>
     <div id="batch-shared-note" class="notice"></div>
     <div class="modal-footer">
       <button class="btn" onclick="closeMo('mo-batch')">取消</button>
@@ -1999,6 +2027,39 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
    「至今」标记（当年未结算）   ytdTagHtml()                蓝字、不加粗、无背景、字号继承年度数字，
                                                            和年度数字之间留 6px；样式在 .ytd-tag。
 
+   卡片内边距 / 卡片间距         --card-pad / --card-gap     :root 里的两个变量。.card 和主 KPI 橙卡(.kpi-card-v.card-hero)
+                                                           的内边距都取 --card-pad，网格 gap / 上下叠放的 margin-bottom 都取
+                                                           --card-gap。别写死 18px/14px；需要"抵消卡片内边距"的负 margin
+                                                           （如 .legend-fill）也要用 calc 引用 --card-pad。
+
+   卡内滚动区（限高 + 滚动）     class="scroll-gutter"       出现滚动条时内容和滚动条之间留 --scroll-gap，没溢出时不留
+                                                           （.has-scroll 由 _syncScrollGutters() 按实际溢出自动加减，
+                                                           内容重渲染/窗口缩放后自动重判，不用手动调用）。
+
+   主 KPI 橙卡里的数值格         .kpi-v-num (+ .kpi-v-num-2) 15px 粗体白字；.kpi-v-num-2 是双币种时的第二行（外币）。
+                                 .kpi-v-inline               数值后面要挂 ⓘ 时加，数值居中、图标紧跟。
+                                                           双币种对齐用 alignedNumPair(主文,主class,'',副文,副class,'')，
+                                                           样式只传 class，不再传内联 style 字符串。
+
+   市值趋势卡底部两行            .snap-stat-row/-label/-val  「历史峰值回撤 / 历史最大涨幅」，总览和看板共用；JS 里改
+                                 /-sub                       数值 className 时要连 snap-stat-val 一起写，别整个覆盖掉。
+
+   按钮里的图标 / 录入快照按钮   .btn-ico / .btn-snap         图标尺寸继承 .btn svg，.btn-ico 只管和文字的间距；
+                                                           .btn-snap 是橙色渐变按钮（总览/看板的「录入快照」）。
+
+   看板版面                     .board-bento（5 张卡）      配置偏差|品种明细 / 结构分布+当前市值|市值趋势(跨两行)；
+                                 .board-row3 / .board-lower2 下面依次是 XIRR×2+逐年收益率 / 最近现金流+本金拆分 / 备注。
+                                                           响应式三档见 .board-bento 的媒体查询注释（1310 这个临界值别改）。
+
+   组合卡行的两端渐隐提示         _syncL1Fade()               .board-l1-cards 左/右还有内容时加 .fade-l/.fade-r（mask 渐隐）；
+                                                           组合卡里每行的行高写死，别改成 normal（中英文名字体不同会错位）。
+
+   市值趋势图纵轴                 renderSnapshotChart         范围 = 数据最低/最高各留 15% 波动幅度，刻度步长交给 Chart.js；
+                                                           不要再写死 stepSize / ×0.95（数据窄幅波动时曲线会缩成一小段）。
+
+   看板偏好（上次选的组合）       _rememberBoardGroup()       只存 localStorage 的 invest_board_last，属于"这台浏览器的偏好"，
+                                                           不进 _collectData / Gist / 导出 JSON。
+
    硬规则（违反会让"改一处全局生效"失效）：
      1. 新增 ⋮ 菜单按钮一律用 kebabBtn()，不再手写 onclick="_openKebab(event,[...])"。
      2. 已有的手写菜单按钮，顺手改到的时候换成 kebabBtn()，不用专门另开一次改动。
@@ -2014,6 +2075,12 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
      8. 新增横向进度条一律用 barRowHtml()，容器二选一：.bar-list（单行）或 .bar-list-stack（两行）；
         不再手写 <div class="bar-row">，也不新增第三种版式——需要新样子先改这两种标准。
      9. 「至今」标记一律用 ytdTagHtml()，不用 pill、不手写文字。
+    10. 卡片内边距只用 var(--card-pad)，卡片间距只用 var(--card-gap)；不写死数字，也不给单张卡单独设内边距
+        （主 KPI 橙卡也一样）。确实要特殊的（如 .card-slim 的细行），只改上下，左右仍走变量。
+    11. 新增"限高+滚动"的卡内列表加 class scroll-gutter，不自己写 padding-right 给滚动条让位。
+    12. 本文件不放任何个人数据：组合名/品种名不写进代码（颜色表、映射表都不行），一律由用户数据驱动；
+        文件里只有通用分类（现金债券/红利/大盘…）这类默认值。
+    13. 重复出现 ≥2 次的 inline style 一律收成 class。KPI 数值、趋势卡底部两行、按钮图标就是这么收的。
    ════════════════════════════════════════════════════════════════ */
 const PALETTE = ['#378ADD','#1D9E75','#EF9F27','#7F77DD','#D85A30','#888780','#D4537E','#639922','#185FA5','#854F0B'];
 const MKT_IDX = ['A','H','US','A/H','A/US'];
@@ -2042,7 +2109,6 @@ const CAT_COLOR = {
 };
 function catClr(name,i){return CAT_COLOR[name]||PALETTE[i%10];}
 const CCY_COLOR = {CNY:'#378ADD',USD:'#1D9E75',HKD:'#EF9F27'};
-const L3_PILL = {DIY:'pill-blue',MY:'pill-teal','避风港湾':'pill-purple','分红组':'pill-amber','投机组':'pill-coral','流动性':'pill-gray','远洋枢纽':'pill-pink'};
 
 function getCatOf(typeName){return (TYPE_TABLE.find(r=>r.type===typeName)||{}).cat||'';}
 
@@ -2391,8 +2457,11 @@ function _syncScrollGutters(){
 }
 let _sgRaf = 0;
 function _scheduleScrollGutters(){ if(_sgRaf) return; _sgRaf = requestAnimationFrame(()=>{ _sgRaf=0; _syncScrollGutters(); }); }
-new MutationObserver(m=>{ if(m.some(r=>r.type==='childList')) _scheduleScrollGutters(); })
-  .observe(document.body,{childList:true,subtree:true});
+// 监听：内容增删（childList）+ 弹窗打开/关闭（class/style 变化）。自己加减 has-scroll 也是 class 变化，
+// 必须在这里过滤掉，否则 加类→触发观察→再判→再加减 会死循环。
+new MutationObserver(m=>{
+  if(m.some(r=>r.type==='childList' || !(r.target.classList && r.target.classList.contains('scroll-gutter')))) _scheduleScrollGutters();
+}).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']});
 window.addEventListener('resize', _scheduleScrollGutters);
 function today(){return new Date().toISOString().slice(0,10)}
 function toCNY(a,c){return a*(FX[c]||1)}
@@ -3830,21 +3899,21 @@ function renderOverview(){
       <div class="kpi-v-val" style="font-size:30px;margin-top:6px">${fmtCNY(total)}</div>
     </div>
     <div class="kpi-stats">
-      <div style="text-align:center">
+      <div>
         <div class="kpi-v-label">本金</div>
-        <div class="kpi-v-sub" style="font-size:15px;font-weight:700;margin-top:4px;color:#fff">${fmtCNY(netCost)}</div>
+        <div class="kpi-v-sub kpi-v-num">${fmtCNY(netCost)}</div>
       </div>
-      <div style="text-align:center">
+      <div>
         <div class="kpi-v-label">浮动盈亏</div>
-        <div class="kpi-v-sub" style="font-size:15px;font-weight:700;margin-top:4px;color:#fff">${gain>=0?'+':''}${fmtCNY(gain)}</div>
+        <div class="kpi-v-sub kpi-v-num">${gain>=0?'+':''}${fmtCNY(gain)}</div>
       </div>
-      <div style="text-align:center">
+      <div>
         <div class="kpi-v-label">盈亏比例</div>
-        <div class="kpi-v-sub" style="font-size:15px;font-weight:700;margin-top:4px;color:#fff">${gain>=0?'+':''}${gainPct.toFixed(2)}%</div>
+        <div class="kpi-v-sub kpi-v-num">${gain>=0?'+':''}${gainPct.toFixed(2)}%</div>
       </div>
-      <div style="text-align:center">
+      <div>
         <div class="kpi-v-label">全程 XIRR</div>
-        <div class="kpi-v-sub" style="font-size:15px;font-weight:700;margin-top:4px;color:#fff">${globalR!=null?(globalR>=0?'+':'')+(globalR*100).toFixed(2)+'%':'N/A'}</div>
+        <div class="kpi-v-sub kpi-v-num">${globalR!=null?(globalR>=0?'+':'')+(globalR*100).toFixed(2)+'%':'N/A'}</div>
       </div>
     </div>
   `;
@@ -4315,8 +4384,7 @@ function setXirrRankLevel(lv){
 }
 function jumpToBoardGroup(lv, groupName){
   showPage('board');
-  selectBoardLevel(lv);
-  selectBoardGroup(groupName);
+  selectBoardLevel(lv, groupName);
 }
 function renderXirr(){
   const allCosts=CASHFLOWS.filter(c=>c.type==='成本资金'||c.type==='分红'||c.type==='共管转让').map(c=>({date:c.date,amount:costCNY(c)}));
@@ -5107,11 +5175,20 @@ function pickJsonFile(){
 let _boardL1 = null;
 let _boardLevel = 2;  // active level (1-5)；默认二级
 let _boardGroup = null; // active group name at that level
+// 每个层级上次看的组合：进入看板/切层级时自动选中它（找不到就选第一个），不用每次先点一下卡片才出内容。
+// 只是"这台浏览器上的看板偏好"，不属于业务数据：单独一个 localStorage key，不进 _collectData / Gist / 导出 JSON。
+const LS_BOARD_LAST = 'invest_board_last';
+let _boardLast = (()=>{ try{ return JSON.parse(localStorage.getItem(LS_BOARD_LAST)||'{}')||{}; }catch(e){ return {}; } })();
+function _rememberBoardGroup(lv, g){
+  _boardLast[lv] = g;
+  try{ localStorage.setItem(LS_BOARD_LAST, JSON.stringify(_boardLast)); }catch(e){}
+}
 let _boardPierce = false; // pierce mode active
 
-function selectBoardLevel(lv){
+// group 可选：指定了就直接选它（从别处跳转过来时用，避免先渲染一次默认组合再渲染一次目标组合）
+function selectBoardLevel(lv, group){
   _boardLevel = lv;
-  _boardGroup = null;
+  _boardGroup = group || null;
   _boardPierce = false;
   [1,2,3,4,5].forEach(l=>document.getElementById('bdlv-'+l).classList.toggle('active', l===lv));
   document.getElementById('bdlv-pierce').classList.remove('active');
@@ -5518,6 +5595,10 @@ function renderSnapshotChart(mode, level, group){
   const xPad = xMax>xMin ? (xMax-xMin)*0.02 : 3*_dayMs;   // 两端留一点空，端点圆点不贴边
   const minVal = Math.min(...amounts);
   const maxVal = Math.max(...amounts);
+  // 纵轴范围：在数据最低/最高点之外各留 15% 的波动幅度（至少留 1% 的数值），刻度步长交给 Chart.js 自动取整。
+  // 原来是固定 [最小×0.95, 最大×1.02] + 固定步长 10 万：数据只在 19~24 万之间波动时，轴被撑成 15~25 万，曲线只占中间一小段。
+  const _pad = Math.max((maxVal-minVal)*0.15, maxVal*0.01);
+  const _axMin = minVal-_pad, _axMax = maxVal+_pad;
 
   // 回撤/涨幅的区间判定要挪到图表创建之前算好——下面给连接线分段上色(灰/红/绿)需要用到
   // worstPeakIdx/worstTroughIdx(回撤区间)和bestTroughIdx/bestPeakIdx(涨幅区间)这几个索引，
@@ -5576,7 +5657,7 @@ function renderSnapshotChart(mode, level, group){
       return sym+Math.round(v);
     }
     if(Math.abs(v)>=100000000) return (v/100000000).toFixed(1)+'亿';
-    if(Math.abs(v)>=10000) return Math.round(v/10000)+'万';
+    if(Math.abs(v)>=10000) return (Math.round(v/1000)/10).toString().replace(/\.0$/,'')+'万';   // 保留 1 位小数（去掉 .0），步长小于 1 万时刻度不会被四舍五入成重复数字
     return Math.round(v)+'';
   }
 
@@ -5649,27 +5730,23 @@ function renderSnapshotChart(mode, level, group){
         },
         y:{
           position:'left',
-          suggestedMin: minVal*0.95,
-          suggestedMax: maxVal*1.02,
+          suggestedMin: _axMin, suggestedMax: _axMax,
           grid:{color:'rgba(0,0,0,.09)', drawBorder:false},
           border:{display:false, dash:[3,3]},
           ticks:{
             color:'#7A7A7A',
             font:{size:CHART_FS},
-            stepSize:100000,
             callback: v=>fmtY(v)
           }
         },
         y1:{
           position:'right',
-          suggestedMin: minVal*0.95,
-          suggestedMax: maxVal*1.02,
+          suggestedMin: _axMin, suggestedMax: _axMax,
           grid:{drawOnChartArea:false, drawBorder:false},
           border:{display:false},
           ticks:{
             color:'#7A7A7A',
             font:{size:CHART_FS},
-            stepSize:100000,
             callback: v=>fmtY(v)
           }
         }
@@ -5686,7 +5763,7 @@ function renderSnapshotChart(mode, level, group){
   if(ddEl && amounts.length>=2){
     ddEl.style.display='';
     ddVal.textContent = (worstDD>=0?'+':'')+worstDD.toFixed(2)+'%';
-    ddVal.className = worstDD>=0?'pos':'neg';
+    ddVal.className = 'snap-stat-val '+(worstDD>=0?'pos':'neg');   // 整个 className 重写，别丢掉 snap-stat-val（粗体+左间距）
     ddSub.textContent = worstDD<0 ? `峰值 ${labels[worstPeakIdx]} → 谷底 ${labels[worstTroughIdx]}` : '暂无回撤';
   } else if(ddEl){
     ddEl.style.display='none';
@@ -5719,6 +5796,12 @@ function renderBoard(){
     groups = [...new Set(HIERARCHY.map(h=>h['l'+lv]).filter(Boolean))];
   }
 
+  // 没有选中（或选中的组合已不存在）时自动选：上次看的 → 第一个。没有任何组合则走下面的空状态
+  if(groups.length && (!_boardGroup || !groups.includes(_boardGroup))){
+    _boardGroup = groups.includes(_boardLast[lv]) ? _boardLast[lv] : groups[0];
+    _boardL1 = lv===1 ? _boardGroup : null;
+  }
+
   // Render selector cards
   document.getElementById('board-l1-cards').innerHTML = groups.length
     ? groups.map(g => {
@@ -5745,20 +5828,37 @@ function renderBoard(){
           ${r!=null?`<div class="bl1-card-xirr ${r>=0?'pos':'neg'}">XIRR ${r>=0?'+':''}${(r*100).toFixed(2)}%</div>`:''}
         </div>`;
       }).join('')
-    : `<div class="bl1-empty">当前层级暂无数据，请在「数据管理→组合层级」录入${lv}级分类</div>`;
+    : '';
+
+  _syncL1Fade();
 
   // Content
-  if(!_boardGroup || !groups.includes(_boardGroup)){
+  if(!groups.length){
+    // 空状态只出一个：说明 + 直达「组合层级」录入的按钮（原来这里和"请选择上方…"会同时出现两句、位置还对不齐）
     document.getElementById('board-content').innerHTML =
-      `<div class="bl1-empty">请选择上方一个${lv===1?'一级组合':'分类'}，查看专项看板 📊</div>`;
+      `<div class="bl1-empty">
+        <div>${lv===1?'还没有一级组合':`还没有${lv}级分类`}，先到「组合层级」录入</div>
+        <button class="btn btn-primary btn-sm bl1-empty-cta" onclick="showPage('data');showDataTab('hierarchy')">去录入</button>
+      </div>`;
     renderBoardNotes();
     return;
   }
   _renderGroupBoard(lv, _boardGroup);
 }
 
+// 组合卡行的两端渐隐提示：左边还有被滚走的内容 → fade-l；右边还有没看到的 → fade-r
+function _syncL1Fade(){
+  const el = document.getElementById('board-l1-cards'); if(!el) return;
+  const max = el.scrollWidth - el.clientWidth;
+  el.classList.toggle('fade-l', el.scrollLeft > 2);
+  el.classList.toggle('fade-r', max > 2 && el.scrollLeft < max - 2);
+}
+window.addEventListener('resize', _syncL1Fade);
+document.addEventListener('DOMContentLoaded', ()=>{ const el=document.getElementById('board-l1-cards'); if(el) el.addEventListener('scroll', _syncL1Fade, {passive:true}); });
+
 function selectBoardGroup(g){
   _boardGroup = g;
+  _rememberBoardGroup(_boardLevel, g);
   _boardL1 = _boardLevel===1 ? g : null; // keep _boardL1 in sync for legacy code
   document.querySelectorAll('.bl1-card').forEach(c=>c.classList.toggle('active', c.dataset.group === g));
   _renderGroupBoard(_boardLevel, g);
@@ -6244,7 +6344,7 @@ function _bdHeaderHtml(x){
 <div class="bd-head">
       <div class="bd-head-title"><span class="bd-head-name">${_esc(groupName)}</span> · ${lvLabel}级 · ${prods.length} 个品种${lv>1?` · ${members.length} 个一级组合`:''}</div>
       ${lv===1 ? `<button class="btn btn-primary btn-sm" onclick="openBatch('${esc}')">
-        <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-right:4px"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        <svg viewBox="0 0 24 24" class="btn-ico"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         更新市值
       </button>` : ''}
     </div>
@@ -6282,27 +6382,27 @@ function _bdKpiCardHtml(x){
             : `<div class="kpi-v-val" style="font-size:30px;margin-top:6px">${fmtCNY(grpTotal)}</div>${soleCcy==='MIXED'?`<div style="margin-top:4px">${_mixedCcyHint()}</div>`:''}`}
         </div>
         <div class="kpi-stats">
-          <div style="text-align:center">
+          <div>
             <div class="kpi-v-label">本金</div>
             ${soleCcy&&soleCcy!=='MIXED'
-              ? alignedNumPair(fmtCNY(netCost),'kpi-v-sub','font-size:15px;font-weight:700;margin-top:4px;color:#fff', fmtForeign(netCostF,soleCcy),'kpi-v-sub','font-size:15px;font-weight:700;margin-top:2px')
-              : `<div class="kpi-v-sub" style="font-size:15px;font-weight:700;margin-top:4px;color:#fff">${fmtCNY(netCost)}</div>`}
+              ? alignedNumPair(fmtCNY(netCost),'kpi-v-sub kpi-v-num','', fmtForeign(netCostF,soleCcy),'kpi-v-sub kpi-v-num kpi-v-num-2','')
+              : `<div class="kpi-v-sub kpi-v-num">${fmtCNY(netCost)}</div>`}
           </div>
-          <div style="text-align:center">
+          <div>
             <div class="kpi-v-label">浮动盈亏</div>
             ${soleCcy&&soleCcy!=='MIXED'
-              ? alignedNumPair((gain>=0?'+':'')+fmtCNY(gain), gain>=0?'pos':'neg', 'font-size:15px;font-weight:700;margin-top:4px', (gainF>=0?'+':'')+fmtForeign(gainF,soleCcy), gainF>=0?'pos':'neg', 'font-size:15px;font-weight:700;margin-top:2px')
-              : `<div class="kpi-v-sub ${gain>=0?'pos':'neg'}" style="font-size:15px;font-weight:700;margin-top:4px">${gain>=0?'+':''}${fmtCNY(gain)}</div>`}
+              ? alignedNumPair((gain>=0?'+':'')+fmtCNY(gain), (gain>=0?'pos':'neg')+' kpi-v-num', '', (gainF>=0?'+':'')+fmtForeign(gainF,soleCcy), (gainF>=0?'pos':'neg')+' kpi-v-num kpi-v-num-2', '')
+              : `<div class="kpi-v-sub kpi-v-num ${gain>=0?'pos':'neg'}">${gain>=0?'+':''}${fmtCNY(gain)}</div>`}
           </div>
-          <div style="text-align:center">
+          <div>
             <div class="kpi-v-label">盈亏比例</div>
             ${soleCcy&&soleCcy!=='MIXED'
-              ? alignedNumPair((gain>=0?'+':'')+gainPct.toFixed(2)+'%', gain>=0?'pos':'neg', 'font-size:15px;font-weight:700;margin-top:4px', (gainF>=0?'+':'')+gainFPct.toFixed(2)+'%', gainF>=0?'pos':'neg', 'font-size:15px;font-weight:700;margin-top:2px')
-              : `<div class="kpi-v-sub ${gain>=0?'pos':'neg'}" style="font-size:15px;font-weight:700;margin-top:4px">${gain>=0?'+':''}${gainPct.toFixed(2)}%</div>`}
+              ? alignedNumPair((gain>=0?'+':'')+gainPct.toFixed(2)+'%', (gain>=0?'pos':'neg')+' kpi-v-num', '', (gainF>=0?'+':'')+gainFPct.toFixed(2)+'%', (gainF>=0?'pos':'neg')+' kpi-v-num kpi-v-num-2', '')
+              : `<div class="kpi-v-sub kpi-v-num ${gain>=0?'pos':'neg'}">${gain>=0?'+':''}${gainPct.toFixed(2)}%</div>`}
           </div>
-          <div style="text-align:center">
+          <div>
             <div class="kpi-v-label">持仓起始</div>
-            <div class="kpi-v-sub kpi-v-inline" style="font-size:15px;font-weight:700;margin-top:4px;color:#fff">${startDate||'—'}${heldDays!==null?infoIcon(`已持有 ${heldDays} 天 / ${heldYears} 年`):''}</div>
+            <div class="kpi-v-sub kpi-v-num kpi-v-inline">${startDate||'—'}${heldDays!==null?infoIcon(`已持有 ${heldDays} 天 / ${heldYears} 年`):''}</div>
           </div>
         </div>
         <hr>
@@ -6418,20 +6518,20 @@ function _bdTrendCardHtml(x){
     <div class="card card-hero-soft bento-area-btrend" style="margin-bottom:0">
       <div class="card-header">
         <div class="card-title">市值趋势<span id="snap-group-ccy-hint" style="font-size:11px;font-weight:500;color:var(--text3);margin-left:4px"></span></div>
-        <button class="btn btn-sm" style="background:linear-gradient(160deg,#FF6B35,#F4511E);color:#fff;border:none" onclick="openSnapshotModal('group',${lv},'${_escAttrJs(groupName)}')">
-          <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>录入快照
+        <button class="btn btn-sm btn-snap" onclick="openSnapshotModal('group',${lv},'${_escAttrJs(groupName)}')">
+          <svg viewBox="0 0 24 24" class="btn-ico"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>录入快照
         </button>
       </div>
       <div class="bd-trend-canvas"><canvas id="c-snap-group"></canvas></div>
-      <div id="snap-drawdown-group" style="margin-top:12px;display:none">
-        <span style="font-size:11px;color:var(--text3)">历史峰值回撤</span>
-        <span id="snap-drawdown-group-val" style="font-weight:700;margin-left:6px"></span>
-        <span id="snap-drawdown-group-sub" style="color:var(--text3);margin-left:6px;font-size:11px"></span>
+      <div id="snap-drawdown-group" class="snap-stat-row snap-stat-first" style="display:none">
+        <span class="snap-stat-label">历史峰值回撤</span>
+        <span id="snap-drawdown-group-val" class="snap-stat-val"></span>
+        <span id="snap-drawdown-group-sub" class="snap-stat-sub"></span>
       </div>
-      <div id="snap-growth-group" style="margin-top:4px;display:none">
-        <span style="font-size:11px;color:var(--text3)">历史最大涨幅</span>
-        <span id="snap-growth-group-val" style="font-weight:700;margin-left:6px" class="pos"></span>
-        <span id="snap-growth-group-sub" style="color:var(--text3);margin-left:6px;font-size:11px"></span>
+      <div id="snap-growth-group" class="snap-stat-row" style="display:none">
+        <span class="snap-stat-label">历史最大涨幅</span>
+        <span id="snap-growth-group-val" class="snap-stat-val pos"></span>
+        <span id="snap-growth-group-sub" class="snap-stat-sub"></span>
       </div>
     </div>
   `;
