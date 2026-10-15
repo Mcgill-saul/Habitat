@@ -591,6 +591,35 @@ input.fi:focus,select.fi:focus{border-color:var(--blue)}
 .yr-txt{font-size:var(--fs-12);color:var(--text3);white-space:nowrap}
 .yr-arrow{width:14px;height:14px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 .card-flush-b{margin-bottom:0}
+/* 涨跌速算 QuickCalc：窄卡片网格（一行放多张），卡片复用 .card */
+.qc-grid{display:grid;grid-template-columns:repeat(auto-fill,300px);gap:var(--card-gap);align-items:start}
+.qc-card{min-width:0}
+.qc-card .card-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.qc-card{--qc-lbl-w:36px}
+.qc-in-row{display:flex;align-items:center;gap:var(--sp-2);font-size:var(--fs-12);color:var(--text2)}
+.qc-in-lbl{flex:0 0 var(--qc-lbl-w)}
+.qc-card .fi{height:28px;box-sizing:border-box;padding:4px 8px}
+.qc-num{flex:1;min-width:0;text-align:right}
+.qc-date{flex:0 0 126px;width:126px}
+.qc-date-fixed{flex:0 0 126px;text-align:right;color:var(--text3);white-space:nowrap}
+/* 基准值与现值之间的纵向连接线：在卡片水平正中，线中间压一颗药丸写间隔时长；颜色随涨跌（.down 红 / .up 绿 / 默认中性灰） */
+.qc-link{--qc-c:var(--border2);--qc-c-bg:var(--bg);--qc-c-fg:var(--text2);position:relative;height:48px}
+.qc-link.down{--qc-c:var(--red);--qc-c-bg:var(--red-bg);--qc-c-fg:var(--red)}
+.qc-link.up{--qc-c:var(--green);--qc-c-bg:var(--green-bg);--qc-c-fg:var(--green)}
+.qc-link-line{position:absolute;left:50%;top:3px;bottom:3px;border-left:2px dashed var(--qc-c);transform:translateX(-1px)}
+.qc-link-line::before,.qc-link-line::after{content:'';position:absolute;left:-4px;width:6px;height:6px;border-radius:50%;background:var(--qc-c)}
+.qc-link-line::before{top:-3px}.qc-link-line::after{bottom:-3px}
+.qc-link-txt{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:2px 10px;border-radius:999px;background:var(--qc-c-bg);font-size:var(--fs-11);font-weight:600;color:var(--qc-c-fg);white-space:nowrap}
+.qc-link-txt:empty{display:none}
+.qc-result{margin-top:var(--sp-3);padding-top:var(--sp-3);border-top:1px solid var(--border)}
+.qc-res-line{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-1)}
+.qc-big{font-size:var(--fs-20);font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.qc-back{display:flex;align-items:center;gap:var(--sp-1);white-space:nowrap}
+.qc-res-val{font-weight:700;font-size:var(--fs-14);font-variant-numeric:tabular-nums}
+.qc-add{display:flex;align-items:center;justify-content:center;gap:var(--sp-2);min-height:150px;border:1.5px dashed var(--border2);border-radius:20px;background:transparent;color:var(--text3);font:inherit;font-size:var(--fs-12);cursor:pointer;transition:all .15s}
+.qc-add svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.qc-add:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-bg)}
+.qc-presets{display:flex;flex-wrap:wrap;gap:var(--sp-2)}
 .yr-end{font-size:var(--fs-13);font-weight:700;color:var(--text);padding:6px 4px}
 .fg2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
@@ -887,7 +916,8 @@ const DEFAULTS = {
   PERPETUAL_PLAN: {"startYear":2026,"startAge":null,"inflationRate":0.02,"baseWithdrawRate":0.04,"withdrawGrowthRate":0.02,"growthStartYear":null,"groups":[],"actualWithdrawals":{}},
   BOARD_NOTES: {},
   FUND_SOURCES: [],
-  PRINCIPAL_SPLITS: {}
+  PRINCIPAL_SPLITS: {},
+  QUICK_CALC: []
 };
 
 // ── Load from localStorage ──
@@ -905,7 +935,7 @@ function _collectData(ts){
   if(typeof _syncSharedProductRows==='function') _syncSharedProductRows();
   const cleanProducts  = PRODUCTS.filter(p=>!p._sharedSrc);
   const cleanCashflows = CASHFLOWS.filter(c=>!c._sharedSrc);
-  return {_ts:ts,FX,FX_TS,HIERARCHY,PRODUCTS:cleanProducts,CASHFLOWS:cleanCashflows,TYPE_TABLE,TARGET_ALLOC,TARGET_ORDER,BOARD_TYPE_ORDER,REBAL_THRESH,SNAPSHOTS,SHARED_CF_NOTES,XIRR_CALC_ROWS:_xirrCalcRows,MARKET_PLAN,BENCHMARK_PLAN,SHARED_PRODUCTS,ACTUAL_CASHFLOWS,PERPETUAL_PLAN,BOARD_NOTES,FUND_SOURCES,PRINCIPAL_SPLITS};
+  return {_ts:ts,FX,FX_TS,HIERARCHY,PRODUCTS:cleanProducts,CASHFLOWS:cleanCashflows,TYPE_TABLE,TARGET_ALLOC,TARGET_ORDER,BOARD_TYPE_ORDER,REBAL_THRESH,SNAPSHOTS,SHARED_CF_NOTES,XIRR_CALC_ROWS:_xirrCalcRows,MARKET_PLAN,BENCHMARK_PLAN,SHARED_PRODUCTS,ACTUAL_CASHFLOWS,PERPETUAL_PLAN,BOARD_NOTES,FUND_SOURCES,PRINCIPAL_SPLITS,QUICK_CALC};
 }
 function lsSave(){
   try {
@@ -962,6 +992,8 @@ let SNAPSHOTS = _saved ? (_saved.SNAPSHOTS || []) : JSON.parse(JSON.stringify(DE
 // 资金来源：跨一级组合的资金视角，纯参考聚合，不参与任何真实结算（见文件后段"资金来源"相关函数）
 let FUND_SOURCES = _saved ? (_saved.FUND_SOURCES || []) : JSON.parse(JSON.stringify(DEFAULTS.FUND_SOURCES||[]));
 // 本金拆分：给某个组合(按 "层级|组合名" 为key)设定几份本金各自的占比，纯展示用，跟资金来源是两个独立功能
+let QUICK_CALC = (_saved ? (_saved.QUICK_CALC || []) : JSON.parse(JSON.stringify(DEFAULTS.QUICK_CALC||[])));
+if(!Array.isArray(QUICK_CALC)) QUICK_CALC = [];   // 手改过的 JSON 里这个字段可能不是列表，别让页面加载就崩   // 涨跌速算的标的列表（见 QuickCalc）
 let PRINCIPAL_SPLITS = _saved ? (_saved.PRINCIPAL_SPLITS || {}) : JSON.parse(JSON.stringify(DEFAULTS.PRINCIPAL_SPLITS||{}));
 // 一次性迁移：给还没有id的品种补上稳定id，供资金来源引用具体品种（数组下标不稳定，不能用来引用）
 PRODUCTS.forEach(p=>{ if(!p.id) p.id=_genId('pd'); });
@@ -1227,6 +1259,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
         <div class="dtab" onclick="showDataTab('shared')" id="dtab-shared">共管持仓</div>
         <div class="dtab" onclick="showDataTab('fundsource')" id="dtab-fundsource">资金来源</div>
         <div class="dtab" onclick="showDataTab('xirr-calc')" id="dtab-xirr-calc">XIRR 计算器</div>
+        <div class="dtab" onclick="showDataTab('quickcalc')" id="dtab-quickcalc">涨跌速算</div>
         </div>
         <div style="display:flex;gap:10px;flex-shrink:0">
         <button class="btn btn-primary btn-sm" id="gist-sync-btn" onclick="showGistPanel()" style="flex-shrink:0;margin-bottom:8px"><svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>已连接云同步</button>
@@ -1422,6 +1455,9 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
       </div>
 
       <!-- 共管持仓 -->
+      <div id="data-quickcalc" class="data-panel">
+        <div class="qc-grid" id="qc-grid"></div>
+      </div>
       <div id="data-xirr-calc" class="data-panel">
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
 
@@ -2069,6 +2105,9 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
    看板偏好（上次选的组合）       _rememberBoardGroup()       只存 localStorage 的 invest_board_last，属于"这台浏览器的偏好"，
                                                            不进 _collectData / Gist / 导出 JSON。
 
+   涨跌速算（数据管理）           QuickCalc                   命名空间对象（render/onInput/openAdd/add/rename/removeItem），数据 QUICK_CALC 进 _collectData；
+                                                           新功能的示范写法：内部函数不进全局，UI 复用 .card/kebabBtn/modalShell/.chip。
+
    硬规则（违反会让"改一处全局生效"失效）：
      1. 新增 ⋮ 菜单按钮一律用 kebabBtn()，不再手写 onclick="_openKebab(event,[...])"。
      2. 已有的手写菜单按钮，顺手改到的时候换成 kebabBtn()，不用专门另开一次改动。
@@ -2091,6 +2130,16 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
         文件里只有通用分类（现金债券/红利/大盘…）这类默认值。
     13. 重复出现 ≥2 次的 inline style 一律收成 class。KPI 数值、趋势卡底部两行、按钮图标就是这么收的。
     14. 二级及以上组合不单独存年度快照，一律经 _groupYearEnd 由成员一级组合合计；缺成员快照的年份 complete=false，只能显示/提示，不得当 0 或偏低值参与收益、回撤、XIRR 计算。
+    15. 新功能一律封装成命名空间对象（参考 QuickCalc：const X=(()=>{…return{公开方法}})()），内部函数/常量不进全局，inline onclick 写 X.method()；存量全局函数不强改，碰到哪块顺手收。
+    16. 新增任何 UI 之前，先在本文件里找"最像的一处现成写法"，照着它的结构、class、文案和命名来，找不到再自创。
+        不要只看组件的函数签名（modalShell/kebabBtn 这些只管外壳），外壳里面的约定同样要照抄：
+          · 弹窗：id 叫 modal-xxx；字段用 .form-row + <label class="form-label">，并排两列用 .fg2；
+            底部按钮固定"取消"(.btn) + "保存"(.btn.btn-primary)，不要写"确定/提交"；参考 saveSharedLotEdit 那个弹窗（搜 modal-lotedit）。
+          · 卡片：用 .card，标题 .card-title 不带图标；卡内空状态 .empty-compact / 单行 .empty-line；卡片间距/内边距只用 --card-gap/--card-pad。
+          · 说明性小字：挂 infoIcon() 悬浮，不要常驻一行小字。
+          · 字号/间距/颜色/圆角：只用 --fs-、--sp- 系列变量和颜色令牌，圆角只有 6px / 20px / 胶囊三档，不自创数值。
+          · 涨跌配色：涨绿(.pos) 跌红(.neg)，不要另写颜色。
+        做完后自查一遍：同类控件的字号、文案、间距是否跟现有同类一致；不一致的要么改成一致，要么在注释里写明为什么例外。
    ════════════════════════════════════════════════════════════════ */
 const PALETTE = ['#378ADD','#1D9E75','#EF9F27','#7F77DD','#D85A30','#888780','#D4537E','#639922','#185FA5','#854F0B'];
 const MKT_IDX = ['A','H','US','A/H','A/US'];
@@ -2720,7 +2769,122 @@ function showDataTab(tab){
   if(tab==='shared')renderSharedList();
   if(tab==='fundsource')renderFundSourceList();
   if(tab==='xirr-calc')xirrCalcInit();
+  if(tab==='quickcalc')QuickCalc.render();
 }
+
+// ══════════════════════════════════════════════
+// 涨跌速算 QuickCalc —— 手动输入「基准值 / 现值」，即时算涨跌幅（基准高于现值＝下跌，低于＝上涨）及回到基准需涨/跌多少。
+// 新功能示范写法：整块收进命名空间对象，只对外暴露 render/onInput/openAdd/add/rename/remove/removeItem，
+// 内部函数不进全局；UI 复用 .card / kebabBtn / modalShell / .chip / .fi。
+// 数据：QUICK_CALC = [{id,name,base,baseDate,cur}]（现值的日期恒为今天，不存）（旧版 high/low 载入时并成 base）（数值存原始输入字符串，保留用户键入形态），随 _collectData 进备份/Gist。
+// ══════════════════════════════════════════════
+const QuickCalc = (()=>{
+  const PRESETS = ['标普500','纳斯达克','恒生指数','沪深300'];
+  const num = v => { const n = parseFloat(v); return isFinite(n) ? n : null; };
+  const pct = v => (v>0?'+':'')+v.toFixed(2)+'%';
+  const cls = v => v>0?'pos':v<0?'neg':'';
+
+  // 旧版存档里是 high/low 两个字段：并成一个基准值（优先高点），只在内存里改，下次保存时自然落盘
+  QUICK_CALC = QUICK_CALC.filter(it=>it && typeof it==='object' && it.id);
+  QUICK_CALC.forEach(it=>{ if(it.base===undefined) it.base = it.high || it.low || ''; if(it.baseDate===undefined) it.baseDate = ''; delete it.high; delete it.low; });
+
+  // 纯计算：基准值 → 现值的涨跌幅；基准高于现值＝下跌，低于现值＝上涨；缺任一输入返回 null
+  function calc(it){
+    const b=num(it.base), c=num(it.cur);
+    if(b==null || c==null || b<=0 || c<=0) return null;
+    const chg = (c/b-1)*100;
+    return {chg, back:(b/c-1)*100};      // back：要回到基准值，现值还需要涨/跌多少
+  }
+  function resultHtml(it){
+    const r = calc(it);
+    if(!r) return '<div class="empty-line">填入基准值和现值即可算出涨跌幅</div>';
+    const word = r.chg>0 ? '上涨' : r.chg<0 ? '下跌' : '持平';
+    const backWord = r.back>0 ? '回到基准值需涨' : '回到基准值需跌';
+    return `<div class="qc-res-line">
+      <div class="qc-big ${cls(r.chg)}">${word} ${r.chg===0?'0.00%':Math.abs(r.chg).toFixed(2)+'%'}</div>
+      ${r.chg===0?'':`<div class="qc-back"><span class="qc-res-val ${cls(r.back)}">${pct(r.back)}</span>${infoIcon(backWord)}</div>`}
+    </div>`;
+  }
+  const numInput = (it, key) => `<input type="number" step="any" inputmode="decimal" class="fi qc-num" value="${_escAttr(it[key])}" oninput="QuickCalc.onInput('${it.id}','${key}',this.value)">`;
+  // 基准日期到今天过了多久：<1 年显示天数，≥1 年再补「X 年 Y 个月」；没填日期显示 —
+  function elapsedText(it){
+    if(!it.baseDate) return '';
+    const days = Math.round((Date.parse(today()+'T00:00:00Z') - Date.parse(it.baseDate+'T00:00:00Z'))/86400000);
+    if(!isFinite(days)) return '';
+    if(days<0) return '基准日期晚于今天';
+    if(days<365) return `已过 ${days} 天`;
+    const y = Math.floor(days/365), m = Math.floor((days-y*365)/30.4);
+    return `已过 ${days} 天 · ${y} 年${m?m+' 个月':''}`;
+  }
+  // 连接线颜色随涨跌：下跌红、上涨绿，没算出结果/持平为中性灰
+  function linkState(it){ const r = calc(it); return r && r.chg>0 ? 'up' : r && r.chg<0 ? 'down' : ''; }
+  function cardHtml(it){
+    return `<div class="card card-flush-b qc-card" id="qc-card-${it.id}">
+      <div class="card-header">
+        <div class="card-title" title="${_escAttr(it.name)}">${_esc(it.name)}</div>
+        ${kebabBtn([{l:'重命名',a:`QuickCalc.rename('${it.id}')`},{l:'删除',a:`QuickCalc.removeItem('${it.id}')`,d:1}])}
+      </div>
+      <div class="qc-in-row"><span class="qc-in-lbl">基准值</span>${numInput(it,'base')}
+        <input type="date" class="fi qc-date" value="${_escAttr(it.baseDate)}" max="${today()}" oninput="QuickCalc.onInput('${it.id}','baseDate',this.value)"></div>
+      <div class="qc-link ${linkState(it)}" id="qc-linkbox-${it.id}"><span class="qc-link-line"></span><span class="qc-link-txt" id="qc-link-${it.id}">${elapsedText(it)}</span></div>
+      <div class="qc-in-row"><span class="qc-in-lbl">现值</span>${numInput(it,'cur')}<span class="qc-date-fixed">今日 ${today()}</span></div>
+      <div class="qc-result" id="qc-res-${it.id}">${resultHtml(it)}</div>
+    </div>`;
+  }
+  function render(){
+    const el = document.getElementById('qc-grid');
+    if(!el) return;
+    el.innerHTML = QUICK_CALC.map(cardHtml).join('')
+      + `<button type="button" class="qc-add" onclick="QuickCalc.openAdd()"><svg viewBox="0 0 24 24" class="btn-ico"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>新增标的</button>`;
+  }
+  // 输入时只刷新该卡的结果区，不整页重绘（否则输入框会丢焦点）
+  function onInput(id, key, val){
+    const it = QUICK_CALC.find(x=>x.id===id);
+    if(!it) return;
+    it[key] = val;
+    lsSave();
+    const res = document.getElementById('qc-res-'+id);
+    if(res) res.innerHTML = resultHtml(it);
+    const lk = document.getElementById('qc-link-'+id);
+    if(lk) lk.textContent = elapsedText(it);
+    const lb = document.getElementById('qc-linkbox-'+id);
+    if(lb) lb.className = 'qc-link '+linkState(it);
+  }
+  // 新增 / 重命名共用一个名称弹窗
+  function _nameModal(title, initial, okAction, withPresets){
+    const chips = withPresets ? `<div class="form-row"><label class="form-label">常用标的</label><div class="qc-presets">${PRESETS.map(n=>`<span class="chip" onclick="document.getElementById('qc-name-input').value='${n}'">${n}</span>`).join('')}</div></div>` : '';
+    openDynModal('modal-qc-name', modalShell({
+      id:'modal-qc-name', title, width:400,
+      body:`<div class="form-row"><label class="form-label">标的名称</label><input class="fi" id="qc-name-input" maxlength="30" value="${_escAttr(initial)}"></div>${chips}`,
+      footer:`<button class="btn" onclick="closeDynMo('modal-qc-name')">取消</button><button class="btn btn-primary" onclick="${okAction}">保存</button>`
+    }));
+  }
+  const _nameVal = () => document.getElementById('qc-name-input').value.trim();
+  function openAdd(){ _nameModal('新增标的', '', 'QuickCalc.add()', true); }
+  function add(){
+    const name = _nameVal();
+    if(!name){ toast('请输入标的名称', true); return; }
+    QUICK_CALC.push({id:_genId('qc'), name, base:'', baseDate:'', cur:''});
+    lsSave(); closeDynMo('modal-qc-name'); render();
+  }
+  function rename(id){
+    const it = QUICK_CALC.find(x=>x.id===id);
+    if(it) _nameModal('重命名', it.name, `QuickCalc.applyRename('${id}')`, false);
+  }
+  function applyRename(id){
+    const name = _nameVal(), it = QUICK_CALC.find(x=>x.id===id);
+    if(!name){ toast('请输入标的名称', true); return; }
+    if(it) it.name = name;
+    lsSave(); closeDynMo('modal-qc-name'); render();
+  }
+  function removeItem(id){
+    const it = QUICK_CALC.find(x=>x.id===id);
+    if(!it || !confirm(`删除标的「${it.name}」？`)) return;
+    QUICK_CALC = QUICK_CALC.filter(x=>x.id!==id);
+    lsSave(); render();
+  }
+  return {render, onInput, openAdd, add, rename, applyRename, removeItem};
+})();
 
 // ── XIRR 计算器 ──
 // _xirrCalcRows declared and loaded from localStorage at top of script
@@ -5112,7 +5276,7 @@ function _inspectData(d){
   if(!d || typeof d!=='object' || Array.isArray(d)) return fatal('数据格式不对：文件内容不是一个数据对象');
   if(!Array.isArray(d.PRODUCTS)) return fatal('数据格式不对：文件里没有品种列表（PRODUCTS）');
   const nameOf=(o,i)=>(o&&typeof o.name==='string'&&o.name.trim())?o.name:('#'+(i+1));
-  ['HIERARCHY','CASHFLOWS','TYPE_TABLE','SNAPSHOTS','SHARED_PRODUCTS','ACTUAL_CASHFLOWS','FUND_SOURCES','BOARD_TYPE_ORDER','XIRR_CALC_ROWS']
+  ['HIERARCHY','CASHFLOWS','TYPE_TABLE','SNAPSHOTS','SHARED_PRODUCTS','ACTUAL_CASHFLOWS','FUND_SOURCES','BOARD_TYPE_ORDER','XIRR_CALC_ROWS','QUICK_CALC']
     .forEach(k=>{ if(d[k]!=null && !Array.isArray(d[k])) add(`字段 ${k} 应该是列表，实际是 ${Array.isArray(d[k])?'列表':typeof d[k]}`); });
   ['FX','FX_TS','TARGET_ALLOC','TARGET_ORDER','REBAL_THRESH','SHARED_CF_NOTES','MARKET_PLAN','BENCHMARK_PLAN','PERPETUAL_PLAN','BOARD_NOTES','PRINCIPAL_SPLITS']
     .forEach(k=>{ if(d[k]!=null && (typeof d[k]!=='object'||Array.isArray(d[k]))) add(`字段 ${k} 应该是对象，实际是 ${Array.isArray(d[k])?'列表':typeof d[k]}`); });
