@@ -580,9 +580,18 @@ input.fi,select.fi,textarea.fi{width:100%;padding:8px 10px;border:1px solid var(
 .mkplan-pct-pill-input::-webkit-inner-spin-button,.mkplan-pct-pill-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 select.fi{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
 input.fi:focus,select.fi:focus{border-color:var(--blue)}
-/* 看板两个XIRR计算器的年份下拉框单独加悬浮态+聚焦光晕，只作用这3个选择器，不改全局.fi(全app还有98处在用，不该被这次顺带改动) */
-#bd-xirr-from-year:hover,#bd-xirr-range-from:hover,#bd-xirr-range-to:hover{border-color:#B8C4D9}
-#bd-xirr-from-year:focus,#bd-xirr-range-from:focus,#bd-xirr-range-to:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-bg)}
+/* 年份选择胶囊 yearRangePillHtml()：整条胶囊=底色槽，年份是里面的白色小药丸（原生 select 去掉外观，箭头画在 label 的 ::after 上，
+   跟年份数字之间留固定间距，不会再叠在一起）。XIRR 两个计算器共用，今后别处要选年份区间也用这个。 */
+.yr-pill{display:inline-flex;align-items:center;gap:var(--sp-2);padding:4px 14px 4px 4px;background:var(--bg);border-radius:999px;max-width:100%;flex-wrap:wrap}
+.yr-sel{position:relative;display:inline-flex;align-items:center;background:var(--surface);border-radius:999px;box-shadow:0 1px 3px rgba(0,0,0,.08);transition:box-shadow .15s}
+.yr-sel::after{content:'';position:absolute;right:11px;top:50%;width:5px;height:5px;margin-top:-4px;border:solid var(--text3);border-width:0 1.5px 1.5px 0;transform:rotate(45deg);pointer-events:none}
+.yr-sel:hover{box-shadow:0 1px 4px rgba(0,0,0,.14)}
+.yr-sel:focus-within{box-shadow:0 0 0 2px var(--blue)}
+.yr-sel select{appearance:none;-webkit-appearance:none;border:none;outline:none;background:transparent;font:inherit;font-size:var(--fs-13);font-weight:700;color:var(--text);padding:6px 28px 6px 14px;cursor:pointer;border-radius:999px;font-variant-numeric:tabular-nums}
+.yr-txt{font-size:var(--fs-12);color:var(--text3);white-space:nowrap}
+.yr-arrow{width:14px;height:14px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.card-flush-b{margin-bottom:0}
+.yr-end{font-size:var(--fs-13);font-weight:700;color:var(--text);padding:6px 4px}
 .fg2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .modal-footer{display:flex;gap:var(--sp-2);justify-content:flex-end;margin-top:var(--sp-5);padding-top:var(--sp-4);border-top:1px solid var(--border)}
@@ -2081,6 +2090,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
     12. 本文件不放任何个人数据：组合名/品种名不写进代码（颜色表、映射表都不行），一律由用户数据驱动；
         文件里只有通用分类（现金债券/红利/大盘…）这类默认值。
     13. 重复出现 ≥2 次的 inline style 一律收成 class。KPI 数值、趋势卡底部两行、按钮图标就是这么收的。
+    14. 二级及以上组合不单独存年度快照，一律经 _groupYearEnd 由成员一级组合合计；缺成员快照的年份 complete=false，只能显示/提示，不得当 0 或偏低值参与收益、回撤、XIRR 计算。
    ════════════════════════════════════════════════════════════════ */
 const PALETTE = ['#378ADD','#1D9E75','#EF9F27','#7F77DD','#D85A30','#888780','#D4537E','#639922','#185FA5','#854F0B'];
 const MKT_IDX = ['A','H','US','A/H','A/US'];
@@ -5519,6 +5529,35 @@ function deleteSnapshot(){
   toast('快照已删除');
 }
 
+// ── 二级及以上组合的"年度快照"不单独录入，由成员一级组合的年度快照按年合计得出。
+//    某年算"完整"的条件：当年已有流水的每个成员一级组合（首笔流水年份 ≤ 该年）都有该年的年度快照。
+//    不完整的年份仍返回已有成员的合计（amount），但 complete=false 且 missing 列出缺哪些一级组合，
+//    由调用方决定是画空心点/不计入统计/显示「—」，绝不把缺口当成 0 去算收益。
+function _groupYearEnd(level, groupName, Y){
+  const members = _groupL1Members(level, groupName);
+  let amount = 0, date = null; const missing = [];
+  // 年末快照的宽限：今天 ≤ 该年 12-31（即当年，含 12-31 当天）时缺快照是正常的，过了 12-31（次年 1 月 1 日起）才算缺口。
+  // 宽限期内如果成员快照已经录齐，照常当作完整年份；没录齐就当"未到期"，不标不完整、不出合计点。
+  const grace = today() <= `${Y}-12-31`;
+  members.forEach(m=>{
+    const flows = CASHFLOWS.filter(c=>(c.l1||c.product)===m);
+    if(!flows.length) return;
+    const firstYear = Math.min(...flows.map(c=>new Date(c.date).getFullYear()));
+    if(firstYear>Y) return;                       // 当年还没建仓，不要求有快照
+    const snaps = flows.filter(c=>c.type==='年度快照' && c.date.startsWith(String(Y)));
+    if(!snaps.length){ missing.push(m); return; }
+    snaps.forEach(c=>{ amount += costCNY(c); if(!date || c.date>date) date = c.date; });
+  });
+  const complete = !missing.length && date!==null;
+  if(grace && !complete) return {year:Y, amount:0, date:null, missing:[], complete:false, notDue:true};
+  return {year:Y, amount, date, missing, complete};
+}
+function _groupSnapYears(level, groupName){
+  const ys = new Set();
+  _groupCashflows(level, groupName).filter(c=>c.type==='年度快照').forEach(c=>ys.add(new Date(c.date).getFullYear()));
+  return [...ys].sort((a,b)=>a-b);
+}
+
 function _getSnapshotPoints(mode, level, group){
   const key = mode==='total' ? 'total' : group;
   // daily snapshots
@@ -5533,6 +5572,10 @@ function _getSnapshotPoints(mode, level, group){
       byDate[c.date] += costCNY(c);
     });
     yearlySnaps = Object.entries(byDate).map(([date,amount])=>({date, amount, src:'yearly'}));
+  } else if(parseInt(level)>1){
+    yearlySnaps = _groupSnapYears(parseInt(level), group).map(Y=>_groupYearEnd(parseInt(level), group, Y))
+      .filter(r=>r.date)
+      .map(r=>({date:r.date, amount:r.amount, src:'yearly', derived:true, incomplete:!r.complete, missing:r.missing}));
   } else {
     yearlySnaps = CASHFLOWS
       .filter(c=>c.type==='年度快照' && (c.l1===group||c.product===group))
@@ -5605,10 +5648,12 @@ function renderSnapshotChart(mode, level, group){
   // 原来这段计算是在图表创建"之后"才跑的（只用来更新下面的文字说明），现在提前。
   let worstDD = 0, worstPeakIdx = -1, worstTroughIdx = -1;
   let bestGain = 0, bestTroughIdx = -1, bestPeakIdx = -1;
-  if(amounts.length>=2){
-    let runningPeak = amounts[0], runningPeakIdx = 0;
-    let runningTrough = amounts[0], runningTroughIdx = 0;
-    for(let i=0;i<amounts.length;i++){
+  // 不完整的年度合计点（缺成员快照，金额偏低）不参与回撤/涨幅计算，否则会被误判成"暴跌"
+  const _validIdx = pts.map((p,i)=>p.incomplete?-1:i).filter(i=>i>=0);
+  if(_validIdx.length>=2){
+    let runningPeak = amounts[_validIdx[0]], runningPeakIdx = _validIdx[0];
+    let runningTrough = amounts[_validIdx[0]], runningTroughIdx = _validIdx[0];
+    for(const i of _validIdx){
       if(amounts[i] > runningPeak){ runningPeak = amounts[i]; runningPeakIdx = i; }
       const ddHere = runningPeak>0 ? (amounts[i]-runningPeak)/runningPeak*100 : 0;
       if(ddHere < worstDD){ worstDD = ddHere; worstPeakIdx = runningPeakIdx; worstTroughIdx = i; }
@@ -5618,7 +5663,8 @@ function renderSnapshotChart(mode, level, group){
     }
   }
   // 一段连接线（p0→p1两个相邻点之间）算不算落在回撤/涨幅区间里，要求两个端点都在区间内
-  function _segInRange(p0, p1, lo, hi){ return lo>=0 && p0>=lo && p1<=hi; }
+  function _segInRange(p0, p1, lo, hi){ return lo>=0 && p0>=lo && p1<=hi && !pts[p0].incomplete && !pts[p1].incomplete; }
+  const _incompletePts = pts.filter(p=>p.incomplete);
 
   // gradient fill —— 灰/红/绿三套渐变，颜色沿用应用自己的 --red(#D85A30)/--green(#1D9E75) 语义色，
   // 跟表格里涨跌颜色保持一致，不是另起一套配色
@@ -5672,6 +5718,7 @@ function renderSnapshotChart(mode, level, group){
         segment:{
           borderColor: segColor,
           backgroundColor: segFill,
+          borderDash: ctx=>(pts[ctx.p0DataIndex].incomplete||pts[ctx.p1DataIndex].incomplete)?[5,4]:undefined,
         },
         borderWidth:2.5,
         fill:true,
@@ -5679,9 +5726,9 @@ function renderSnapshotChart(mode, level, group){
         pointStyle: pts.map(p=>p.src==='yearly'?'rect':'circle'),
         pointRadius: pts.map(p=>p.src==='yearly'?5:4),
         pointHoverRadius:6,
-        pointBackgroundColor: pts.map(p=>p.src==='yearly'?'#0F6E56':'#F4511E'),
-        pointBorderColor:'#fff',
-        pointBorderWidth:1.5,
+        pointBackgroundColor: pts.map(p=>p.incomplete?'#fff':p.src==='yearly'?'#0F6E56':'#F4511E'),
+        pointBorderColor: pts.map(p=>p.incomplete?'#B26A00':'#fff'),
+        pointBorderWidth: pts.map(p=>p.incomplete?2:1.5),
       }]
     },
     options:{
@@ -5689,6 +5736,7 @@ function renderSnapshotChart(mode, level, group){
       onClick:(evt, elements)=>{
         if(!elements.length) return;
         const p = pts[elements[0].index];
+        if(p.derived){ toast(p.incomplete ? `该年度合计不完整，缺少：${p.missing.join('、')} 的年度快照，请到对应一级组合补录` : '这是由成员一级组合年度快照合计出的锚点，无法直接编辑', true); return; }
         if(p.src !== 'snap'){ toast('这是自动推算的年度锚点，无法编辑，请直接录入快照覆盖', true); return; }
         openSnapshotModal(mode, level, group, p.date, p.rawAmount, p.ccy);
       },
@@ -5707,6 +5755,7 @@ function renderSnapshotChart(mode, level, group){
             label: ctx=>' '+(displayCcy==='CNY'?fmtCNY(ctx.parsed.y):fmtForeign(ctx.parsed.y,displayCcy)),
             afterLabel: ctx=>{
               const p=pts[ctx.dataIndex];
+              if(p.derived) return p.incomplete ? [' 年度快照合计（不完整，未计入统计）',' 缺：'+p.missing.join('、')] : ' 年度快照（成员合计）';
               const src=p.src==='yearly'?'年度快照':'日常快照';
               const mismatch=(p.ccy&&p.ccy!==displayCcy)?`（原始录入 ${fmtForeign(p.rawAmount,p.ccy)}）`:'';
               return ' '+src+mismatch;
@@ -5760,7 +5809,7 @@ function renderSnapshotChart(mode, level, group){
   const ddEl  = document.getElementById('snap-drawdown'+ddSuffix);
   const ddVal = document.getElementById('snap-drawdown'+ddSuffix+'-val');
   const ddSub = document.getElementById('snap-drawdown'+ddSuffix+'-sub');
-  if(ddEl && amounts.length>=2){
+  if(ddEl && _validIdx.length>=2){
     ddEl.style.display='';
     ddVal.textContent = (worstDD>=0?'+':'')+worstDD.toFixed(2)+'%';
     ddVal.className = 'snap-stat-val '+(worstDD>=0?'pos':'neg');   // 整个 className 重写，别丢掉 snap-stat-val（粗体+左间距）
@@ -5772,7 +5821,7 @@ function renderSnapshotChart(mode, level, group){
   const growthEl  = document.getElementById('snap-growth'+ddSuffix);
   const growthVal = document.getElementById('snap-growth'+ddSuffix+'-val');
   const growthSub = document.getElementById('snap-growth'+ddSuffix+'-sub');
-  if(growthEl && amounts.length>=2){
+  if(growthEl && _validIdx.length>=2){
     growthEl.style.display='';
     growthVal.textContent = '+'+bestGain.toFixed(2)+'%';
     growthSub.textContent = bestGain>0 ? `谷底 ${labels[bestTroughIdx]} → 峰值 ${labels[bestPeakIdx]}` : '暂无涨幅';
@@ -5940,11 +5989,12 @@ function _groupXirrFromYear(level, groupName, fromYear){
   const grpTotal = _groupMarketVal2(level, groupName);
   if(!grpTotal) return null;
   const flows = _groupCashflows(level, groupName);
-  const prevSnaps = flows.filter(c=>c.type==='年度快照'&&c.date.startsWith(String(fromYear-1)));
+  const pe = _groupYearEnd(level, groupName, fromYear-1);
+  if(pe.date && !pe.complete) return {r:null, cf:[], incomplete:pe.missing, incompleteYear:fromYear-1};
   const costs = flows.filter(c=>(c.type==='成本资金'||c.type==='分红')&&new Date(c.date).getFullYear()>=fromYear);
   const cf = [];
-  if(prevSnaps.length){
-    const open = prevSnaps.reduce((s,c)=>s+costCNY(c),0);
+  if(pe.date){
+    const open = pe.amount;
     cf.push({date:`${fromYear}-01-01`, amount:-open, label:`${fromYear-1} 年末快照（期初净值）`});
   }
   costs.forEach(c=>cf.push({date:c.date, amount:costCNY(c), label:c.type==='分红'?'分红':'成本资金'}));
@@ -5956,23 +6006,25 @@ function _groupXirrFromYear(level, groupName, fromYear){
 function _groupXirrRange(level, groupName, fromYear, toYear){
   if(fromYear>toYear) return null;
   const flows = _groupCashflows(level, groupName);
-  const prevSnaps = flows.filter(c=>c.type==='年度快照'&&c.date.startsWith(String(fromYear-1)));
-  if(!prevSnaps.length) return null;
+  const pe = _groupYearEnd(level, groupName, fromYear-1);
+  if(!pe.date) return null;
+  if(!pe.complete) return {r:null, cf:[], incomplete:pe.missing, incompleteYear:fromYear-1};
   const curYear = new Date().getFullYear();
   const isCurYear = toYear===curYear;
-  const endSnaps = flows.filter(c=>c.type==='年度快照'&&c.date.startsWith(String(toYear)));
+  const ee = _groupYearEnd(level, groupName, toYear);
+  if(ee.date && !ee.complete) return {r:null, cf:[], incomplete:ee.missing, incompleteYear:toYear};
   let close, closeDate, closeLabel;
-  if(isCurYear && !endSnaps.length){
+  if(isCurYear && !ee.date){
     close = _groupMarketVal2(level, groupName);
     closeDate = today();
     closeLabel = '今日市值（期末，本年未结算）';
   } else {
-    if(!endSnaps.length) return null;
-    close = endSnaps.reduce((s,c)=>s+costCNY(c),0);
+    if(!ee.date) return null;
+    close = ee.amount;
     closeDate = `${toYear}-12-31`;
     closeLabel = `${toYear} 年末快照（期末净值）`;
   }
-  const open = prevSnaps.reduce((s,c)=>s+costCNY(c),0);
+  const open = pe.amount;
   const costs = flows.filter(c=>(c.type==='成本资金'||c.type==='分红')).filter(c=>{const y=new Date(c.date).getFullYear();return y>=fromYear&&y<=toYear;});
   const cf = [{date:`${fromYear}-01-01`, amount:-open, label:`${fromYear-1} 年末快照（期初净值）`}];
   costs.forEach(c=>cf.push({date:c.date, amount:costCNY(c), label:c.type==='分红'?'分红':'成本资金'}));
@@ -5992,20 +6044,23 @@ function _groupYearlyStats(level, groupName){
   const years = [...yearSet].sort((a,b)=>_yearlyStatsAsc?(a-b):(b-a));
 
   return years.map(Y=>{
-    const isYTD = (Y===curYear) && !snapYears.has(curYear);
-    let close, closeDate;
+    const isYTD = (Y===curYear) && _groupYearEnd(level, groupName, Y).notDue;
+    let close, closeDate, incompleteMissing=null, openMissing=null;
     if(isYTD){
       close = _groupMarketVal2(level, groupName);
       closeDate = todayStr;
     } else {
-      const curSnaps = flows.filter(c=>c.type==='年度快照'&&c.date.startsWith(String(Y)));
-      close = curSnaps.reduce((s,c)=>s+costCNY(c),0);
+      const ye = _groupYearEnd(level, groupName, Y);
+      close = ye.amount;
       closeDate = `${Y}-12-31`;
+      if(!ye.complete) incompleteMissing = ye.missing;
     }
     let open=null, openAvailable=false, openLabel='';
-    const prevSnaps = flows.filter(c=>c.type==='年度快照'&&c.date.startsWith(String(Y-1)));
-    if(prevSnaps.length){
-      open = prevSnaps.reduce((s,c)=>s+costCNY(c),0);
+    const pe = _groupYearEnd(level, groupName, Y-1);
+    if(pe.date && !pe.complete){
+      openMissing = pe.missing;                       // 上年末快照不完整：期初不可用，不能当 0 或偏低值去算
+    } else if(pe.date){
+      open = pe.amount;
       openAvailable = true;
       openLabel = `${Y-1} 年末快照（期初净值）`;
     } else if(Y===inceptionYear){
@@ -6018,7 +6073,7 @@ function _groupYearlyStats(level, groupName){
     const netCostSignedY = costsY.reduce((s,c)=>s+c.amount,0);
     const netInvested = -netCostSignedY;
     let gain=null, rate=null, cf=null;
-    if(openAvailable){
+    if(openAvailable && !incompleteMissing){
       gain = close - open + netCostSignedY;
       cf = [{date:`${Y}-01-01`, amount:-open, label:openLabel}];
       costsY.forEach(c=>cf.push({date:c.date, amount:c.amount, label:c.label}));
@@ -6026,7 +6081,7 @@ function _groupYearlyStats(level, groupName){
       cf.sort((a,b)=>a.date.localeCompare(b.date));
       rate = xirr(cf);
     }
-    return {year:Y, isYTD, close, gain, rate, netInvested, openAvailable, cf};
+    return {year:Y, isYTD, close, gain, rate, netInvested, openAvailable, cf, incompleteMissing, openMissing};
   });
 }
 
@@ -6155,6 +6210,10 @@ function boardXirrPrefSet(lv, groupName, patch){
 }
 
 // Re-render "从某年起至今" result when dropdown changes
+// 「年末快照不完整」的统一提示（XIRR 两个卡共用）；成员名来自用户数据，一律转义
+function _xirrIncompleteHtml(result){
+  return `<div class="empty empty-compact">${result.incompleteYear} 年末快照不完整，缺少：${_esc(result.incomplete.join('、'))}</div>`;
+}
 function updateBoardXirrFrom(){
   const lv = _boardLevel, g = _boardGroup;
   if(!g) return;
@@ -6165,6 +6224,10 @@ function updateBoardXirrFrom(){
   const result = _groupXirrFromYear(lv, g, yr);
   if(!result){
     document.getElementById('bd-xirr-from-result').innerHTML = `<div class="empty empty-compact">需要 ${yr-1} 年末快照或 ${yr} 年起的成本流水记录</div>`;
+    return;
+  }
+  if(result.incomplete){
+    document.getElementById('bd-xirr-from-result').innerHTML = _xirrIncompleteHtml(result);
     return;
   }
   const {r, cf} = result;
@@ -6187,6 +6250,10 @@ function updateBoardXirrRange(){
   const result = _groupXirrRange(lv, g, fy, ty);
   if(!result){
     document.getElementById('bd-xirr-range-result').innerHTML = `<div class="empty empty-compact">需要 ${fy-1} 年末和 ${ty} 年末的快照记录</div>`;
+    return;
+  }
+  if(result.incomplete){
+    document.getElementById('bd-xirr-range-result').innerHTML = _xirrIncompleteHtml(result);
     return;
   }
   const {r, cf} = result;
@@ -6464,11 +6531,20 @@ function _bdStructCardHtml(){
   `;
 }
 
+// 年份选择胶囊（XIRR 两个计算器共用）：「[年份▾] 年初 → [年份▾] 年末 / 今日」一整条胶囊。
+//   from / to：{id, years, def, onchange, suffix}；to 也可以是 {fixed:'今日'}（固定终点，不可选）。
+function _yrSelHtml(o){
+  return `<label class="yr-sel"><select id="${o.id}" onchange="${o.onchange}">${o.years.map(y=>`<option value="${y}"${y===o.def?' selected':''}>${y}</option>`).join('')}</select></label><span class="yr-txt">${o.suffix}</span>`;
+}
+function yearRangePillHtml(from, to){
+  return `<div class="yr-pill">${_yrSelHtml(from)}<svg class="yr-arrow" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>${to.fixed?`<span class="yr-end">${to.fixed}</span>`:_yrSelHtml(to)}</div>`;
+}
+
 // 两个 XIRR 计算器卡（从某年起至今 / 自定义区间）
 function _bdXirrCalcCardsHtml(x){
   const {_defFromNow, _defRangeFrom, _defRangeTo, _fromNowYrs, _rangeFromYrs, _rangeToYrs} = x;
   return `
-<div class="card" style="margin-bottom:0">
+<div class="card card-flush-b">
           <div class="card-title card-title-solo">
             <span class="ct-inline">
               从某年起至今 XIRR
@@ -6476,35 +6552,23 @@ function _bdXirrCalcCardsHtml(x){
             </span>
           </div>
           ${_fromNowYrs.length
-            ? `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                <span style="font-size:12px;color:var(--text2);white-space:nowrap">起始年份</span>
-                <select class="fi fi-compact" id="bd-xirr-from-year" onchange="updateBoardXirrFrom()">
-                  ${_fromNowYrs.map(y=>`<option value="${y}"${y===_defFromNow?' selected':''}>${y}</option>`).join('')}
-                </select>
-                <span style="font-size:12px;color:var(--text3)">年初 → 今日</span>
-              </div>
+            ? `${yearRangePillHtml(
+                {id:'bd-xirr-from-year', years:_fromNowYrs, def:_defFromNow, onchange:'updateBoardXirrFrom()', suffix:'年初'},
+                {fixed:'今日'})}
               <div id="bd-xirr-from-result"></div>`
             : `<div class="empty empty-compact">暂无流水或快照数据</div>`}
         </div>
-        <div class="card" style="margin-bottom:0">
+        <div class="card card-flush-b">
           <div class="card-title card-title-solo">
             <span class="ct-inline">
-                    自定义区间 XIRR
+              自定义区间 XIRR
               ${infoIcon('起止用年末快照作为净值锚点')}
             </span>
           </div>
           ${_rangeFromYrs.length && _rangeToYrs.length
-            ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                <select class="fi fi-compact" id="bd-xirr-range-from" onchange="updateBoardXirrRange()">
-                  ${_rangeFromYrs.map(y=>`<option value="${y}"${y===_defRangeFrom?' selected':''}>${y}</option>`).join('')}
-                </select>
-                <span style="font-size:12px;color:var(--text3)">年初</span>
-                <span style="font-size:12px;color:var(--text3)">—</span>
-                <select class="fi fi-compact" id="bd-xirr-range-to" onchange="updateBoardXirrRange()">
-                  ${_rangeToYrs.map(y=>`<option value="${y}"${y===_defRangeTo?' selected':''}>${y}</option>`).join('')}
-                </select>
-                <span style="font-size:12px;color:var(--text3)">年末</span>
-              </div>
+            ? `${yearRangePillHtml(
+                {id:'bd-xirr-range-from', years:_rangeFromYrs, def:_defRangeFrom, onchange:'updateBoardXirrRange()', suffix:'年初'},
+                {id:'bd-xirr-range-to', years:_rangeToYrs, def:_defRangeTo, onchange:'updateBoardXirrRange()', suffix:'年末'})}
               <div id="bd-xirr-range-result"></div>`
             : `<div class="empty empty-compact">需录入相邻年度的快照才能计算</div>`}
         </div>
@@ -6561,7 +6625,7 @@ function _bdYearlyCardHtml(x){
                 <tbody>
                   ${yearlyStats.map(d=>`<tr>
                     <td class="cell-strong">${d.year}${d.isYTD?ytdTagHtml():''}</td>
-                    <td class="num cell-strong">${fmtCNY(d.close)}</td>
+                    <td class="num cell-strong">${fmtCNY(d.close)}${d.incompleteMissing?infoIcon(_escAttr('该年末快照不完整，缺少：'+d.incompleteMissing.join('、')+'，金额偏低，收益与收益率不计算')):d.openMissing?infoIcon(_escAttr('上年末快照不完整（缺少：'+d.openMissing.join('、')+'），期初不可用，收益与收益率不计算')):''}</td>
                     <td class="num ${d.gain!=null?(d.gain>=0?'pos':'neg'):''}">${d.gain!=null?(d.gain>=0?'+':'')+fmtCNY(d.gain):'—'}</td>
                     <td class="num cell-strong ${d.rate!=null?(d.rate>=0?'pos':'neg'):''}">${d.rate!=null?(d.rate>=0?'+':'')+(d.rate*100).toFixed(2)+'%':'—'}</td>
                     <td class="num t-secondary">${(()=>{const v=Math.abs(d.netInvested)<0.005?0:d.netInvested;return (v>0?'+':'')+fmtCNY(v);})()}</td>
