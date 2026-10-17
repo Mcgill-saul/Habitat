@@ -257,6 +257,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 .btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .btn .btn-ico{margin-right:var(--sp-1)}                         /* 按钮里「图标 + 文字」的图标：图标样式继承自上面的 .btn svg，这里只管和文字的间距 */
 .btn-snap{background:linear-gradient(160deg,#FF6B35,#F4511E);color:#fff;border:none}  /* 「录入快照」橙色渐变按钮（总览/看板共用） */
+.btn-snap:hover{background:linear-gradient(160deg,#FF6B35,#F4511E);opacity:.85}   /* 不写这条，.btn:hover 的浅灰底会盖掉渐变，白字就看不见了 */
 .content{padding:var(--page-gutter)}
 .page{display:none}
 .page.active{display:block}
@@ -374,6 +375,10 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 .tbl-board .bb-tgt{width:90px}.tbl-board .bb-amt{width:120px}.tbl-board .bb-val{width:130px}
 .tbl-board .bb-pct{width:90px}.tbl-board .bb-dev{width:90px}.tbl-board .bb-reb{width:170px}
 .cat-row.board-type-row{cursor:pointer}
+/* 品种明细表的层级：小计行（类型）退到背景——次级色、不加粗；品种行才是重点（主色，市值/偏差加粗）。红绿色保留，只降字重 */
+.cat-row.board-type-row td{color:var(--text2)}
+.cat-row.board-type-row .cat-val{font-weight:400;color:var(--text2)}
+.cat-row.board-type-row .cell-strong{font-weight:400}
 .cat-row td.sticky-l{background:var(--bg)}
 .cell-child{padding-left:24px}
 .pill-inline{margin-left:var(--sp-1)}
@@ -659,6 +664,12 @@ input.fi:focus,select.fi:focus{border-color:var(--blue)}
 .qc-add svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .qc-add:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-bg)}
 .qc-presets{display:flex;flex-wrap:wrap;gap:var(--sp-2)}
+/* 组合对比 GroupCompare（看板「对比」页签） */
+.gc-dot{display:inline-block;margin-right:var(--sp-2);vertical-align:middle}
+.chip .gc-dot{margin-right:var(--sp-1-5)}
+.gc-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--sp-3)}
+.gc-table{max-width:960px}
+.gc-table .gc-c-num{width:120px}
 .qc-group+.qc-group{margin-top:var(--sp-5)}
 .qc-group-head{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-3);margin-bottom:var(--sp-3);border-radius:6px;background:var(--bg);cursor:pointer;user-select:none}
 .qc-group-name{font-weight:700;color:var(--text2)}
@@ -670,7 +681,6 @@ input.fi:focus,select.fi:focus{border-color:var(--blue)}
 .qc-grip{cursor:grab}
 .qc-card .card-title{display:flex;align-items:center;gap:var(--sp-2)}
 .qc-card.drag-over,.qc-group-head.drag-over{outline:2px solid var(--blue);outline-offset:-2px}
-.qc-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .qc-list .fi{height:28px;box-sizing:border-box;padding:4px 8px;width:100%}
 .qc-list .qc-num{text-align:right}
 .qc-list td{vertical-align:middle}
@@ -993,7 +1003,7 @@ function _collectData(ts){
   if(typeof _syncSharedProductRows==='function') _syncSharedProductRows();
   const cleanProducts  = PRODUCTS.filter(p=>!p._sharedSrc);
   const cleanCashflows = CASHFLOWS.filter(c=>!c._sharedSrc);
-  return {_ts:ts,FX,FX_TS,HIERARCHY,PRODUCTS:cleanProducts,CASHFLOWS:cleanCashflows,TYPE_TABLE,TARGET_ALLOC,TARGET_ORDER,BOARD_TYPE_ORDER,REBAL_THRESH,SNAPSHOTS,SHARED_CF_NOTES,XIRR_CALC_ROWS:_xirrCalcRows,MARKET_PLAN,BENCHMARK_PLAN,SHARED_PRODUCTS,ACTUAL_CASHFLOWS,PERPETUAL_PLAN,BOARD_NOTES,FUND_SOURCES,PRINCIPAL_SPLITS,QUICK_CALC,QUICK_GROUPS};
+  return {_ts:ts,FX,FX_TS,HIERARCHY,PRODUCTS:cleanProducts,CASHFLOWS:cleanCashflows,TYPE_TABLE,TARGET_ALLOC,TARGET_ORDER,BOARD_TYPE_ORDER,REBAL_THRESH,SNAPSHOTS,SHARED_CF_NOTES,XIRR_CALC_ROWS:_xirrCalcRows,MARKET_PLAN,BENCHMARK_PLAN,SHARED_PRODUCTS,ACTUAL_CASHFLOWS,PERPETUAL_PLAN,BOARD_NOTES,FUND_SOURCES,PRINCIPAL_SPLITS,QUICK_CALC,QUICK_GROUPS,HOLDINGS_ORDER,HOLDINGS_CAT_ORDER};
 }
 function lsSave(){
   try {
@@ -1054,6 +1064,11 @@ let QUICK_CALC = (_saved ? (_saved.QUICK_CALC || []) : JSON.parse(JSON.stringify
 if(!Array.isArray(QUICK_CALC)) QUICK_CALC = [];   // 手改过的 JSON 里这个字段可能不是列表，别让页面加载就崩   // 涨跌速算的标的列表（见 QuickCalc）
 let QUICK_GROUPS = (_saved ? (_saved.QUICK_GROUPS || []) : JSON.parse(JSON.stringify(DEFAULTS.QUICK_GROUPS||[])));
 if(!Array.isArray(QUICK_GROUPS)) QUICK_GROUPS = [];   // 自选的分组（见 QuickCalc）
+// 持仓页手动拖出来的顺序（品种顺序 / 分类顺序）：属于手动录入的数据，进 _collectData；
+// 老存档没有这两个字段时，退回这台浏览器里旧版单独存的 localStorage（holdingsOrder / holdingsCatOrder），不丢已有排序
+const _legacyList = k => { try{ const v = JSON.parse(localStorage.getItem(k)||'null'); return Array.isArray(v) ? v : []; }catch(e){ return []; } };
+let HOLDINGS_ORDER = (_saved && Array.isArray(_saved.HOLDINGS_ORDER)) ? _saved.HOLDINGS_ORDER : _legacyList('holdingsOrder');
+let HOLDINGS_CAT_ORDER = (_saved && Array.isArray(_saved.HOLDINGS_CAT_ORDER)) ? _saved.HOLDINGS_CAT_ORDER : _legacyList('holdingsCatOrder');
 let PRINCIPAL_SPLITS = _saved ? (_saved.PRINCIPAL_SPLITS || {}) : JSON.parse(JSON.stringify(DEFAULTS.PRINCIPAL_SPLITS||{}));
 // 一次性迁移：给还没有id的品种补上稳定id，供资金来源引用具体品种（数组下标不稳定，不能用来引用）
 PRODUCTS.forEach(p=>{ if(!p.id) p.id=_genId('pd'); });
@@ -1612,12 +1627,32 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
         <div class="dtab" onclick="selectBoardLevel(3)" id="bdlv-3">三级</div>
         <div class="dtab" onclick="selectBoardLevel(4)" id="bdlv-4">四级</div>
         <div class="dtab" onclick="selectBoardLevel(5)" id="bdlv-5">五级</div>
-        <div class="dtab ml-auto" onclick="selectBoardPierce()" id="bdlv-pierce">穿透</div>
+        <div class="dtab ml-auto" onclick="GroupCompare.open()" id="bdlv-compare">对比</div>
+        <div class="dtab" onclick="selectBoardPierce()" id="bdlv-pierce">穿透</div>
       </div>
       <!-- Group card selector -->
       <div id="board-l1-cards" class="board-l1-cards"></div>
       <!-- Selected group content -->
       <div id="board-content"></div>
+      <!-- 组合对比（GroupCompare） -->
+      <div id="board-compare-view" style="display:none">
+        <div class="card section-full">
+          <div class="card-header">
+            <div class="card-title">选择要对比的组合</div>
+            <div class="hd-actions">
+              <div class="seg-tabs seg-sm" id="gc-level-tabs">
+                <button class="seg-btn" data-lv="1" onclick="GroupCompare.setLevel(1)">一级</button>
+                <button class="seg-btn" data-lv="2" onclick="GroupCompare.setLevel(2)">二级</button>
+                <button class="seg-btn" data-lv="3" onclick="GroupCompare.setLevel(3)">三级</button>
+                <button class="seg-btn" data-lv="4" onclick="GroupCompare.setLevel(4)">四级</button>
+                <button class="seg-btn" data-lv="5" onclick="GroupCompare.setLevel(5)">五级</button>
+              </div>
+            </div>
+          </div>
+          <div class="chips chips-inline" id="gc-chips"></div>
+        </div>
+        <div id="gc-result"></div>
+      </div>
       <!-- Pierce search view -->
       <div id="board-pierce-view" style="display:none">
         <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:0">
@@ -2187,6 +2222,9 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
 
    自选（侧边栏独立页）           QuickCalc                   命名空间对象，数据 QUICK_CALC（标的，数组顺序＝手动排序）+ QUICK_GROUPS（分组）进 _collectData；卡片/列表视图、排序、拖动；
                                                            新功能的示范写法：内部函数不进全局，UI 复用 .card/kebabBtn/modalShell/.chip。
+
+   组合对比（看板「对比」页签）   GroupCompare                命名空间对象（open/close/render/setLevel/toggle）；只读展示，不写数据、不改计算口径；
+                                                           占比＝占自身组合，结构重合度＝Σmin(占比)；复用 .seg-tabs/.chip/statBoxHTML/.tbl-fixed/.cat-row。
 
    硬规则（违反会让"改一处全局生效"失效）：
      1. 新增 ⋮ 菜单按钮一律用 kebabBtn()，不再手写 onclick="_openKebab(event,[...])"。
@@ -2995,7 +3033,7 @@ const QuickCalc = (()=>{
   function listRow(it){
     const r = calc(it);
     return `<tr id="qc-row-${it.id}" ${dropAttrs(it.id)}>
-      <td><div class="cat-name">${grip(it)}<span class="qc-name" title="${_escAttr(it.name)}">${_esc(it.name)}</span></div></td>
+      <td><div class="cat-name">${grip(it)}<span class="ellipsis-name" title="${_escAttr(it.name)}">${_esc(it.name)}</span></div></td>
       <td>${numInput(it,'base')}</td>
       <td>${dateInput(it)}</td>
       <td>${numInput(it,'cur')}</td>
@@ -3016,7 +3054,7 @@ const QuickCalc = (()=>{
     </tr>${sec.collapsed ? '' : sec.items.map(listRow).join('')}`;
   }
   function listHtml(secs){
-    return `<div class="table-wrap"><table class="tbl-fixed qc-list">
+    return `<div class="table-wrap"><table class="tbl-fixed tbl-clip qc-list">
       <colgroup><col><col class="qc-c-num"><col class="qc-c-date"><col class="qc-c-num"><col class="qc-c-chg"><col class="qc-c-el"><col class="qc-c-op"></colgroup>
       <thead><tr><th class="no-sort">名称</th><th class="no-sort num">基准值</th><th class="no-sort">基准日期</th><th class="no-sort num">现值（今日）</th><th class="no-sort num">涨跌幅</th><th class="no-sort">已过</th><th class="no-sort"></th></tr></thead>
       <tbody>${secs.map(listSection).join('')}</tbody></table></div>`;
@@ -3164,6 +3202,165 @@ const QuickCalc = (()=>{
   }
 
   return {render, setView, setSort, toggleGroup, onInput, onChange, openItem, saveItem, removeItem, openGroup, saveGroup, removeGroup, moveGroup, dragStart, dragEnd, dragOver, dragLeave, drop};
+})();
+
+// ══════════════════════════════════════════════
+// 组合对比 GroupCompare（组合看板「对比」页签）—— 同一层级内选 2~3 个组合，看结构差异。
+// 命名空间对象，只对外暴露 return 里的方法。纯展示：不写任何数据、不改任何计算口径。
+// 占比口径：占「自身组合」的比例（品种市值 ÷ 该组合总市值，按品种名合并；二级及以上同名品种合并成一条）。
+// 结构重合度 = Σ min(A占比, B占比)：两边完全一样是 100%，毫无重叠是 0%。
+// 指标口径与 _renderGroupBoard 一致：XIRR 用 buildGroupXirrFlows、浮盈比例＝(市值−净本金)/净本金、HHI 用 calcHHI。
+// UI 复用：.seg-tabs / .chip / .card / .stat-box（statBoxHTML）/ .tbl-fixed / .cat-row / .leg-dot / infoIcon。
+// ══════════════════════════════════════════════
+const GroupCompare = (()=>{
+  const MAX = 3;
+  let active = false, level = 2, picked = [];
+  const groupsAt = lv => lv===1 ? getAllL1() : [...new Set(HIERARCHY.map(h=>h['l'+lv]).filter(Boolean))];
+  const pct2 = v => v.toFixed(2)+'%';
+
+  // 一个组合的「名称 → 占自身比例」。key 取品种名 / 类型名
+  function shareMap(lv, g, keyFn){
+    const total = _groupMarketVal2(lv, g);
+    const m = new Map();
+    _groupProducts(lv, g).forEach(p=>{
+      const k = keyFn(p), v = toCNY(p.amount, p.ccy);
+      m.set(k, (m.get(k)||0) + v);
+    });
+    m.forEach((v,k)=>m.set(k, total>0 ? v/total*100 : 0));
+    return m;
+  }
+  const overlap = (a, b) => { let s = 0; a.forEach((v,k)=>{ if(b.has(k)) s += Math.min(v, b.get(k)); }); return s; };
+
+  function metrics(lv, g){
+    const prods = _groupProducts(lv, g);
+    const total = _groupMarketVal2(lv, g);
+    const cfs = _groupCashflows(lv, g);
+    const invested  = cfs.filter(c=>c.type==='成本资金'&&c.amount<0).reduce((s,c)=>s+Math.abs(costCNY(c)),0);
+    const dividends = cfs.filter(c=>c.type==='分红').reduce((s,c)=>s+costCNY(c),0);
+    const redeemed  = cfs.filter(c=>c.type==='成本资金'&&c.amount>0).reduce((s,c)=>s+costCNY(c),0);
+    const netCost = invested - redeemed - dividends;
+    const fl = buildGroupXirrFlows(lv, g);
+    return {
+      total, pctAll: totalCNY()>0 ? total/totalCNY()*100 : 0,
+      nProds: new Set(prods.map(p=>p.name)).size,
+      xirr: fl ? xirr(fl) : null,
+      gainPct: netCost>0 ? (total-netCost)/netCost*100 : null,
+      hhi: prods.length ? calcHHI(prods.map(p=>toCNY(p.amount,p.ccy)))*100 : null
+    };
+  }
+
+  // 差异表：行＝品种（或类型），列＝各组合的占比；按「出现在哪几个组合」分段（共有 → 部分共有 → 仅某个有）
+  function diffTable(names, maps, what){
+    const keys = [...new Set(maps.flatMap(m=>[...m.keys()]))];
+    const rows = keys.map(k=>{
+      const vals = maps.map(m=>m.has(k) ? m.get(k) : null);
+      const present = vals.filter(v=>v!=null);
+      return {k, vals, mask: vals.map(v=>v!=null?1:0).join(''), n: present.length,
+              spread: present.length>1 ? Math.max(...present)-Math.min(...present) : null, top: Math.max(...present)};
+    });
+    const segs = {};
+    rows.forEach(r=>{ (segs[r.mask] = segs[r.mask] || []).push(r); });
+    const order = Object.keys(segs).sort((a,b)=>{
+      const na = segs[a][0].n, nb = segs[b][0].n;
+      return nb-na || b.localeCompare(a);
+    });
+    const label = mask => {
+      const who = names.filter((_,i)=>mask[i]==='1');
+      return who.length===names.length ? (names.length===2?'两边共有':'三者共有') : who.length===1 ? '仅 '+who[0]+' 有' : who.join('、')+' 共有';
+    };
+    const head = names.map((n,i)=>`<th class="no-sort num"><span class="leg-dot gc-dot" style="background:${PALETTE[i]}"></span>${_esc(n)}</th>`).join('');
+    const body = order.map(mask=>{
+      const list = segs[mask].sort((a,b)=> (a.spread!=null||b.spread!=null) ? (b.spread||0)-(a.spread||0) : b.top-a.top);
+      return `<tr class="cat-row gc-seg"><td colspan="${names.length+2}"><div class="cat-name"><span class="cat-title">${_esc(label(mask))}</span><span class="cat-count">${list.length} 个${what}</span></div></td></tr>`
+        + list.map(r=>{
+          const mx = Math.max(...r.vals.filter(v=>v!=null));
+          return `<tr><td title="${_escAttr(r.k)}">${_esc(r.k)}</td>`
+            + r.vals.map(v=>`<td class="num${v!=null&&r.n>1&&v===mx&&r.spread>0.005?' cell-strong':''}">${v!=null?pct2(v):'<span class="t-muted">—</span>'}</td>`).join('')
+            + `<td class="num t-secondary">${r.spread!=null?r.spread.toFixed(2)+' pp':'<span class="t-muted">—</span>'}</td></tr>`;
+        }).join('');
+    }).join('');
+    return `<div class="table-wrap"><table class="tbl-fixed tbl-clip gc-table"><colgroup><col>${names.map(()=>'<col class="gc-c-num">').join('')}<col class="gc-c-num"></colgroup>
+      <thead><tr><th class="no-sort">${what}</th>${head}<th class="no-sort num">最大差${infoIcon('占比最高与最低的组合之差（百分点）；只在 2 个及以上组合都有时才有')}</th></tr></thead>
+      <tbody>${body||`<tr><td colspan="${names.length+2}" class="empty-line">暂无数据</td></tr>`}</tbody></table></div>`;
+  }
+
+  function overviewHtml(names, prodMaps, typeMaps){
+    const pairs = [];
+    for(let i=0;i<names.length;i++) for(let j=i+1;j<names.length;j++) pairs.push([i,j]);
+    const pairName = ([i,j]) => `${_esc(names[i])} × ${_esc(names[j])}`;
+    const allKeys = maps => maps.map(m=>new Set(m.keys()));
+    const sets = allKeys(prodMaps);
+    const common = [...sets[0]].filter(k=>sets.every(s=>s.has(k))).length;
+    const union = new Set(prodMaps.flatMap(m=>[...m.keys()])).size;
+    const boxes = [
+      statBoxHTML({val:common, lbl:names.length===2?'共有品种':'三者共有品种', note:`共 ${union} 个不同品种`}),
+      ...pairs.map(p=>statBoxHTML({val:pct2(overlap(prodMaps[p[0]],prodMaps[p[1]])), lbl:'品种结构重合度', note:pairName(p), noteTruncate:true})),
+      ...pairs.map(p=>statBoxHTML({val:pct2(overlap(typeMaps[p[0]],typeMaps[p[1]])), lbl:'类型结构重合度', note:pairName(p), noteTruncate:true}))
+    ];
+    return `<div class="gc-stats">${boxes.join('')}</div>`;
+  }
+
+  function metricsTable(names, ms){
+    const row = (label, fn, tip) => `<tr><td>${label}${tip?infoIcon(tip):''}</td>${ms.map(m=>`<td class="num">${fn(m)}</td>`).join('')}</tr>`;
+    const signed = (v, d=2) => v==null ? '<span class="t-muted">—</span>' : `<span class="cell-strong ${v>=0?'pos':'neg'}">${v>=0?'+':''}${v.toFixed(d)}%</span>`;
+    return `<div class="table-wrap"><table class="tbl-fixed tbl-clip gc-table"><colgroup><col>${names.map(()=>'<col class="gc-c-num">').join('')}</colgroup>
+      <thead><tr><th class="no-sort">指标</th>${names.map((n,i)=>`<th class="no-sort num"><span class="leg-dot gc-dot" style="background:${PALETTE[i]}"></span>${_esc(n)}</th>`).join('')}</tr></thead>
+      <tbody>
+      ${row('总市值', m=>fmtCNY(m.total))}
+      ${row('占总资产', m=>pct2(m.pctAll))}
+      ${row('品种数', m=>m.nProds)}
+      ${row('全程 XIRR', m=>signed(m.xirr==null?null:m.xirr*100), '全部成本流水 + 今日市值，口径同看板')}
+      ${row('浮盈比例', m=>signed(m.gainPct), '（当前市值 − 净本金）÷ 净本金')}
+      ${row('品种 HHI × 100', m=>m.hhi==null?'<span class="t-muted">—</span>':m.hhi.toFixed(2), '越高越集中：>25 高度集中 · 15~25 中度 · <15 较分散')}
+      </tbody></table></div>`;
+  }
+
+  function render(){
+    const host = document.getElementById('board-compare-view');
+    if(!host) return;
+    const groups = groupsAt(level);
+    picked = picked.filter(g=>groups.includes(g));
+    document.querySelectorAll('#gc-level-tabs .seg-btn').forEach(b=>b.classList.toggle('active', +b.dataset.lv===level));
+    document.getElementById('gc-chips').innerHTML = groups.length
+      ? groups.map(g=>{ const i = picked.indexOf(g); return `<span class="chip${i>=0?' active':''}" onclick="GroupCompare.toggle('${_escAttrJs(g)}')">${i>=0?`<span class="leg-dot gc-dot" style="background:${PALETTE[i]}"></span>`:''}${_esc(g)}</span>`; }).join('')
+      : `<span class="empty-line">${level}级还没有分类</span>`;
+    const out = document.getElementById('gc-result');
+    if(picked.length<2){ out.innerHTML = `<div class="empty">选择 2～${MAX} 个同级组合开始对比（已选 ${picked.length} 个）</div>`; return; }
+    const prodMaps = picked.map(g=>shareMap(level, g, p=>p.name));
+    const typeMaps = picked.map(g=>shareMap(level, g, p=>p.type||'未分类'));
+    const ms = picked.map(g=>metrics(level, g));
+    const card = (title, body, tip) => `<div class="card section-full"><div class="card-header"><div class="card-title">${title}${tip?infoIcon(tip):''}</div></div>${body}</div>`;
+    out.innerHTML =
+      card('概览', overviewHtml(picked, prodMaps, typeMaps), '结构重合度 = Σ min(各品种在两边的占比)，100% 表示结构完全一样；占比均为「占自身组合」的比例')
+      + card('关键指标', metricsTable(picked, ms))
+      + card('类型差异', diffTable(picked, typeMaps, '类型'))
+      + card('品种差异', diffTable(picked, prodMaps, '品种'), '按出现在哪几个组合分段；同时出现的品种按占比差从大到小排，占比较高的一边加粗');
+  }
+
+  function open(){
+    active = true;
+    _boardPierce = false;
+    [1,2,3,4,5].forEach(l=>document.getElementById('bdlv-'+l).classList.remove('active'));
+    document.getElementById('bdlv-pierce').classList.remove('active');
+    document.getElementById('bdlv-compare').classList.add('active');
+    ['board-l1-cards','board-content','board-pierce-view'].forEach(id=>document.getElementById(id).style.display = 'none');
+    document.getElementById('board-compare-view').style.display = '';
+    render();
+  }
+  function close(){
+    active = false;
+    document.getElementById('bdlv-compare').classList.remove('active');
+    document.getElementById('board-compare-view').style.display = 'none';
+  }
+  function setLevel(lv){ level = lv; picked = []; render(); }
+  function toggle(g){
+    const i = picked.indexOf(g);
+    if(i>=0) picked.splice(i,1);
+    else if(picked.length>=MAX){ toast(`最多同时对比 ${MAX} 个组合`, true); return; }
+    else picked.push(g);
+    render();
+  }
+  return {open, close, render, setLevel, toggle, isActive:()=>active};
 })();
 
 // ── XIRR 计算器 ──
@@ -4425,15 +4622,9 @@ let hFilter        = localStorage.getItem('hFilter')        || 'all';
 let hL3Filter      = localStorage.getItem('hL3Filter')      || 'all';
 let hPlatFilter    = localStorage.getItem('hPlatFilter')    || 'all';
 
-let HOLDINGS_ORDER = (() => {
-  try { return JSON.parse(localStorage.getItem('holdingsOrder') || 'null') || []; } catch(e){ return []; }
-})();
-let HOLDINGS_CAT_ORDER = (() => {
-  try { return JSON.parse(localStorage.getItem('holdingsCatOrder') || 'null') || []; } catch(e){ return []; }
-})();
-
-function saveHoldingsOrder(){ localStorage.setItem('holdingsOrder', JSON.stringify(HOLDINGS_ORDER)); }
-function saveHoldingsCatOrder(){ localStorage.setItem('holdingsCatOrder', JSON.stringify(HOLDINGS_CAT_ORDER)); }
+// HOLDINGS_ORDER / HOLDINGS_CAT_ORDER 的声明已挪到文件前面的数据区（跟其它业务数据一起进导出/云同步），这里只留保存函数
+function saveHoldingsOrder(){ lsSave(); }
+function saveHoldingsCatOrder(){ lsSave(); }
 function saveHSortMode(m){ hSortMode=m; localStorage.setItem('hSortMode',m); }
 function saveHFilter(v){ hFilter=v; localStorage.setItem('hFilter',v); }
 function saveHL3Filter(v){ hL3Filter=v; localStorage.setItem('hL3Filter',v); }
@@ -5556,7 +5747,7 @@ function _inspectData(d){
   if(!d || typeof d!=='object' || Array.isArray(d)) return fatal('数据格式不对：文件内容不是一个数据对象');
   if(!Array.isArray(d.PRODUCTS)) return fatal('数据格式不对：文件里没有品种列表（PRODUCTS）');
   const nameOf=(o,i)=>(o&&typeof o.name==='string'&&o.name.trim())?o.name:('#'+(i+1));
-  ['HIERARCHY','CASHFLOWS','TYPE_TABLE','SNAPSHOTS','SHARED_PRODUCTS','ACTUAL_CASHFLOWS','FUND_SOURCES','BOARD_TYPE_ORDER','XIRR_CALC_ROWS','QUICK_CALC','QUICK_GROUPS']
+  ['HIERARCHY','CASHFLOWS','TYPE_TABLE','SNAPSHOTS','SHARED_PRODUCTS','ACTUAL_CASHFLOWS','FUND_SOURCES','BOARD_TYPE_ORDER','XIRR_CALC_ROWS','QUICK_CALC','QUICK_GROUPS','HOLDINGS_ORDER','HOLDINGS_CAT_ORDER']
     .forEach(k=>{ if(d[k]!=null && !Array.isArray(d[k])) add(`字段 ${k} 应该是列表，实际是 ${Array.isArray(d[k])?'列表':typeof d[k]}`); });
   ['FX','FX_TS','TARGET_ALLOC','TARGET_ORDER','REBAL_THRESH','SHARED_CF_NOTES','MARKET_PLAN','BENCHMARK_PLAN','PERPETUAL_PLAN','BOARD_NOTES','PRINCIPAL_SPLITS']
     .forEach(k=>{ if(d[k]!=null && (typeof d[k]!=='object'||Array.isArray(d[k]))) add(`字段 ${k} 应该是对象，实际是 ${Array.isArray(d[k])?'列表':typeof d[k]}`); });
@@ -5641,6 +5832,7 @@ let _boardPierce = false; // pierce mode active
 
 // group 可选：指定了就直接选它（从别处跳转过来时用，避免先渲染一次默认组合再渲染一次目标组合）
 function selectBoardLevel(lv, group){
+  GroupCompare.close();
   _boardLevel = lv;
   _boardGroup = group || null;
   _boardPierce = false;
@@ -5653,6 +5845,7 @@ function selectBoardLevel(lv, group){
 }
 
 function selectBoardPierce(){
+  GroupCompare.close();
   _boardPierce = true;
   [1,2,3,4,5].forEach(l=>document.getElementById('bdlv-'+l).classList.remove('active'));
   document.getElementById('bdlv-pierce').classList.add('active');
@@ -6277,7 +6470,7 @@ function renderSnapshotChart(mode, level, group){
 function renderBoard(){
   const lv = _boardLevel;
   // 层级页签的高亮跟 _boardLevel 同步：首次进入看板页时没有经过 selectBoardLevel，不在这里补一次就没有任何页签高亮
-  if(!_boardPierce) [1,2,3,4,5].forEach(l=>{ const t=document.getElementById('bdlv-'+l); if(t) t.classList.toggle('active', l===lv); });
+  if(!_boardPierce && !GroupCompare.isActive()) [1,2,3,4,5].forEach(l=>{ const t=document.getElementById('bdlv-'+l); if(t) t.classList.toggle('active', l===lv); });
   const total = totalCNY();
   _boardL1 = (lv===1 && _boardGroup) ? _boardGroup : null; // 备注只认一级组合，切层级/清空选择时要跟着同步
 
@@ -6792,16 +6985,22 @@ function _bdXirrPanelHtml(x){
   const {lv, cfs, groupTransfersDisplay, actualFlowsDisplay, soleCcy, grpTotal, grpTotalF, groupName,
          hasTransferOut, hasActual, xirrWouldBe, xirrR, xirrActual, nonCashVal, nonCashValF} = x;
   const isSole = soleCcy && soleCcy!=='MIXED';
+  // 多币种混合时（二级及以上常见），XIRR 本身是按人民币算的，明细里的每一笔也统一折成人民币显示，原币种金额放进 ⓘ；
+  // 单一外币/纯人民币时保持原币显示。只改展示，不影响 XIRR 计算
+  const mixed = soleCcy==='MIXED';
+  const _amtHtml = (cny, amount, ccy, rate) => (!mixed || !ccy || ccy==='CNY')
+    ? fmtSigned(amount, ccy)
+    : fmtSigned(cny,'CNY') + infoIcon(`原币 ${fmtSigned(amount,ccy)} · 汇率 ${(rate>0?rate:(FX[ccy]||1)).toFixed(4)}`);
   const flowRows = cfs.filter(c=>c.type==='成本资金'||c.type==='分红')
     .sort((a,b)=>a.date.localeCompare(b.date))
     .map(c=>_xfRowHtml({
       date:c.date, tag:c.type==='分红'?'分红':c.amount<0?'买入':'卖出',
       l1: lv>1 ? (c.l1||c.product||'') : null,
-      cls:cfDirCls(c), amtHtml:fmtSigned(c.amount,c.ccy)
+      cls:cfDirCls(c), amtHtml:_amtHtml(costCNY(c), c.amount, c.ccy, c.fxRate)
     })).join('');
   const transferRows = groupTransfersDisplay.map(t=>_xfRowHtml({
     date:t.date, tag:'转让→'+t.toLabel, l1: lv>1 ? '' : null,
-    cls:'neg', amtHtml:fmtSigned(t.amount,t.ccy), dim:true
+    cls:'neg', amtHtml:_amtHtml(toCNY(t.amount,t.ccy), t.amount, t.ccy), dim:true
   })).join('');
   // "转让后"视图：终值要减掉已转让部分
   const wouldBeDelta = _groupWouldBeDelta(lv, groupName);
@@ -6817,7 +7016,7 @@ function _bdXirrPanelHtml(x){
   const withV = hasTransferOut ? xirrR : xirrWouldBe;
   const actualRows = (actualFlowsDisplay||[]).map(f=>_xfRowHtml({
     date:f.date, tag:f.amount<0?'投入':'取出',
-    cls:cfDirCls(f), amtHtml:fmtSigned(f.amount,f.ccy)
+    cls:cfDirCls(f), amtHtml:_amtHtml(f.cny, f.amount, f.ccy, f.fxRate)
   })).join('');
   const actualTermHtml = _xfTermHtml(today(),
     nonCashValF!=null ? fmtSigned(nonCashValF,soleCcy) : fmtSigned(nonCashVal,'CNY'), '已投现值');
@@ -7257,10 +7456,10 @@ function _renderGroupBoard(lv, groupName){
     const rows = [];
     mem.forEach(l1=>{
       if(actualL1s.has(l1)){
-        ACTUAL_CASHFLOWS.filter(c=>c.l1===l1).forEach(c=>rows.push({date:c.date, amount:c.amount}));
+        ACTUAL_CASHFLOWS.filter(c=>c.l1===l1).forEach(c=>rows.push({date:c.date, amount:c.amount, ccy:c.ccy||'CNY', cny:toCNY(c.amount,c.ccy)}));
       } else {
         CASHFLOWS.filter(c=>(c.l1||c.product)===l1&&(c.type==='成本资金'||c.type==='分红'||c.type==='共管转让'))
-          .forEach(c=>rows.push({date:c.date, amount:c.amount}));
+          .forEach(c=>rows.push({date:c.date, amount:c.amount, ccy:c.ccy||'CNY', cny:costCNY(c), fxRate:c.fxRate}));
       }
     });
     return rows.sort((a,b)=>a.date.localeCompare(b.date));
@@ -7476,8 +7675,8 @@ function _buildProdTable(prods, grpTotal, lv, groupName){
       const rebalAmt  = target!=null ? (targetAmt-val) : null;
       html += `<tr data-type-group="${typeId}"${isOpen?'':' style="display:none"'}>
         <td class="sticky-l cell-child"><span class="row-grip">└</span><span class="cell-strong">${_esc(p.name)}</span>${p.enhance?'<span class="pill pill-green pill-inline">增强</span>':''}</td>
-        <td class="num t-muted">${target!=null?parseFloat(target).toFixed(2)+'%':'—'}</td>
-        <td class="num t-muted">${target!=null?fmtCNY(targetAmt):'—'}</td>
+        <td class="num t-secondary">${target!=null?parseFloat(target).toFixed(2)+'%':'—'}</td>
+        <td class="num t-secondary">${target!=null?fmtCNY(targetAmt):'—'}</td>
         <td class="num cell-strong">${(p.ccy==='CNY'||grpCny)?fmtCNY(val):fmtForeign(nativeAmt,p.ccy)}</td>
         <td class="num">${actual.toFixed(2)}%</td>
         <td class="num">${dev!=null?`<span class="cell-strong ${_devCls(dev)}">${dev>=0?'+':''}${dev.toFixed(2)}%</span>`:'<span class="t-muted">—</span>'}</td>
