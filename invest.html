@@ -119,6 +119,7 @@
      不去替换现有的1600+处内联数值（改了肉眼看不出区别、纯粹增加风险），只作为以后新写样式/做层级调整时的统一取值来源。 */
   --sp-1:4px; --sp-1-5:6px; --sp-2:8px; --sp-3:12px; --sp-3-5:14px; --sp-4:16px; --sp-5:20px; --sp-6:24px;
   --card-pad:18px;  /* 卡片内边距（普通卡、主KPI橙卡共用，四边一致）：改这一个值全站卡片内边距一起变 */
+  --page-gutter:9px;  /* 页面内容区四边留白（顶栏→首行卡片、侧边栏→卡片、卡片→窗口右缘/底部）：只改这一个值 */
   --card-gap:14px;  /* 卡片与卡片之间的间距（网格 gap、上下叠放的 margin-bottom 都用它） */
   --scroll-gap:12px; /* 卡内滚动区：内容和滚动条之间的间距，见 .scroll-gutter */
   /* 字号刻度：同样是把已经存在、且各自有清晰语义角色的字号档位确立成变量，不做批量替换。
@@ -256,7 +257,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 .btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .btn .btn-ico{margin-right:var(--sp-1)}                         /* 按钮里「图标 + 文字」的图标：图标样式继承自上面的 .btn svg，这里只管和文字的间距 */
 .btn-snap{background:linear-gradient(160deg,#FF6B35,#F4511E);color:#fff;border:none}  /* 「录入快照」橙色渐变按钮（总览/看板共用） */
-.content{padding:var(--sp-6)}
+.content{padding:var(--page-gutter)}
 .page{display:none}
 .page.active{display:block}
 @media (max-width:1399px){
@@ -630,6 +631,8 @@ input.fi:focus,select.fi:focus{border-color:var(--blue)}
 /* 涨跌速算 QuickCalc：窄卡片网格（一行放多张），卡片复用 .card */
 .qc-grid{display:grid;grid-template-columns:repeat(auto-fill,300px);gap:var(--card-gap);align-items:start}
 .qc-card{min-width:0}
+.qc-card.up{border-top-color:var(--green)}
+.qc-card.down{border-top-color:var(--red)}   /* 顶部色条沿用全局 .accent-card，颜色随涨跌 */
 .qc-card .card-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .qc-card{--qc-lbl-w:36px}
 .qc-in-row{display:flex;align-items:center;gap:var(--sp-2);font-size:var(--fs-12);color:var(--text2)}
@@ -656,6 +659,23 @@ input.fi:focus,select.fi:focus{border-color:var(--blue)}
 .qc-add svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .qc-add:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-bg)}
 .qc-presets{display:flex;flex-wrap:wrap;gap:var(--sp-2)}
+.qc-group+.qc-group{margin-top:var(--sp-5)}
+.qc-group-head{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-3);margin-bottom:var(--sp-3);border-radius:6px;background:var(--bg);cursor:pointer;user-select:none}
+.qc-group-name{font-weight:700;color:var(--text2)}
+.qc-group-count{font-size:var(--fs-11);color:var(--text3)}
+.qc-sum{margin-left:auto;font-size:var(--fs-12);color:var(--text2);display:flex;align-items:center;gap:var(--sp-1-5)}
+.qc-sum-dot{color:var(--text3)}
+.qc-chev{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--text3);transition:transform .15s}
+.qc-chev.is-closed{transform:rotate(-90deg)}
+.qc-grip{cursor:grab}
+.qc-card .card-title{display:flex;align-items:center;gap:var(--sp-2)}
+.qc-card.drag-over,.qc-group-head.drag-over{outline:2px solid var(--blue);outline-offset:-2px}
+.qc-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qc-list .fi{height:28px;box-sizing:border-box;padding:4px 8px;width:100%}
+.qc-list .qc-num{text-align:right}
+.qc-list td{vertical-align:middle}
+.qc-c-num{width:120px}.qc-c-date{width:140px}.qc-c-chg{width:100px}.qc-c-el{width:150px}.qc-c-op{width:48px}
+.qc-grow td{padding:8px 10px}
 .yr-end{font-size:var(--fs-13);font-weight:700;color:var(--text);padding:6px 4px}
 .fg2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
@@ -954,7 +974,8 @@ const DEFAULTS = {
   BOARD_NOTES: {},
   FUND_SOURCES: [],
   PRINCIPAL_SPLITS: {},
-  QUICK_CALC: []
+  QUICK_CALC: [],
+  QUICK_GROUPS: []
 };
 
 // ── Load from localStorage ──
@@ -972,7 +993,7 @@ function _collectData(ts){
   if(typeof _syncSharedProductRows==='function') _syncSharedProductRows();
   const cleanProducts  = PRODUCTS.filter(p=>!p._sharedSrc);
   const cleanCashflows = CASHFLOWS.filter(c=>!c._sharedSrc);
-  return {_ts:ts,FX,FX_TS,HIERARCHY,PRODUCTS:cleanProducts,CASHFLOWS:cleanCashflows,TYPE_TABLE,TARGET_ALLOC,TARGET_ORDER,BOARD_TYPE_ORDER,REBAL_THRESH,SNAPSHOTS,SHARED_CF_NOTES,XIRR_CALC_ROWS:_xirrCalcRows,MARKET_PLAN,BENCHMARK_PLAN,SHARED_PRODUCTS,ACTUAL_CASHFLOWS,PERPETUAL_PLAN,BOARD_NOTES,FUND_SOURCES,PRINCIPAL_SPLITS,QUICK_CALC};
+  return {_ts:ts,FX,FX_TS,HIERARCHY,PRODUCTS:cleanProducts,CASHFLOWS:cleanCashflows,TYPE_TABLE,TARGET_ALLOC,TARGET_ORDER,BOARD_TYPE_ORDER,REBAL_THRESH,SNAPSHOTS,SHARED_CF_NOTES,XIRR_CALC_ROWS:_xirrCalcRows,MARKET_PLAN,BENCHMARK_PLAN,SHARED_PRODUCTS,ACTUAL_CASHFLOWS,PERPETUAL_PLAN,BOARD_NOTES,FUND_SOURCES,PRINCIPAL_SPLITS,QUICK_CALC,QUICK_GROUPS};
 }
 function lsSave(){
   try {
@@ -1031,6 +1052,8 @@ let FUND_SOURCES = _saved ? (_saved.FUND_SOURCES || []) : JSON.parse(JSON.string
 // 本金拆分：给某个组合(按 "层级|组合名" 为key)设定几份本金各自的占比，纯展示用，跟资金来源是两个独立功能
 let QUICK_CALC = (_saved ? (_saved.QUICK_CALC || []) : JSON.parse(JSON.stringify(DEFAULTS.QUICK_CALC||[])));
 if(!Array.isArray(QUICK_CALC)) QUICK_CALC = [];   // 手改过的 JSON 里这个字段可能不是列表，别让页面加载就崩   // 涨跌速算的标的列表（见 QuickCalc）
+let QUICK_GROUPS = (_saved ? (_saved.QUICK_GROUPS || []) : JSON.parse(JSON.stringify(DEFAULTS.QUICK_GROUPS||[])));
+if(!Array.isArray(QUICK_GROUPS)) QUICK_GROUPS = [];   // 自选的分组（见 QuickCalc）
 let PRINCIPAL_SPLITS = _saved ? (_saved.PRINCIPAL_SPLITS || {}) : JSON.parse(JSON.stringify(DEFAULTS.PRINCIPAL_SPLITS||{}));
 // 一次性迁移：给还没有id的品种补上稳定id，供资金来源引用具体品种（数组下标不稳定，不能用来引用）
 PRODUCTS.forEach(p=>{ if(!p.id) p.id=_genId('pd'); });
@@ -1051,6 +1074,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
   <div class="ni" role="button" tabindex="0" aria-label="收益分析" onclick="showPage('analysis')" id="ni-analysis"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg><span class="ni-tip">收益分析</span></div>
   <div class="ni" role="button" tabindex="0" aria-label="组合看板" onclick="showPage('board')" id="ni-board"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></svg><span class="ni-tip">组合看板</span></div>
   <div class="ni" role="button" tabindex="0" aria-label="永续计划" onclick="showPage('perpetual')" id="ni-perpetual"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9"></path><path d="M3 12a9 9 0 1 0 9 9"></path><path d="M12 7v5l3 3"></path></svg><span class="ni-tip">永续计划</span></div>
+  <div class="ni" role="button" tabindex="0" aria-label="自选" onclick="showPage('watch')" id="ni-watch"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg><span class="ni-tip">自选</span></div>
   <div class="ni-sep"></div>
   <div class="ni" role="button" tabindex="0" aria-label="数据管理" onclick="showPage('data')" id="ni-data"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg><span class="ni-tip">数据管理</span></div>
 
@@ -1296,7 +1320,6 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
         <div class="dtab" onclick="showDataTab('shared')" id="dtab-shared">共管持仓</div>
         <div class="dtab" onclick="showDataTab('fundsource')" id="dtab-fundsource">资金来源</div>
         <div class="dtab" onclick="showDataTab('xirr-calc')" id="dtab-xirr-calc">XIRR 计算器</div>
-        <div class="dtab" onclick="showDataTab('quickcalc')" id="dtab-quickcalc">涨跌速算</div>
         </div>
         <div style="display:flex;gap:10px;flex-shrink:0">
         <button class="btn btn-primary btn-sm" id="gist-sync-btn" onclick="showGistPanel()" style="flex-shrink:0;margin-bottom:8px"><svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>已连接云同步</button>
@@ -1492,9 +1515,6 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
       </div>
 
       <!-- 共管持仓 -->
-      <div id="data-quickcalc" class="data-panel">
-        <div class="qc-grid" id="qc-grid"></div>
-      </div>
       <div id="data-xirr-calc" class="data-panel">
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
 
@@ -1621,6 +1641,29 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
             <div id="bd-pierce-prod-results"><div class="bl1-empty">输入品种名搜索</div></div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- WATCHLIST 自选 -->
+    <div id="page-watch" class="page">
+      <div class="card section-full">
+        <div class="card-header">
+          <div class="card-title">自选</div>
+          <div class="hd-actions">
+            <div class="seg-tabs seg-sm">
+              <button class="seg-btn" id="qc-view-card" onclick="QuickCalc.setView('card')">卡片</button>
+              <button class="seg-btn" id="qc-view-list" onclick="QuickCalc.setView('list')">列表</button>
+            </div>
+            <select class="fi fi-compact" id="qc-sort-sel" onchange="QuickCalc.setSort(this.value)">
+              <option value="manual">手动顺序</option>
+              <option value="drop">跌幅最大</option>
+              <option value="rise">涨幅最大</option>
+            </select>
+            <button class="btn btn-sm" onclick="QuickCalc.openGroup('')">+ 新增分组</button>
+            <button class="btn btn-sm btn-primary" onclick="QuickCalc.openItem('')">+ 新增标的</button>
+          </div>
+        </div>
+        <div id="qc-body"></div>
       </div>
     </div>
 
@@ -2142,7 +2185,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
    看板偏好（上次选的组合）       _rememberBoardGroup()       只存 localStorage 的 invest_board_last，属于"这台浏览器的偏好"，
                                                            不进 _collectData / Gist / 导出 JSON。
 
-   涨跌速算（数据管理）           QuickCalc                   命名空间对象（render/onInput/openAdd/add/rename/removeItem），数据 QUICK_CALC 进 _collectData；
+   自选（侧边栏独立页）           QuickCalc                   命名空间对象，数据 QUICK_CALC（标的，数组顺序＝手动排序）+ QUICK_GROUPS（分组）进 _collectData；卡片/列表视图、排序、拖动；
                                                            新功能的示范写法：内部函数不进全局，UI 复用 .card/kebabBtn/modalShell/.chip。
 
    硬规则（违反会让"改一处全局生效"失效）：
@@ -2690,7 +2733,7 @@ function _globalYearlyStats(){
 // ── Page nav ──
 // board 的标题不再写"一级组合看板"：看板页现在是 1~5 级任选 + 穿透，写死"一级"跟实际功能对不上
 // （侧栏图标的 aria-label / 悬浮提示一直是"组合看板"，现在三处一致了）
-const TITLES={overview:'投资组合总览',holdings:'持仓明细',xirr:'收益分析',analysis:'收益分析',board:'组合看板',perpetual:'永续提取计划',data:'数据管理'};
+const TITLES={overview:'投资组合总览',holdings:'持仓明细',xirr:'收益分析',analysis:'收益分析',board:'组合看板',perpetual:'永续提取计划',watch:'自选',data:'数据管理'};
 let chartL5,chartMkt;  // chartL3 已删：声明后从未被 new Chart 赋值过，是历史遗留
 let chartScatter,chartBenchmark;
 let chartBoardMarket,chartBoardCcy;
@@ -2788,6 +2831,7 @@ function showPage(name){
   if(name==='analysis'){renderAnalysis();}
   if(name==='board'){renderBoard();}
   if(name==='perpetual'){renderPerpetualPlan();}
+  if(name==='watch')QuickCalc.render();
   if(name==='data'){showDataTab(_curDataTab);}
 }
 
@@ -2808,44 +2852,54 @@ function showDataTab(tab){
   if(tab==='shared')renderSharedList();
   if(tab==='fundsource')renderFundSourceList();
   if(tab==='xirr-calc')xirrCalcInit();
-  if(tab==='quickcalc')QuickCalc.render();
 }
 
 // ══════════════════════════════════════════════
-// 涨跌速算 QuickCalc —— 手动输入「基准值 / 现值」，即时算涨跌幅（基准高于现值＝下跌，低于＝上涨）及回到基准需涨/跌多少。
-// 新功能示范写法：整块收进命名空间对象，只对外暴露 render/onInput/openAdd/add/rename/remove/removeItem，
-// 内部函数不进全局；UI 复用 .card / kebabBtn / modalShell / .chip / .fi。
-// 数据：QUICK_CALC = [{id,name,base,baseDate,cur}]（现值的日期恒为今天，不存）（旧版 high/low 载入时并成 base）（数值存原始输入字符串，保留用户键入形态），随 _collectData 进备份/Gist。
+// 自选 QuickCalc（侧边栏「自选」页）—— 手动输入「基准值 / 基准日期 / 现值」，即时算涨跌幅
+// （基准高于现值＝下跌，低于＝上涨）及回到基准需涨/跌多少；标的可分组、排序、拖动，卡片/列表两种视图。
+// 命名空间对象：只对外暴露下面 return 里的方法，内部函数不进全局；UI 复用 .card / kebabBtn / modalShell /
+// .seg-tabs / .cat-row / .drag-active / .drag-over / .hd-actions / .chip / .fi。
+// 数据（随 _collectData 进备份/Gist）：
+//   QUICK_CALC   = [{id,name,group,base,baseDate,cur}]  数组顺序即「手动排序」；group 是 QUICK_GROUPS 的 id，空串=未分组
+//   QUICK_GROUPS = [{id,name,collapsed}]                数组顺序即分组显示顺序
+//   数值存原始输入字符串（保留键入形态）；现值的日期恒为今天，不存。
+// 视图/排序偏好只存本浏览器（localStorage invest_watch_pref），不进备份。
 // ══════════════════════════════════════════════
 const QuickCalc = (()=>{
   const PRESETS = ['标普500','纳斯达克','恒生指数','沪深300'];
+  const GROUP_PRESETS = ['美股','港股','A股','美股科技'];
+  const LS_PREF = 'invest_watch_pref';
   const num = v => { const n = parseFloat(v); return isFinite(n) ? n : null; };
   const pct = v => (v>0?'+':'')+v.toFixed(2)+'%';
   const cls = v => v>0?'pos':v<0?'neg':'';
+  const find = id => QUICK_CALC.find(x=>x.id===id);
+  const findGroup = id => QUICK_GROUPS.find(x=>x.id===id);
 
-  // 旧版存档里是 high/low 两个字段：并成一个基准值（优先高点），只在内存里改，下次保存时自然落盘
+  // ── 载入时整理数据：旧版 high/low 并成 base；补 baseDate/group；丢掉坏记录；找不到的分组退回未分组 ──
+  QUICK_GROUPS = (Array.isArray(QUICK_GROUPS)?QUICK_GROUPS:[]).filter(g=>g && typeof g==='object' && g.id);
   QUICK_CALC = QUICK_CALC.filter(it=>it && typeof it==='object' && it.id);
-  QUICK_CALC.forEach(it=>{ if(it.base===undefined) it.base = it.high || it.low || ''; if(it.baseDate===undefined) it.baseDate = ''; delete it.high; delete it.low; });
+  QUICK_CALC.forEach(it=>{
+    if(it.base===undefined) it.base = it.high || it.low || '';
+    if(it.baseDate===undefined) it.baseDate = '';
+    if(!it.group || !findGroup(it.group)) it.group = '';
+    delete it.high; delete it.low;
+  });
 
-  // 纯计算：基准值 → 现值的涨跌幅；基准高于现值＝下跌，低于现值＝上涨；缺任一输入返回 null
+  // ── 视图 / 排序偏好（本浏览器）──
+  const pref = (()=>{ try{ return Object.assign({view:'card', sort:'manual'}, JSON.parse(localStorage.getItem(LS_PREF)||'{}')); }catch(e){ return {view:'card', sort:'manual'}; } })();
+  const savePref = () => { try{ localStorage.setItem(LS_PREF, JSON.stringify(pref)); }catch(e){} };
+  let ungroupedCollapsed = false;   // 「未分组」不是真分组，折叠状态只记在内存
+  let dragId = null;
+
+  // ── 纯计算 ──
   function calc(it){
     const b=num(it.base), c=num(it.cur);
     if(b==null || c==null || b<=0 || c<=0) return null;
     const chg = (c/b-1)*100;
     return {chg, back:(b/c-1)*100};      // back：要回到基准值，现值还需要涨/跌多少
   }
-  function resultHtml(it){
-    const r = calc(it);
-    if(!r) return '<div class="empty-line">填入基准值和现值即可算出涨跌幅</div>';
-    const word = r.chg>0 ? '上涨' : r.chg<0 ? '下跌' : '持平';
-    const backWord = r.back>0 ? '回到基准值需涨' : '回到基准值需跌';
-    return `<div class="qc-res-line">
-      <div class="qc-big ${cls(r.chg)}">${word} ${r.chg===0?'0.00%':Math.abs(r.chg).toFixed(2)+'%'}</div>
-      ${r.chg===0?'':`<div class="qc-back"><span class="qc-res-val ${cls(r.back)}">${pct(r.back)}</span>${infoIcon(backWord)}</div>`}
-    </div>`;
-  }
-  const numInput = (it, key) => `<input type="number" step="any" inputmode="decimal" class="fi qc-num" value="${_escAttr(it[key])}" oninput="QuickCalc.onInput('${it.id}','${key}',this.value)">`;
-  // 基准日期到今天过了多久：<1 年显示天数，≥1 年再补「X 年 Y 个月」；没填日期显示 —
+  const chgOf = it => { const r = calc(it); return r ? r.chg : null; };
+  // 基准日期到今天过了多久：<1 年显示天数，≥1 年再补「X 年 Y 个月」；没填日期返回空串
   function elapsedText(it){
     if(!it.baseDate) return '';
     const days = Math.round((Date.parse(today()+'T00:00:00Z') - Date.parse(it.baseDate+'T00:00:00Z'))/86400000);
@@ -2857,72 +2911,259 @@ const QuickCalc = (()=>{
   }
   // 连接线颜色随涨跌：下跌红、上涨绿，没算出结果/持平为中性灰
   function linkState(it){ const r = calc(it); return r && r.chg>0 ? 'up' : r && r.chg<0 ? 'down' : ''; }
+
+  // 组内排序：手动＝数组顺序；跌幅最大＝涨跌幅升序；涨幅最大＝降序；没算出结果的排最后
+  function itemsOf(gid){
+    const list = QUICK_CALC.filter(it=>(it.group||'')===gid);
+    if(pref.sort==='manual') return list;
+    const dir = pref.sort==='drop' ? 1 : -1;
+    return list.map((it,i)=>({it,i,c:chgOf(it)})).sort((a,b)=>{
+      if(a.c==null && b.c==null) return a.i-b.i;
+      if(a.c==null) return 1;
+      if(b.c==null) return -1;
+      return (a.c-b.c)*dir || a.i-b.i;
+    }).map(x=>x.it);
+  }
+  // 要显示的分组段：真分组 + 末尾的「未分组」（有标的，或者压根没建分组时才显示）
+  function sections(){
+    const secs = QUICK_GROUPS.map(g=>({id:g.id, name:g.name, real:true, collapsed:!!g.collapsed, items:itemsOf(g.id)}));
+    const ung = itemsOf('');
+    if(ung.length || !QUICK_GROUPS.length) secs.push({id:'', name:'未分组', real:false, collapsed:ungroupedCollapsed, items:ung});
+    return secs;
+  }
+  // 分组汇总：简单平均（自选里没有持仓金额，不加权）+ 几涨几跌
+  function summaryHtml(items){
+    const cs = items.map(chgOf).filter(c=>c!=null);
+    if(!cs.length) return '<span class="t-note">暂无数据</span>';
+    const avg = cs.reduce((a,b)=>a+b,0)/cs.length;
+    const up = cs.filter(c=>c>0).length, down = cs.filter(c=>c<0).length;
+    return `平均 <b class="${cls(avg)}">${pct(avg)}</b><span class="qc-sum-dot">·</span><span class="pos">${up} 涨</span><span class="qc-sum-dot">·</span><span class="neg">${down} 跌</span>`;
+  }
+  const refreshSummaries = () => document.querySelectorAll('[data-qc-sum]').forEach(el=>{ el.innerHTML = summaryHtml(itemsOf(el.dataset.qcSum)); });
+
+  // ── 单元：结果区 / 输入框 ──
+  function resultHtml(it){
+    const r = calc(it);
+    if(!r) return '<div class="empty-line">填入基准值和现值即可算出涨跌幅</div>';
+    const word = r.chg>0 ? '上涨' : r.chg<0 ? '下跌' : '持平';
+    const backWord = r.back>0 ? '回到基准值需涨' : '回到基准值需跌';
+    return `<div class="qc-res-line">
+      <div class="qc-big ${cls(r.chg)}">${word} ${r.chg===0?'0.00%':Math.abs(r.chg).toFixed(2)+'%'}</div>
+      ${r.chg===0?'':`<div class="qc-back"><span class="qc-res-val ${cls(r.back)}">${pct(r.back)}</span>${infoIcon(backWord)}</div>`}
+    </div>`;
+  }
+  const numInput = (it, key) => `<input type="number" step="any" inputmode="decimal" class="fi qc-num" value="${_escAttr(it[key])}" oninput="QuickCalc.onInput('${it.id}','${key}',this.value)" onchange="QuickCalc.onChange()">`;
+  const dateInput = it => `<input type="date" class="fi qc-date" value="${_escAttr(it.baseDate)}" max="${today()}" oninput="QuickCalc.onInput('${it.id}','baseDate',this.value)" onchange="QuickCalc.onChange()">`;
+  const kebab = it => kebabBtn([{l:'编辑',a:`QuickCalc.openItem('${it.id}')`},{l:'删除',a:`QuickCalc.removeItem('${it.id}')`,d:1}]);
+  // 拖动把手：只有手动排序时才出现（别的排序下拖动没有意义）
+  const grip = it => pref.sort==='manual' ? `<span class="cat-grip qc-grip" draggable="true" title="拖动排序 / 移到其它分组" ondragstart="QuickCalc.dragStart(event,'${it.id}')" ondragend="QuickCalc.dragEnd(event)">⠿</span>` : '';
+  const dropAttrs = (id) => `ondragover="QuickCalc.dragOver(event)" ondragleave="QuickCalc.dragLeave(event)" ondrop="QuickCalc.drop(event,'${id}')"`;
+
+  // ── 卡片视图 ──
   function cardHtml(it){
-    return `<div class="card card-flush-b qc-card" id="qc-card-${it.id}">
+    return `<div class="card accent-card card-flush-b qc-card ${linkState(it)}" id="qc-card-${it.id}" ${dropAttrs(it.id)}>
       <div class="card-header">
-        <div class="card-title" title="${_escAttr(it.name)}">${_esc(it.name)}</div>
-        ${kebabBtn([{l:'重命名',a:`QuickCalc.rename('${it.id}')`},{l:'删除',a:`QuickCalc.removeItem('${it.id}')`,d:1}])}
+        <div class="card-title" title="${_escAttr(it.name)}">${grip(it)}${_esc(it.name)}</div>
+        ${kebab(it)}
       </div>
-      <div class="qc-in-row"><span class="qc-in-lbl">基准值</span>${numInput(it,'base')}
-        <input type="date" class="fi qc-date" value="${_escAttr(it.baseDate)}" max="${today()}" oninput="QuickCalc.onInput('${it.id}','baseDate',this.value)"></div>
+      <div class="qc-in-row"><span class="qc-in-lbl">基准值</span>${numInput(it,'base')}${dateInput(it)}</div>
       <div class="qc-link ${linkState(it)}" id="qc-linkbox-${it.id}"><span class="qc-link-line"></span><span class="qc-link-txt" id="qc-link-${it.id}">${elapsedText(it)}</span></div>
       <div class="qc-in-row"><span class="qc-in-lbl">现值</span>${numInput(it,'cur')}<span class="qc-date-fixed">今日 ${today()}</span></div>
       <div class="qc-result" id="qc-res-${it.id}">${resultHtml(it)}</div>
     </div>`;
   }
-  function render(){
-    const el = document.getElementById('qc-grid');
-    if(!el) return;
-    el.innerHTML = QUICK_CALC.map(cardHtml).join('')
-      + `<button type="button" class="qc-add" onclick="QuickCalc.openAdd()"><svg viewBox="0 0 24 24" class="btn-ico"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>新增标的</button>`;
+  const addTile = gid => `<button type="button" class="qc-add" onclick="QuickCalc.openItem('', '${gid}')"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>新增标的</button>`;
+  const groupKebab = sec => !sec.real ? '' : kebabBtn([
+    {l:'重命名',a:`QuickCalc.openGroup('${sec.id}')`},
+    {l:'上移',a:`QuickCalc.moveGroup('${sec.id}',-1)`},
+    {l:'下移',a:`QuickCalc.moveGroup('${sec.id}',1)`},
+    {l:'删除分组',a:`QuickCalc.removeGroup('${sec.id}')`,d:1}]);
+  function cardSection(sec){
+    return `<section class="qc-group">
+      <div class="qc-group-head" onclick="QuickCalc.toggleGroup('${sec.id}')" ${dropAttrs('g:'+sec.id)}>
+        <span class="qc-chev${sec.collapsed?' is-closed':''}"></span>
+        <span class="qc-group-name">${_esc(sec.name)}</span>
+        <span class="qc-group-count">${sec.items.length} 个标的</span>
+        <span class="qc-sum" data-qc-sum="${sec.id}">${summaryHtml(sec.items)}</span>
+        <span onclick="event.stopPropagation()">${groupKebab(sec)}</span>
+      </div>
+      ${sec.collapsed ? '' : `<div class="qc-grid">${sec.items.map(cardHtml).join('')}${addTile(sec.id)}</div>`}
+    </section>`;
   }
-  // 输入时只刷新该卡的结果区，不整页重绘（否则输入框会丢焦点）
+
+  // ── 列表视图：一张表，分组行沿用持仓页的 .cat-row 写法 ──
+  function listRow(it){
+    const r = calc(it);
+    return `<tr id="qc-row-${it.id}" ${dropAttrs(it.id)}>
+      <td><div class="cat-name">${grip(it)}<span class="qc-name" title="${_escAttr(it.name)}">${_esc(it.name)}</span></div></td>
+      <td>${numInput(it,'base')}</td>
+      <td>${dateInput(it)}</td>
+      <td>${numInput(it,'cur')}</td>
+      <td class="num cell-strong ${r?cls(r.chg):''}" id="qc-chg-${it.id}">${r?pct(r.chg):'—'}</td>
+      <td class="t-secondary" id="qc-el-${it.id}">${elapsedText(it)||'—'}</td>
+      <td class="qc-c-op">${kebab(it)}</td>
+    </tr>`;
+  }
+  function listSection(sec){
+    return `<tr class="cat-row qc-grow" onclick="QuickCalc.toggleGroup('${sec.id}')" ${dropAttrs('g:'+sec.id)}>
+      <td colspan="6"><div class="cat-name">
+        <span class="qc-chev${sec.collapsed?' is-closed':''}"></span>
+        <span class="cat-title">${_esc(sec.name)}</span>
+        <span class="cat-count">${sec.items.length} 个标的</span>
+        <span class="qc-sum" data-qc-sum="${sec.id}">${summaryHtml(sec.items)}</span>
+      </div></td>
+      <td class="qc-c-op" onclick="event.stopPropagation()">${groupKebab(sec)}</td>
+    </tr>${sec.collapsed ? '' : sec.items.map(listRow).join('')}`;
+  }
+  function listHtml(secs){
+    return `<div class="table-wrap"><table class="tbl-fixed qc-list">
+      <colgroup><col><col class="qc-c-num"><col class="qc-c-date"><col class="qc-c-num"><col class="qc-c-chg"><col class="qc-c-el"><col class="qc-c-op"></colgroup>
+      <thead><tr><th class="no-sort">名称</th><th class="no-sort num">基准值</th><th class="no-sort">基准日期</th><th class="no-sort num">现值（今日）</th><th class="no-sort num">涨跌幅</th><th class="no-sort">已过</th><th class="no-sort"></th></tr></thead>
+      <tbody>${secs.map(listSection).join('')}</tbody></table></div>`;
+  }
+
+  // ── 渲染 ──
+  function render(){
+    const body = document.getElementById('qc-body');
+    if(!body) return;
+    // 工具栏的高亮
+    [['card','qc-view-card'],['list','qc-view-list']].forEach(([v,id])=>document.getElementById(id)?.classList.toggle('active', pref.view===v));
+    const sel = document.getElementById('qc-sort-sel'); if(sel) sel.value = pref.sort;
+    if(!QUICK_CALC.length && !QUICK_GROUPS.length){
+      body.innerHTML = '<div class="empty">还没有自选标的，点右上角「新增标的」开始记录</div>';
+      return;
+    }
+    const secs = sections();
+    body.innerHTML = pref.view==='list' ? listHtml(secs) : secs.map(cardSection).join('');
+  }
+  function setView(v){ pref.view = v; savePref(); render(); }
+  function setSort(v){ pref.sort = v; savePref(); render(); }
+  function toggleGroup(gid){
+    if(gid==='') ungroupedCollapsed = !ungroupedCollapsed;
+    else { const g = findGroup(gid); if(!g) return; g.collapsed = !g.collapsed; lsSave(); }
+    render();
+  }
+
+  // ── 输入：只刷新该条的结果区和分组汇总，不整页重绘（否则输入框丢焦点）；非手动排序在离开输入框时才重排 ──
   function onInput(id, key, val){
-    const it = QUICK_CALC.find(x=>x.id===id);
+    const it = find(id);
     if(!it) return;
     it[key] = val;
     lsSave();
-    const res = document.getElementById('qc-res-'+id);
-    if(res) res.innerHTML = resultHtml(it);
-    const lk = document.getElementById('qc-link-'+id);
-    if(lk) lk.textContent = elapsedText(it);
-    const lb = document.getElementById('qc-linkbox-'+id);
-    if(lb) lb.className = 'qc-link '+linkState(it);
+    const r = calc(it);
+    const set = (el, fn) => { const e = document.getElementById(el); if(e) fn(e); };
+    set('qc-res-'+id, e=>{ e.innerHTML = resultHtml(it); });
+    set('qc-link-'+id, e=>{ e.textContent = elapsedText(it); });
+    set('qc-card-'+id, e=>{ e.className = 'card accent-card card-flush-b qc-card '+linkState(it); });
+    set('qc-linkbox-'+id, e=>{ e.className = 'qc-link '+linkState(it); });
+    set('qc-chg-'+id, e=>{ e.textContent = r ? pct(r.chg) : '—'; e.className = 'num cell-strong '+(r?cls(r.chg):''); });
+    set('qc-el-'+id, e=>{ e.textContent = elapsedText(it) || '—'; });
+    refreshSummaries();
   }
-  // 新增 / 重命名共用一个名称弹窗
-  function _nameModal(title, initial, okAction, withPresets){
-    const chips = withPresets ? `<div class="form-row"><label class="form-label">常用标的</label><div class="qc-presets">${PRESETS.map(n=>`<span class="chip" onclick="document.getElementById('qc-name-input').value='${n}'">${n}</span>`).join('')}</div></div>` : '';
-    openDynModal('modal-qc-name', modalShell({
-      id:'modal-qc-name', title, width:400,
-      body:`<div class="form-row"><label class="form-label">标的名称</label><input class="fi" id="qc-name-input" maxlength="30" value="${_escAttr(initial)}"></div>${chips}`,
-      footer:`<button class="btn" onclick="closeDynMo('modal-qc-name')">取消</button><button class="btn btn-primary" onclick="${okAction}">保存</button>`
+  function onChange(){ if(pref.sort!=='manual') render(); }
+
+  // ── 新增/编辑标的、新增/重命名分组（弹窗按现有动态弹窗写法：modal-xxx / form-row / 取消+保存）──
+  const chipsHtml = (list, inputId) => `<div class="qc-presets">${list.map(n=>`<span class="chip" onclick="document.getElementById('${inputId}').value='${n}'">${n}</span>`).join('')}</div>`;
+  function openItem(id, presetGroup){
+    const it = id ? find(id) : null;
+    if(id && !it) return;
+    const gid = it ? (it.group||'') : (presetGroup||'');
+    const opts = `<option value="">未分组</option>` + QUICK_GROUPS.map(g=>`<option value="${g.id}"${g.id===gid?' selected':''}>${_esc(g.name)}</option>`).join('');
+    openDynModal('modal-qc-item', modalShell({
+      id:'modal-qc-item', title: it ? '编辑标的' : '新增标的', width:400,
+      body:`<div class="form-row"><label class="form-label">标的名称</label><input class="fi" id="qc-name-input" maxlength="30" value="${_escAttr(it?it.name:'')}"></div>
+        <div class="form-row"><label class="form-label">所属分组</label><select class="fi" id="qc-group-select">${opts}</select></div>
+        ${it ? '' : `<div class="form-row"><label class="form-label">常用标的</label>${chipsHtml(PRESETS,'qc-name-input')}</div>`}`,
+      footer:`<button class="btn" onclick="closeDynMo('modal-qc-item')">取消</button><button class="btn btn-primary" onclick="QuickCalc.saveItem('${id||''}')">保存</button>`
     }));
   }
-  const _nameVal = () => document.getElementById('qc-name-input').value.trim();
-  function openAdd(){ _nameModal('新增标的', '', 'QuickCalc.add()', true); }
-  function add(){
-    const name = _nameVal();
+  function saveItem(id){
+    const name = document.getElementById('qc-name-input').value.trim();
+    const group = document.getElementById('qc-group-select').value;
     if(!name){ toast('请输入标的名称', true); return; }
-    QUICK_CALC.push({id:_genId('qc'), name, base:'', baseDate:'', cur:''});
-    lsSave(); closeDynMo('modal-qc-name'); render();
-  }
-  function rename(id){
-    const it = QUICK_CALC.find(x=>x.id===id);
-    if(it) _nameModal('重命名', it.name, `QuickCalc.applyRename('${id}')`, false);
-  }
-  function applyRename(id){
-    const name = _nameVal(), it = QUICK_CALC.find(x=>x.id===id);
-    if(!name){ toast('请输入标的名称', true); return; }
-    if(it) it.name = name;
-    lsSave(); closeDynMo('modal-qc-name'); render();
+    if(id){
+      const it = find(id);
+      if(it){ it.name = name; if((it.group||'')!==group) moveItem(id, group, null); }
+    } else {
+      QUICK_CALC.push({id:_genId('qc'), name, group, base:'', baseDate:'', cur:''});
+    }
+    lsSave(); closeDynMo('modal-qc-item'); render();
   }
   function removeItem(id){
-    const it = QUICK_CALC.find(x=>x.id===id);
+    const it = find(id);
     if(!it || !confirm(`删除标的「${it.name}」？`)) return;
     QUICK_CALC = QUICK_CALC.filter(x=>x.id!==id);
     lsSave(); render();
   }
-  return {render, onInput, openAdd, add, rename, applyRename, removeItem};
+  function openGroup(id){
+    const g = id ? findGroup(id) : null;
+    if(id && !g) return;
+    openDynModal('modal-qc-group', modalShell({
+      id:'modal-qc-group', title: g ? '重命名分组' : '新增分组', width:400,
+      body:`<div class="form-row"><label class="form-label">分组名称</label><input class="fi" id="qc-gname-input" maxlength="20" value="${_escAttr(g?g.name:'')}"></div>
+        ${g ? '' : `<div class="form-row"><label class="form-label">常用分组</label>${chipsHtml(GROUP_PRESETS,'qc-gname-input')}</div>`}`,
+      footer:`<button class="btn" onclick="closeDynMo('modal-qc-group')">取消</button><button class="btn btn-primary" onclick="QuickCalc.saveGroup('${id||''}')">保存</button>`
+    }));
+  }
+  function saveGroup(id){
+    const name = document.getElementById('qc-gname-input').value.trim();
+    if(!name){ toast('请输入分组名称', true); return; }
+    if(id){ const g = findGroup(id); if(g) g.name = name; }
+    else QUICK_GROUPS.push({id:_genId('qg'), name, collapsed:false});
+    lsSave(); closeDynMo('modal-qc-group'); render();
+  }
+  function removeGroup(id){
+    const g = findGroup(id);
+    if(!g) return;
+    const n = QUICK_CALC.filter(it=>it.group===id).length;
+    if(!confirm(`删除分组「${g.name}」？${n?`其中 ${n} 个标的会移到「未分组」，标的本身不会删除。`:''}`)) return;
+    QUICK_CALC.forEach(it=>{ if(it.group===id) it.group=''; });
+    QUICK_GROUPS = QUICK_GROUPS.filter(x=>x.id!==id);
+    lsSave(); render();
+  }
+  function moveGroup(id, dir){
+    const i = QUICK_GROUPS.findIndex(x=>x.id===id), j = i+dir;
+    if(i<0 || j<0 || j>=QUICK_GROUPS.length) return;
+    [QUICK_GROUPS[i], QUICK_GROUPS[j]] = [QUICK_GROUPS[j], QUICK_GROUPS[i]];
+    lsSave(); render();
+  }
+
+  // ── 拖动：把手拖到别的标的上＝插到它前面（跨分组则同时换组）；拖到分组标题上＝放到该组末尾 ──
+  function moveItem(id, gid, beforeId){
+    const i = QUICK_CALC.findIndex(x=>x.id===id);
+    if(i<0) return;
+    const [it] = QUICK_CALC.splice(i,1);
+    it.group = gid;
+    const j = beforeId ? QUICK_CALC.findIndex(x=>x.id===beforeId) : -1;
+    if(j>=0){ QUICK_CALC.splice(j,0,it); return; }
+    let last = -1;
+    QUICK_CALC.forEach((x,k)=>{ if((x.group||'')===gid) last = k; });
+    if(last<0) QUICK_CALC.push(it); else QUICK_CALC.splice(last+1,0,it);
+  }
+  function dragStart(e, id){
+    dragId = id;
+    const host = e.target.closest('.qc-card, tr');
+    if(host){ host.classList.add('drag-active'); e.dataTransfer.setDragImage(host, 20, 20); }
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+  }
+  function dragEnd(){
+    dragId = null;
+    document.querySelectorAll('.drag-active,.drag-over').forEach(el=>el.classList.remove('drag-active','drag-over'));
+  }
+  function dragOver(e){ if(!dragId) return; e.preventDefault(); e.dataTransfer.dropEffect='move'; e.currentTarget.classList.add('drag-over'); }
+  function dragLeave(e){ e.currentTarget.classList.remove('drag-over'); }
+  function drop(e, target){
+    e.preventDefault();
+    const id = dragId;
+    dragEnd();
+    if(!id || id===target) return;
+    if(target.startsWith('g:')) moveItem(id, target.slice(2), null);
+    else { const t = find(target); if(!t) return; moveItem(id, t.group||'', target); }
+    lsSave(); render();
+  }
+
+  return {render, setView, setSort, toggleGroup, onInput, onChange, openItem, saveItem, removeItem, openGroup, saveGroup, removeGroup, moveGroup, dragStart, dragEnd, dragOver, dragLeave, drop};
 })();
 
 // ── XIRR 计算器 ──
@@ -5315,7 +5556,7 @@ function _inspectData(d){
   if(!d || typeof d!=='object' || Array.isArray(d)) return fatal('数据格式不对：文件内容不是一个数据对象');
   if(!Array.isArray(d.PRODUCTS)) return fatal('数据格式不对：文件里没有品种列表（PRODUCTS）');
   const nameOf=(o,i)=>(o&&typeof o.name==='string'&&o.name.trim())?o.name:('#'+(i+1));
-  ['HIERARCHY','CASHFLOWS','TYPE_TABLE','SNAPSHOTS','SHARED_PRODUCTS','ACTUAL_CASHFLOWS','FUND_SOURCES','BOARD_TYPE_ORDER','XIRR_CALC_ROWS','QUICK_CALC']
+  ['HIERARCHY','CASHFLOWS','TYPE_TABLE','SNAPSHOTS','SHARED_PRODUCTS','ACTUAL_CASHFLOWS','FUND_SOURCES','BOARD_TYPE_ORDER','XIRR_CALC_ROWS','QUICK_CALC','QUICK_GROUPS']
     .forEach(k=>{ if(d[k]!=null && !Array.isArray(d[k])) add(`字段 ${k} 应该是列表，实际是 ${Array.isArray(d[k])?'列表':typeof d[k]}`); });
   ['FX','FX_TS','TARGET_ALLOC','TARGET_ORDER','REBAL_THRESH','SHARED_CF_NOTES','MARKET_PLAN','BENCHMARK_PLAN','PERPETUAL_PLAN','BOARD_NOTES','PRINCIPAL_SPLITS']
     .forEach(k=>{ if(d[k]!=null && (typeof d[k]!=='object'||Array.isArray(d[k]))) add(`字段 ${k} 应该是对象，实际是 ${Array.isArray(d[k])?'列表':typeof d[k]}`); });
