@@ -55,7 +55,7 @@
      文件结构：① <style> CSS（设计变量 --sp-*/--fs-* 在最前）→ ② HTML 页面骨架 → ③ <script> 逻辑 → ④ Init 在最末。
      页面 id：overview 总览 / holdings 持仓 / analysis 分析 / board 穿透 / perpetual 永续规划 / watch 自选 / data 数据管理
      数据管理子页：target weight cashflow hierarchy typetable fx marketplan shared fundsource xirr-calc
-     命名空间对象：QuickCalc、GroupCompare、SnapView（新功能照此写法）
+     命名空间对象：QuickCalc、GroupCompare、SnapView、SnapAll（新功能照此写法）
 
      搜这些关键词定位（// ── 分区横幅 或 函数名）：
        基础工具   数值输入聚焦即全选 / kebab menu / helpers / XIRR (Newton) / Page nav / 应用内确认框 appConfirm / 动态弹窗外壳 modalShell / 弹窗行为统一管理
@@ -64,7 +64,7 @@
        持仓       renderHoldings / Holdings / 拖动排序
        分析       renderAnalysis / 集中度分析 / 收益-权重散点 / 业绩比较 / 混合基准 / 排行榜 / 自定义指数 / 我的组合 slots
        穿透       renderBoard / selectBoardPierce / 看板通用层级支持 / 品种构成 / L1-L5 组合区块
-       快照与趋势 Snapshot（市值快照）/ 二级及以上组合年度快照 / renderSnapshotChart / SnapView（净值视图+本金线）
+       快照与趋势 Snapshot（市值快照）/ 二级及以上组合年度快照 / renderSnapshotChart / SnapView（净值视图+本金线）/ SnapAll（录入全部快照）
        永续规划   renderPerpetualPlan
        数据管理页 renderTargetTable / renderWeightTable / renderCashflow / renderHierarchy / renderTypeTable / renderFX / renderMarketPlan / renderSharedList / renderFundSources / XIRR 计算器 / Batch market value update
        弹窗       openProductModal / openCFModal / openSnapshotModal / Hierarchy modal / Board notes
@@ -1477,7 +1477,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
           <div class="card-header">
             <div class="card-title">市值趋势</div>
             <div class="hd-actions"><div class="hd-actions snap-ctl" id="snap-ctl-total"></div>
-            <button class="btn btn-sm btn-snap" onclick="openSnapshotModal('total',0,null)"><svg viewBox="0 0 24 24" class="btn-ico"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>录入快照</button></div>
+            <button class="btn btn-sm btn-snap" onclick="SnapAll.open()"><svg viewBox="0 0 24 24" class="btn-ico"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>录入全部快照</button></div>
           </div>
           <div class="chart-wrap-260"><canvas id="c-snap-total"></canvas></div>
           <div id="snap-drawdown" class="snap-stat-row snap-stat-first">
@@ -2258,6 +2258,9 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
    市值趋势：净值视图 / 本金线     SnapView                    命名空间对象。「市值/净值」分段 + 「本金线」开关画在卡头 #snap-ctl-total / #snap-ctl-group；
                                                            净值＝相邻快照区间 Modified Dietz 连乘（剔除资金进出），涨幅/回撤在净值上算；
                                                            默认显示净值，「市值」视图保持原样。口径与近似见 SnapView 定义处注释；状态不持久化（刷新回到默认净值）。
+
+   录入全部快照                   SnapAll                     命名空间对象。总览「市值趋势」卡头的橙色按钮（取代原「录入快照」）→ 弹窗：选日期，一次存下总资产+一到五级所有组合当天的快照；
+                                                           金额预填口径与单个录入快照共用 _snapPrefill；同日已有则覆盖，市值为 0 的组合跳过。
 
    手动数据 vs 界面偏好           _collectData / UI_PREFS     手动录入的数据（含持仓手动排序 HOLDINGS_ORDER/HOLDINGS_CAT_ORDER）进 _collectData；
                                                            "这台浏览器的界面偏好"（筛选/排序/上次看的组合/自选视图）仍存各自的 localStorage key，
@@ -6298,6 +6301,17 @@ function bdXirrTab(tab){
 let _snapChartTotal = null;
 let _snapChartGroup = null;
 
+// 录入快照时的预填：币种 + 当前市值。单个快照弹窗和「录入全部快照」共用，保证两边口径一致
+// 总资产混合多币种，只能录人民币；单个组合若只持有一种外币，按该外币原始市值预填（不做汇率换算）
+function _snapPrefill(mode, level, group){
+  if(mode==='total') return {amt: totalCNY(), ccy:'CNY'};
+  const prods = _groupProducts(parseInt(level), group);
+  const soleCcy = _soleForeignCcy(prods, parseInt(level));
+  const ccy = (soleCcy && soleCcy!=='MIXED') ? soleCcy : 'CNY';
+  const amt = ccy!=='CNY' ? prods.filter(p=>p.ccy===ccy).reduce((s,p)=>s+p.amount,0) : groupMarketVal(group, parseInt(level));
+  return {amt, ccy};
+}
+
 function openSnapshotModal(mode, level, group, editDate, editAmount, editCcy){
   const snapTitle = editDate
     ? (mode==='total' ? `编辑总资产快照 · ${editDate}` : `编辑快照 · ${group} · ${editDate}`)
@@ -6320,14 +6334,6 @@ function openSnapshotModal(mode, level, group, editDate, editAmount, editCcy){
   document.getElementById('ms-mode').value  = mode;
   document.getElementById('ms-level').value = level;
   document.getElementById('ms-group').value = group || '';
-  // 总资产快照混合了多种币种，只能录人民币；单个组合快照如果这个组合只持有一种外币，
-  // 就允许直接按外币录入，不用自己心算汇率
-  let ccy = 'CNY';
-  if(mode!=='total' && !editDate){
-    const prods = _groupProducts(parseInt(level), group);
-    const soleCcy = _soleForeignCcy(prods, parseInt(level));
-    if(soleCcy && soleCcy!=='MIXED') ccy = soleCcy;
-  }
   if(editDate){
     // 编辑模式：直接回填这一条已有记录，不覆盖成当前日期/当前市值
     document.getElementById('ms-orig-date').value = editDate;
@@ -6339,19 +6345,10 @@ function openSnapshotModal(mode, level, group, editDate, editAmount, editCcy){
   } else {
     document.getElementById('ms-orig-date').value = '';
     document.getElementById('ms-date').value  = today();
+    const {amt, ccy} = _snapPrefill(mode, level, group);
     document.getElementById('ms-ccy').value = ccy;
     document.getElementById('ms-ccy-label').textContent = ccy;
     document.getElementById('ms-delete-btn').style.display = 'none';
-    // prefill current value —— 外币口径就按这个组合的原始外币市值预填，不做汇率换算
-    let amt = 0;
-    if(mode==='total'){
-      amt = totalCNY();
-    } else if(ccy!=='CNY'){
-      const prods = _groupProducts(parseInt(level), group);
-      amt = prods.filter(p=>p.ccy===ccy).reduce((s,p)=>s+p.amount,0);
-    } else {
-      amt = groupMarketVal(group, parseInt(level));
-    }
     document.getElementById('ms-amount').value = amt.toFixed(2);
   }
 }
@@ -6438,6 +6435,69 @@ function _groupSnapYears(level, groupName){
 //       快照当天的流水视为已反映在该快照里，区间取 (上一点日期, 本点日期]；
 //       分红按"取出"处理（分到手的钱算收益）。区间内资金进出很大、快照又稀疏时，Modified Dietz 只是近似。
 // 这是时间加权口径，跟 XIRR（资金加权）数字不会一致，属正常。
+// ── 录入全部快照（SnapAll）─────────────────────────────
+// 总览「市值趋势」卡头的录入入口（取代原来的单个「录入快照」；看板里各组合仍用「录入快照」）。
+// 一次把「总资产 + 所有一级到五级组合」在同一天的快照都存下来，金额取当前持仓市值（和单个录入快照的预填同口径）。
+// 同一天同一组合已有快照则覆盖；市值为 0 的组合跳过；同名组合只录一次（快照按组合名存）。
+const SnapAll = (()=>{
+  const MODAL = 'modal-snapshot-all';
+  const LV = ['','一级','二级','三级','四级','五级'];
+  function items(){
+    const out = [{key:'total', level:0, name:'总资产', ...(_snapPrefill('total',0,null)), tag:'总资产'}];
+    const seen = new Set(['total']);
+    for(let lv=1; lv<=5; lv++){
+      const names = lv===1 ? getAllL1() : [...new Set(HIERARCHY.map(h=>h['l'+lv]).filter(Boolean))];
+      names.filter(Boolean).forEach(name=>{
+        if(seen.has(name)) return;          // 同名组合只录一次
+        seen.add(name);
+        out.push({key:name, level:lv, name, ..._snapPrefill('group',lv,name), tag:LV[lv]});
+      });
+    }
+    return out;
+  }
+  const fm = it => it.ccy==='CNY' ? fmtCNY(it.amt) : fmtForeign(it.amt, it.ccy);
+  const has = (key, date) => SNAPSHOTS.some(s=>s.group===key && s.date===date);
+  function open(){
+    openDynModal(MODAL, modalShell({
+      id:MODAL, title:'录入全部快照', cls:'modal-flex',
+      body:`
+      <div class="form-row"><label class="form-label">日期</label><input class="fi" type="date" id="msa-date" onchange="SnapAll.refresh()"></div>
+      <div class="text-hint">金额取当前持仓市值；该日期已有快照的组合会被覆盖。</div>
+      <div id="msa-rows" class="modal-scroll scroll-gutter"></div>`,
+      footer:`
+      <button class="btn" onclick="closeDynMo('${MODAL}')">取消</button>
+      <button class="btn btn-primary" onclick="SnapAll.save()">保存</button>`
+    }));
+    document.getElementById('msa-date').value = today();
+    refresh();
+  }
+  function refresh(){
+    const date = document.getElementById('msa-date').value;
+    const rows = items().map(it=>{
+      const skip = !(it.amt>0);
+      const st = skip ? '无持仓，跳过' : (has(it.key,date) ? '覆盖' : '新增');
+      return `<tr><td class="cell-sub">${it.tag}</td><td>${_esc(it.name)}</td><td class="num">${skip?'—':fm(it)}</td><td class="cell-sub">${st}</td></tr>`;
+    }).join('');
+    document.getElementById('msa-rows').innerHTML = `<table><thead><tr><th>层级</th><th>组合</th><th class="num">市值</th><th>状态</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+  function save(){
+    const date = document.getElementById('msa-date').value;
+    if(!date){ toast('请填写日期', true); return; }
+    let added=0, updated=0;
+    items().filter(it=>it.amt>0).forEach(it=>{
+      const idx = SNAPSHOTS.findIndex(s=>s.group===it.key && s.date===date);
+      if(idx>=0){ SNAPSHOTS.splice(idx,1); updated++; } else added++;
+      SNAPSHOTS.push({date, group:it.key, level:it.level, amount:parseFloat(it.amt.toFixed(2)), ccy:it.ccy});
+    });
+    SNAPSHOTS.sort((a,b)=>a.date.localeCompare(b.date));
+    lsSave();
+    closeDynMo(MODAL);
+    renderSnapshotChart('total',0,null);
+    toast(updated ? (added ? `已新增${added}条、更新${updated}条快照` : `已更新${updated}条快照`) : `已新增${added}条快照`);
+  }
+  return {open, refresh, save};
+})();
+
 const SnapView = (()=>{
   const FLOW_TYPES = ['成本资金','分红','共管转让'];
   const state = {total:{view:'nav', line:false}, group:{view:'nav', line:false}};   // 默认净值视图；刷新后回到默认
@@ -6550,7 +6610,7 @@ function renderSnapshotChart(mode, level, group){
       d.style.cssText='padding:60px 0;text-align:center;font-size:var(--fs-12);color:var(--text3)';
       wrap.appendChild(d);
     }
-    wrap.querySelector('.snap-empty').textContent = '暂无快照数据，点击「录入快照」开始记录';
+    wrap.querySelector('.snap-empty').textContent = `暂无快照数据，点击「${mode==='total'?'录入全部快照':'录入快照'}」开始记录`;
     return;
   }
   canvas.style.display='';
@@ -6686,7 +6746,7 @@ function renderSnapshotChart(mode, level, group){
         if(!elements.length) return;
         const p = pts[elements[0].index];
         if(p.derived){ toast(p.incomplete ? `该年度合计不完整，缺少：${p.missing.join('、')} 的年度快照，请到对应一级组合补录` : '这是由成员一级组合年度快照合计出的锚点，无法直接编辑', true); return; }
-        if(p.src !== 'snap'){ toast('这是自动推算的年度锚点，无法编辑，请直接录入快照覆盖', true); return; }
+        if(p.src !== 'snap'){ toast('这是自动推算的年度锚点，无法编辑，请直接'+(mode==='total'?'录入全部快照':'录入快照')+'覆盖', true); return; }
         openSnapshotModal(mode, level, group, p.date, p.rawAmount, p.ccy);
       },
       onHover:(evt, elements)=>{ evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
