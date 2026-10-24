@@ -61,7 +61,7 @@
        基础工具   数值输入聚焦即全选 / kebab menu / helpers / XIRR (Newton) / Page nav / 应用内确认框 appConfirm / 动态弹窗外壳 modalShell / 弹窗行为统一管理
        数据与存储 _collectData / lsSave / Gist（冲突提示条）/ 载入时整理数据 / 视图排序偏好 _UI_PREF_KEYS / 备份：导出·导入 / 导入前体检
        总览       renderOverview / Overview
-       持仓       renderHoldings / Holdings / 拖动排序
+       持仓       renderHoldings / Holdings / 拖动排序 / 按品种汇总（_hScopeData 范围、_renderHMerge）
        分析       renderAnalysis / 集中度分析 / 收益-权重散点 / 业绩比较 / 混合基准 / 排行榜 / 自定义指数 / 我的组合 slots
        穿透       renderBoard / selectBoardPierce / 看板通用层级支持 / 品种构成 / L1-L5 组合区块
        快照与趋势 Snapshot（市值快照）/ 二级及以上组合年度快照 / renderSnapshotChart / SnapView（净值视图+本金线）/ SnapAll（录入全部快照）
@@ -768,6 +768,7 @@ input.fi.xirr-input{padding:0 var(--sp-1-5);height:var(--ctl-h-md);font-size:var
 .batch-name{font-size:var(--fs-12);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 select.fi.fi-ccy{padding:0 6px;height:var(--ctl-h-md);font-size:var(--fs-12)}
 input.fi.fi-amount{padding:0 8px;height:var(--ctl-h-md);font-size:var(--fs-13);font-weight:600;text-align:right}
+input.fi.msa-amt{width:140px}  /* 录入全部快照弹窗里每行的市值输入框 */
 /* 弹窗底部按钮：破坏性按钮(.btn-danger)统一推到最左，和"取消/保存"拉开距离；纵向 flex 弹窗里底栏不被压缩 */
 .modal-footer .btn-danger{margin-right:auto}
 .modal-flex .modal-footer{flex-shrink:0}
@@ -1214,6 +1215,9 @@ select.fi.fi-compact{font-size:var(--fs-12);padding:0 10px;height:var(--ctl-h-md
 .cat-pct{font-size:var(--fs-11);color:var(--text3)}
 /* 持仓页列宽（用户指定），总和 1520px；页面更宽时按比例撑开，更窄时横向滚动 */
 .tbl-holdings{min-width:1520px}
+.tbl-hmerge{min-width:820px}
+.tbl-hmerge .hm-name{width:240px}.tbl-hmerge .hm-val{width:120px}.tbl-hmerge .hm-pct{width:100px}.tbl-hmerge .hm-l1{width:160px}.tbl-hmerge .hm-plat{width:140px}
+
 .tbl-holdings .hc-name{width:200px}.tbl-holdings .hc-tgt{width:80px}.tbl-holdings .hc-val{width:110px}.tbl-holdings .hc-pct{width:80px}
 .tbl-holdings .hc-ccy{width:150px}.tbl-holdings .hc-l1,.tbl-holdings .hc-l2,.tbl-holdings .hc-l3,.tbl-holdings .hc-l4,.tbl-holdings .hc-l5,.tbl-holdings .hc-mkt{width:80px}
 .tbl-holdings .hc-type{width:100px}
@@ -1320,7 +1324,7 @@ function lsLoad(){
 // 界面偏好（筛选/排序方式、看板上次看的组合、看板 XIRR 年份、自选视图等）：运行时仍各自存在 localStorage 的老 key 里（读写点很多，不改），
 // 但导出/云同步时打包进 UI_PREFS 一起带走，导入/云端拉取时再写回这些 key。Gist 的 token/ID 不在其中（安全）。
 // 新增"每台浏览器自己的偏好"时，把它的 localStorage key 加进这个清单即可。
-const _UI_PREF_KEYS = ['hSortMode','hFilter','hL3Filter','hPlatFilter','invest_board_last','bd_xirr_pref','invest_watch_pref'];
+const _UI_PREF_KEYS = ['hSortMode','hFilter','hL3Filter','hPlatFilter','hView','invest_board_last','bd_xirr_pref','invest_watch_pref'];
 function _collectUiPrefs(){
   const o = {};
   _UI_PREF_KEYS.forEach(k=>{ try{ const v = localStorage.getItem(k); if(v!=null) o[k] = v; }catch(e){} });
@@ -1509,6 +1513,10 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
         <div class="card-header">
           <div class="card-title">持仓明细</div>
           <div class="hd-actions">
+            <div class="seg-tabs seg-sm">
+              <button class="seg-btn" id="h-view-detail" onclick="setHView('detail')">明细</button>
+              <button class="seg-btn" id="h-view-merge" onclick="setHView('merge')">按品种汇总</button>
+            </div>
             <div class="chips chips-inline" id="h-tabs"></div>
             <select class="fi fi-compact" id="h-sort-sel" onchange="setHSort(this.value)">
               <option value="custom">自定义排序</option>
@@ -1527,7 +1535,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
           <div class="chips chips-inline hd-plat-chips" id="h-plat-chips"></div>
           <div id="h-plat-summary" class="hd-summary"></div>
         </div>
-        <div class="table-wrap">
+        <div class="table-wrap" id="h-detail-wrap">
           <table class="tbl-fixed tbl-clip tbl-holdings">
             <colgroup>
               <col class="hc-name"><col class="hc-tgt"><col class="hc-pct"><col class="hc-val"><col class="hc-ccy"><col class="hc-l1"><col class="hc-l2"><col class="hc-l3"><col class="hc-l4"><col class="hc-l5"><col class="hc-mkt"><col class="hc-type"><col class="hc-enh"><col class="hc-ac"><col class="hc-plat"><col class="hc-act">
@@ -1551,6 +1559,20 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
               <th class="no-sort sticky-r">操作</th>
             </tr></thead>
             <tbody id="h-tbody"></tbody>
+          </table>
+        </div>
+        <div class="table-wrap" id="h-merge-wrap" style="display:none">
+          <table class="tbl-fixed tbl-clip tbl-hmerge">
+            <colgroup><col class="hm-name"><col class="hm-val"><col class="hm-pct"><col class="hm-pct"><col class="hm-l1"><col class="hm-plat"></colgroup>
+            <thead><tr>
+              <th class="sticky-l">品种</th>
+              <th class="num">市值CNY</th>
+              <th class="num">占范围%</th>
+              <th class="num">占总资产%</th>
+              <th>一级</th>
+              <th>平台</th>
+            </tr></thead>
+            <tbody id="h-merge-tbody"></tbody>
           </table>
         </div>
       </div>
@@ -2262,6 +2284,9 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
    录入全部快照                   SnapAll                     命名空间对象。总览「市值趋势」卡头的橙色按钮（取代原「录入快照」）→ 弹窗：选日期，一次存下总资产+一到五级所有组合当天的快照；
                                                            金额预填口径与单个录入快照共用 _snapPrefill；同日已有则覆盖，市值为 0 的组合跳过。
 
+   持仓范围 / 按品种汇总          _hScopeData / _renderHMerge   持仓明细页的范围（五级/三级/平台三排筛选）只在 _hScopeData 里算，明细和「按品种汇总」共用，加新范围只改它；
+                                                           汇总按品种的「同品种」字段合并（留空则用品种名），点开一行看各组合/平台的分布；占范围＝范围内占比，占总资产＝全部资产占比。
+
    手动数据 vs 界面偏好           _collectData / UI_PREFS     手动录入的数据（含持仓手动排序 HOLDINGS_ORDER/HOLDINGS_CAT_ORDER）进 _collectData；
                                                            "这台浏览器的界面偏好"（筛选/排序/上次看的组合/自选视图）仍存各自的 localStorage key，
                                                            只需把 key 加进 _UI_PREF_KEYS，就会随导出/云同步带走。Gist token 不进。
@@ -2303,6 +2328,7 @@ function getCatOf(typeName){return (TYPE_TABLE.find(r=>r.type===typeName)||{}).c
 
 // 历史值提取
 function histAC(){return[...new Set(PRODUCTS.map(p=>p.ac).filter(Boolean))].sort();}
+function histSame(){return[...new Set([...PRODUCTS.map(p=>p.same),...PRODUCTS.map(p=>p.name)].filter(Boolean))].sort();}
 function histPlatform(){return[...new Set(PRODUCTS.map(p=>p.platform).filter(Boolean))].sort();}
 
 async function clearLS(){
@@ -4696,6 +4722,7 @@ let hSortMode      = localStorage.getItem('hSortMode')      || 'custom';
 let hFilter        = localStorage.getItem('hFilter')        || 'all';
 let hL3Filter      = localStorage.getItem('hL3Filter')      || 'all';
 let hPlatFilter    = localStorage.getItem('hPlatFilter')    || 'all';
+let hView          = localStorage.getItem('hView')          || 'detail';   // detail 明细 / merge 按品种汇总
 
 // HOLDINGS_ORDER / HOLDINGS_CAT_ORDER 的声明已挪到文件前面的数据区（跟其它业务数据一起进导出/云同步），这里只留保存函数
 function saveHoldingsOrder(){ lsSave(); }
@@ -4739,7 +4766,7 @@ function renderHoldings(){
       document.querySelectorAll('#h-chips .chip').forEach(x=>x.classList.remove('active'));
       c.classList.add('active');
       saveHL3Filter(c.dataset.l3);
-      _renderHTable(total, c.dataset.l3, hPlatFilter);
+      _hRender(total);
     };
   });
   // platform chips
@@ -4752,14 +4779,108 @@ function renderHoldings(){
       document.querySelectorAll('#h-plat-chips .chip').forEach(x=>x.classList.remove('active'));
       c.classList.add('active');
       saveHPlatFilter(c.dataset.plat);
-      _renderHTable(total, hL3Filter, c.dataset.plat);
+      _hRender(total);
     };
   });
   document.getElementById('h-sort-sel').value = hSortMode;
-  _renderHTable(total, hL3Filter, hPlatFilter);
+  _hRender(total);
 }
 
 function setHF(v){ saveHFilter(v); renderHoldings(); }
+function setHView(v){ hView=v; localStorage.setItem('hView',v); renderHoldings(); }
+
+// 持仓范围：明细和按品种汇总共用。要加新的范围条件（比如按币种），只改这一个函数，两个视图一起生效。
+function _hScopeData(){
+  let data = PRODUCTS.filter(p=>hFilter==='all'||p.l5===hFilter);
+  if(hL3Filter!=='all') data=data.filter(p=>p.l3===hL3Filter);
+  if(hPlatFilter&&hPlatFilter!=='all') data=data.filter(p=>p.platform===hPlatFilter);
+  return data;
+}
+function _hIsFiltered(){ return (hFilter!=='all')||(hL3Filter!=='all')||(hPlatFilter&&hPlatFilter!=='all'); }
+// 顶部摘要：明细按品种名去重，汇总按「同品种」合并
+function _hSummary(data){
+  const el = document.getElementById('h-plat-summary'); if(!el) return;
+  const filteredTotal = data.reduce((s,p)=>s+toCNY(p.amount,p.ccy),0);
+  const merged = hView==='merge' ? new Set(data.map(_hSameKey)).size : new Set(data.map(p=>p.name)).size;
+  el.textContent = `${_hIsFiltered()&&data.length?'':'共 '}${data.length} 个品种 · ${hView==='merge'?'合并后':'去重后'} ${merged} 个 · ${fmtCNY(filteredTotal)}`;
+}
+const _hSameKey = p => (p.same||'').trim() || p.name;
+function _hRender(total){
+  const merge = hView==='merge';
+  document.getElementById('h-detail-wrap').style.display = merge ? 'none' : '';
+  document.getElementById('h-merge-wrap').style.display = merge ? '' : 'none';
+  document.getElementById('h-view-detail').classList.toggle('active', !merge);
+  document.getElementById('h-view-merge').classList.toggle('active', merge);
+  // 汇总里没有「自定义排序/按一级组合」，下拉里把这两项藏起来，显示成按市值
+  const sel = document.getElementById('h-sort-sel');
+  [...sel.options].forEach(o=>{ o.hidden = merge && (o.value==='custom'||o.value==='l1'); });
+  sel.value = (merge && (hSortMode==='custom'||hSortMode==='l1')) ? 'cny' : hSortMode;
+  if(merge) _renderHMerge(total); else _renderHTable(total);
+}
+
+// ── 按品种汇总：把范围内「同品种」合并成一行，点开看它在哪些组合/平台各是多少 ──
+const _hMergeOpen = new Set();
+// 展开/收起：沿用组合看板品种明细表（bdToggleType）的做法——子行一直在 DOM 里，用 data 属性显隐，不整表重画
+function hMergeToggle(gid, key){
+  const rows = document.querySelectorAll(`[data-merge-group="${gid}"]`);
+  const willOpen = !(rows.length && rows[0].style.display !== 'none');
+  if(willOpen) _hMergeOpen.add(key); else _hMergeOpen.delete(key);
+  rows.forEach(r=>{ r.style.display = willOpen ? '' : 'none'; });
+}
+function _renderHMerge(total){
+  const data = _hScopeData();
+  _hSummary(data);
+  const scopeTotal = data.reduce((s,p)=>s+toCNY(p.amount,p.ccy),0);
+  const groups = new Map();
+  data.forEach(p=>{
+    const k = _hSameKey(p);
+    if(!groups.has(k)) groups.set(k,{key:k, val:0, items:[]});
+    const g = groups.get(k); g.val += toCNY(p.amount,p.ccy); g.items.push(p);
+  });
+  const rows = [...groups.values()];
+  if(hSortMode==='name') rows.sort((a,b)=>a.key.localeCompare(b.key));
+  else rows.sort((a,b)=>b.val-a.val);                       // 按市值 / 按占比 / 其它 都是市值从大到小
+  const pr = (v,t)=> t>0 ? (v/t*100).toFixed(2)+'%' : '—';
+  const list = (arr, unit)=>{ const u=[...new Set(arr.filter(Boolean))]; return u.length===0 ? '—' : u.length<=2 ? u.map(_esc).join('、') : `${u.length} 个${unit}`; };
+  let html = '';
+  rows.forEach((g,gi)=>{
+    const l1s = list(g.items.map(p=>p.l1),'组合'), plats = list(g.items.map(p=>p.platform),'平台');
+    if(g.items.length===1){
+      // 只有一个来源：普通品种行，和明细表的品种行同一写法
+      html += `<tr>
+        <td class="sticky-l cell-name-ind" title="${_escAttr(g.key)}">${_esc(g.key)}</td>
+        <td class="num">${fmtCNY(g.val)}</td>
+        <td class="num">${pr(g.val,scopeTotal)}</td>
+        <td class="num">${pr(g.val,total)}</td>
+        <td class="cell-sm">${l1s}</td>
+        <td class="cell-sub">${plats}</td>
+      </tr>`;
+      return;
+    }
+    // 多个来源：分组汇总行（沿用持仓页 / 组合看板的 .cat-row），点击展开子行
+    const gid = 'hm-'+gi, isOpen = _hMergeOpen.has(g.key), ek = _escAttrJs(g.key);
+    html += `<tr class="cat-row" style="cursor:pointer" onclick="hMergeToggle('${gid}','${ek}')">
+      <td class="sticky-l"><div class="cat-name"><span class="cat-title">${_esc(g.key)}</span><span class="cat-count">${g.items.length} 个品种</span></div></td>
+      <td class="num cat-val">${fmtCNY(g.val)}</td>
+      <td class="num cat-val">${pr(g.val,scopeTotal)}</td>
+      <td class="num cat-val">${pr(g.val,total)}</td>
+      <td class="cell-sm">${l1s}</td>
+      <td class="cell-sub">${plats}</td>
+    </tr>`;
+    [...g.items].sort((a,b)=>toCNY(b.amount,b.ccy)-toCNY(a.amount,a.ccy)).forEach(p=>{
+      const v = toCNY(p.amount,p.ccy);
+      html += `<tr data-merge-group="${gid}"${isOpen?'':' style="display:none"'}>
+        <td class="sticky-l cell-child"><span class="row-grip">└</span><span class="cell-strong">${_esc(p.name)}</span></td>
+        <td class="num cell-strong">${fmtCNY(v)}</td>
+        <td class="num">${pr(v,scopeTotal)}</td>
+        <td class="num">${pr(v,total)}</td>
+        <td class="cell-sm">${_esc(p.l1||'—')}</td>
+        <td class="cell-sub">${_esc(p.platform||'—')}</td>
+      </tr>`;
+    });
+  });
+  document.getElementById('h-merge-tbody').innerHTML = html || `<tr><td colspan="6" class="empty">暂无数据</td></tr>`;
+}
 
 function _getHSorted(data){
   if(hSortMode==='custom'){
@@ -4800,21 +4921,10 @@ function _getHSorted(data){
   });
 }
 
-function _renderHTable(total, l3f, platf){
-  let data = PRODUCTS.filter(p=>hFilter==='all'||p.l5===hFilter);
-  if(l3f!=='all') data=data.filter(p=>p.l3===l3f);
-  if(platf&&platf!=='all') data=data.filter(p=>p.platform===platf);
-  data = _getHSorted(data);
+function _renderHTable(total){
+  const data = _getHSorted(_hScopeData());
   const isDraggable = hSortMode==='custom';
-
-  // update summary
-  const summaryEl = document.getElementById('h-plat-summary');
-  if(summaryEl){
-    const filteredTotal = data.reduce((s,p)=>s+toCNY(p.amount,p.ccy),0);
-    const dedupCount = new Set(data.map(p=>p.name)).size;
-    const isFiltered = (hFilter!=='all')||(l3f!=='all')||(platf&&platf!=='all');
-    summaryEl.textContent = `${isFiltered&&data.length?'':'共 '}${data.length} 个品种 · 去重后 ${dedupCount} 个 · ${fmtCNY(filteredTotal)}`;
-  }
+  _hSummary(data);
 
   // Group by cat, preserving sort order within each cat
   const catMap = {};
@@ -4922,7 +5032,7 @@ function onHCatDrop(e, targetCat){
   const from=HOLDINGS_CAT_ORDER.indexOf(_hDragCat), to=HOLDINGS_CAT_ORDER.indexOf(targetCat);
   HOLDINGS_CAT_ORDER.splice(from,1); HOLDINGS_CAT_ORDER.splice(to,0,_hDragCat);
   saveHoldingsCatOrder();
-  _renderHTable(totalCNY(), hL3Filter, hPlatFilter);
+  _renderHTable(totalCNY());
 }
 function onHCatDragEnd(e){ e.currentTarget.classList.remove('drag-active'); _hDragCat=null; }
 
@@ -4938,7 +5048,7 @@ function onHDrop(e,targetName){
   const from=HOLDINGS_ORDER.indexOf(_hDragName), to=HOLDINGS_ORDER.indexOf(targetName);
   HOLDINGS_ORDER.splice(from,1); HOLDINGS_ORDER.splice(to,0,_hDragName);
   saveHoldingsOrder();
-  _renderHTable(totalCNY(), hL3Filter, hPlatFilter);
+  _renderHTable(totalCNY());
 }
 function onHDragEnd(e){ e.currentTarget.classList.remove('drag-active'); _hDragName=null; }
 
@@ -5373,13 +5483,17 @@ function openProductModal(idx){
     <div class="form-row"><label class="form-label">平台</label>
       <input class="fi" id="mp-platform" list="dl-platform" placeholder="输入或选历史值" autocomplete="off">
       <datalist id="dl-platform"></datalist>
+    </div>
+    <div class="form-row"><label class="form-label">同品种 <span class="label-note">(可选)</span></label>
+      <input class="fi" id="mp-same" list="dl-same" placeholder="同一标的的不同形式填同一个名字，如 AAA" autocomplete="off">
+      <datalist id="dl-same"></datalist>
     </div>`,
     footer:`
       <button class="btn" onclick="closeDynMo('modal-product')">取消</button>
       <button class="btn btn-primary" onclick="saveProduct()">保存</button>`
   }));
   document.getElementById('mp-idx').value = idx;
-  const p = idx>=0 ? PRODUCTS[idx] : {name:'',amount:0,ccy:'CNY',market:'A',type:'',platform:'',enhance:false,ac:'',l1:'',l2:'',l3:'',l4:'',l5:''};
+  const p = idx>=0 ? PRODUCTS[idx] : {name:'',amount:0,ccy:'CNY',market:'A',type:'',platform:'',same:'',enhance:false,ac:'',l1:'',l2:'',l3:'',l4:'',l5:''};
 
   // Populate l1 dropdown
   const l1sel = document.getElementById('mp-l1');
@@ -5393,6 +5507,7 @@ function openProductModal(idx){
   // Datalists
   document.getElementById('dl-ac').innerHTML = histAC().map(v=>`<option value="${v}">`).join('');
   document.getElementById('dl-platform').innerHTML = histPlatform().map(v=>`<option value="${v}">`).join('');
+  document.getElementById('dl-same').innerHTML = histSame().map(v=>`<option value="${_escAttr(v)}">`).join('');
 
   document.getElementById('mp-name').value = p.name;
   document.getElementById('mp-ccy').value = p.ccy;
@@ -5402,6 +5517,7 @@ function openProductModal(idx){
   tsel.value = p.type || (TYPE_TABLE[0]?.type||'');
   document.getElementById('mp-cat').value = getCatOf(tsel.value);
   document.getElementById('mp-platform').value = p.platform||'';
+  document.getElementById('mp-same').value = p.same||'';
   document.getElementById('mp-enhance').checked = p.enhance||false;
 
   // Fill l1 and auto-fill l2-l5 + target
@@ -5426,6 +5542,7 @@ function saveProduct(){
     type:     typVal,
     cat:      getCatOf(typVal),
     platform: document.getElementById('mp-platform').value.trim(),
+    same:     document.getElementById('mp-same').value.trim(),
     enhance:  document.getElementById('mp-enhance').checked,
     ac:       document.getElementById('mp-ac').value.trim(),
     l1: l1val,
@@ -6437,32 +6554,44 @@ function _groupSnapYears(level, groupName){
 // 这是时间加权口径，跟 XIRR（资金加权）数字不会一致，属正常。
 // ── 录入全部快照（SnapAll）─────────────────────────────
 // 总览「市值趋势」卡头的录入入口（取代原来的单个「录入快照」；看板里各组合仍用「录入快照」）。
-// 一次把「总资产 + 所有一级到五级组合」在同一天的快照都存下来，金额取当前持仓市值（和单个录入快照的预填同口径）。
-// 同一天同一组合已有快照则覆盖；市值为 0 的组合跳过；同名组合只录一次（快照按组合名存）。
+// 一次把「总资产 + 所有一级到五级组合」在同一天的快照都存下来，金额默认取当前持仓市值（和单个录入快照的预填同口径），
+// 每行的金额可以直接改（补录历史时用），每行有勾选框：只保存勾上的行。
+//   · 日期是今天：默认全部勾上（每周统一录）；日期不是今天：默认都不勾，改了哪一行的金额就自动勾上哪一行，
+//     这样补录历史时不会把「当前市值」误写到其它组合的那一天。
+//   · 同一天同一组合已有快照则覆盖；同名组合只录一次（快照按组合名存）。
 const SnapAll = (()=>{
   const MODAL = 'modal-snapshot-all';
   const LV = ['','一级','二级','三级','四级','五级'];
-  function items(){
-    const out = [{key:'total', level:0, name:'总资产', ...(_snapPrefill('total',0,null)), tag:'总资产'}];
+  let list = [];     // 当前弹窗里的行：{key, level, name, tag, ccy, cur(当前市值), edited(手改的值|null), manual(勾选的手动状态|null)}
+  function build(){
+    const out = [{key:'total', level:0, name:'总资产', tag:'总资产', ..._snapPrefill('total',0,null)}];
     const seen = new Set(['total']);
     for(let lv=1; lv<=5; lv++){
       const names = lv===1 ? getAllL1() : [...new Set(HIERARCHY.map(h=>h['l'+lv]).filter(Boolean))];
       names.filter(Boolean).forEach(name=>{
         if(seen.has(name)) return;          // 同名组合只录一次
         seen.add(name);
-        out.push({key:name, level:lv, name, ..._snapPrefill('group',lv,name), tag:LV[lv]});
+        out.push({key:name, level:lv, name, tag:LV[lv], ..._snapPrefill('group',lv,name)});
       });
     }
-    return out;
+    return out.map(o=>({key:o.key, level:o.level, name:o.name, tag:o.tag, ccy:o.ccy, cur:o.amt, edited:null, manual:null}));
   }
-  const fm = it => it.ccy==='CNY' ? fmtCNY(it.amt) : fmtForeign(it.amt, it.ccy);
+  const dateVal = () => document.getElementById('msa-date').value;
+  const amtOf = r => r.edited!=null ? r.edited : r.cur;
+  const isChecked = r => r.manual!=null ? r.manual : (r.edited!=null || dateVal()===today());
   const has = (key, date) => SNAPSHOTS.some(s=>s.group===key && s.date===date);
+  function status(r){
+    if(!isChecked(r)) return '不录入';
+    if(!(amtOf(r)>0)) return '无持仓，跳过';
+    return has(r.key, dateVal()) ? '覆盖' : '新增';
+  }
   function open(){
+    list = build();
     openDynModal(MODAL, modalShell({
       id:MODAL, title:'录入全部快照', cls:'modal-flex',
       body:`
       <div class="form-row"><label class="form-label">日期</label><input class="fi" type="date" id="msa-date" onchange="SnapAll.refresh()"></div>
-      <div class="text-hint">金额取当前持仓市值；该日期已有快照的组合会被覆盖。</div>
+      <div class="text-hint">金额默认取当前持仓市值，可直接修改；只保存勾选的行，该日期已有快照的组合会被覆盖。补录历史日期时默认不勾选，改哪行的金额就勾上哪行。</div>
       <div id="msa-rows" class="modal-scroll scroll-gutter"></div>`,
       footer:`
       <button class="btn" onclick="closeDynMo('${MODAL}')">取消</button>
@@ -6471,23 +6600,43 @@ const SnapAll = (()=>{
     document.getElementById('msa-date').value = today();
     refresh();
   }
+  // 日期变了：重画整张表（勾选默认值跟着日期变；手改过的金额保留）
   function refresh(){
-    const date = document.getElementById('msa-date').value;
-    const rows = items().map(it=>{
-      const skip = !(it.amt>0);
-      const st = skip ? '无持仓，跳过' : (has(it.key,date) ? '覆盖' : '新增');
-      return `<tr><td class="cell-sub">${it.tag}</td><td>${_esc(it.name)}</td><td class="num">${skip?'—':fm(it)}</td><td class="cell-sub">${st}</td></tr>`;
+    list.forEach(r=>{ r.manual = null; });
+    const rows = list.map((r,i)=>{
+      const unit = r.ccy==='CNY' ? '' : ` <span class="cell-sub">${r.ccy}</span>`;
+      return `<tr id="msa-row-${i}">
+        <td><input type="checkbox" id="msa-cb-${i}" ${isChecked(r)?'checked':''} onchange="SnapAll.toggle(${i},this.checked)"></td>
+        <td class="cell-sub">${r.tag}</td><td>${_esc(r.name)}</td>
+        <td class="num"><input type="number" step="0.01" min="0" class="fi fi-amount msa-amt in-cell" id="msa-amt-${i}" value="${amtOf(r).toFixed(2)}" oninput="SnapAll.edit(${i},this.value)">${unit}</td>
+        <td class="cell-sub" id="msa-st-${i}">${status(r)}</td></tr>`;
     }).join('');
-    document.getElementById('msa-rows').innerHTML = `<table><thead><tr><th>层级</th><th>组合</th><th class="num">市值</th><th>状态</th></tr></thead><tbody>${rows}</tbody></table>`;
+    document.getElementById('msa-rows').innerHTML = `<table><thead><tr><th></th><th>层级</th><th>组合</th><th class="num">市值</th><th>状态</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+  function paintRow(i){
+    const r = list[i];
+    document.getElementById('msa-cb-'+i).checked = isChecked(r);
+    document.getElementById('msa-st-'+i).textContent = status(r);
+  }
+  function toggle(i, on){ list[i].manual = on; paintRow(i); }
+  function edit(i, v){
+    const n = parseFloat(v);
+    list[i].edited = isNaN(n) ? null : n;
+    if(list[i].manual==null || list[i].manual===false) list[i].manual = true;   // 改了金额就自动勾上这一行
+    paintRow(i);
   }
   function save(){
-    const date = document.getElementById('msa-date').value;
+    const date = dateVal();
     if(!date){ toast('请填写日期', true); return; }
+    const picked = list.filter(r=>isChecked(r));
+    if(!picked.length){ toast('请至少勾选一行', true); return; }
+    const bad = picked.find(r=>{ const v=amtOf(r); return v==null || isNaN(v) || v<0; });
+    if(bad){ toast(`请填写「${bad.name}」的市值`, true); return; }
     let added=0, updated=0;
-    items().filter(it=>it.amt>0).forEach(it=>{
-      const idx = SNAPSHOTS.findIndex(s=>s.group===it.key && s.date===date);
+    picked.filter(r=>amtOf(r)>0).forEach(r=>{
+      const idx = SNAPSHOTS.findIndex(s=>s.group===r.key && s.date===date);
       if(idx>=0){ SNAPSHOTS.splice(idx,1); updated++; } else added++;
-      SNAPSHOTS.push({date, group:it.key, level:it.level, amount:parseFloat(it.amt.toFixed(2)), ccy:it.ccy});
+      SNAPSHOTS.push({date, group:r.key, level:r.level, amount:parseFloat(amtOf(r).toFixed(2)), ccy:r.ccy});
     });
     SNAPSHOTS.sort((a,b)=>a.date.localeCompare(b.date));
     lsSave();
@@ -6495,7 +6644,7 @@ const SnapAll = (()=>{
     renderSnapshotChart('total',0,null);
     toast(updated ? (added ? `已新增${added}条、更新${updated}条快照` : `已更新${updated}条快照`) : `已新增${added}条快照`);
   }
-  return {open, refresh, save};
+  return {open, refresh, toggle, edit, save};
 })();
 
 const SnapView = (()=>{
