@@ -55,7 +55,7 @@
      文件结构：① <style> CSS（设计变量 --sp-*/--fs-* 在最前）→ ② HTML 页面骨架 → ③ <script> 逻辑 → ④ Init 在最末。
      页面 id：overview 总览 / holdings 持仓 / analysis 分析 / board 穿透 / perpetual 永续规划 / watch 自选 / data 数据管理
      数据管理子页：target weight cashflow hierarchy typetable fx marketplan shared fundsource xirr-calc
-     命名空间对象：QuickCalc、GroupCompare、SnapView、SnapAll（新功能照此写法）
+     命名空间对象：QuickCalc、GroupCompare、SnapView、SnapAll、EqBond（新功能照此写法）
 
      搜这些关键词定位（// ── 分区横幅 或 函数名）：
        基础工具   数值输入聚焦即全选 / kebab menu / helpers / XIRR (Newton) / Page nav / 应用内确认框 appConfirm / 动态弹窗外壳 modalShell / 弹窗行为统一管理
@@ -453,6 +453,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 .cat-row.board-type-row .cell-strong{font-weight:400}
 .cat-row td.sticky-l{background:var(--bg)}
 .cell-child{padding-left:24px}
+.cell-child-2{padding-left:44px}
 .pill-inline{margin-left:var(--sp-1)}
 /* 再平衡阈值：标题行右侧的小输入框 */
 .bd-thresh{display:flex;align-items:center;gap:var(--sp-1-5);font-size:var(--fs-11);font-weight:400;color:var(--text3)}
@@ -609,6 +610,7 @@ tbody tr:hover td{background:var(--surface2)}
 /* 弹窗表单与面板组件（弹窗内不再写内联布局样式） */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3)}
 .form-grid-mb{margin-bottom:var(--sp-3)}
+.form-grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .form-grid-aux{grid-template-columns:1fr auto;align-items:end}
 .form-row-top{margin-top:var(--sp-2)}
 .fg-gap{margin-bottom:var(--sp-2)}
@@ -705,8 +707,15 @@ input.fi.fi-auto{background:var(--bg);color:var(--text3);cursor:default}
 .weight-note{font-size:var(--fs-11);padding:var(--sp-2) 10px;background:var(--surface2);border-radius:var(--rs);margin-bottom:var(--sp-1-5)}
 .weight-note.is-warn{color:var(--amber,#b8860b)}
 .weight-note.is-err{color:var(--red)}
-.type-split{display:grid;grid-template-columns:300px 1fr;gap:var(--sp-4);align-items:start}
+.type-split{display:grid;grid-template-columns:380px 1fr;gap:var(--sp-4);align-items:start}
 .type-split>.card{margin-bottom:0}
+.type-table-wrap td{white-space:nowrap}
+.h-eb{max-width:380px;margin:var(--sp-4) 0 var(--sp-4)}
+.h-eb .legend-fill{margin:0}
+/* 图例列宽固定：.legend-fill 的图例列是 auto 宽，数字位数一变（78.21% → 100.00% / —）整组图例会左右挪；
+   权益/债券这种两行固定文案的图例给标签列和数值列定宽，位置就不随数字动 */
+.legend-fixed .leg-l{min-width:44px}
+.legend-fixed .leg-v{min-width:64px}
 .type-split>.card:last-child{min-width:0}
 .fx-card{max-width:480px}
 input.fi.fx-input{width:110px;padding:5px 8px;margin-left:-9px;font-size:var(--fs-13);font-weight:600}  /* 负边距：数字与基准货币行的静态文字左对齐 */
@@ -1465,15 +1474,16 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
         </div>
 
         <div class="card bento-area-l5">
-          <div class="card-header"><div class="card-title">五级组合</div></div>
-          <div class="legend-fill" id="fill-l5">
-            <div class="donut-wrap"><canvas id="c-l5" role="img" aria-label="五级组合分布" width="130" height="130"></canvas><div class="donut-center"><div class="donut-num" id="l5-n">0</div><div class="donut-lbl">个五级</div></div></div>
-            <div class="legend" id="leg-l5"></div>
+          <div class="card-header card-header-ctl"><div class="card-title">权益 / 债券</div></div>
+          <div class="legend-fill legend-fixed" id="fill-eb">
+            <div class="donut-wrap"><canvas id="c-eb" role="img" aria-label="权益与债券占比" width="130" height="130"></canvas><div class="donut-center"><div class="donut-num" id="eb-n">—</div><div class="donut-lbl">权益</div></div></div>
+            <div class="legend" id="leg-eb"></div>
           </div>
+          <div class="text-hint" id="eb-hint"></div>
         </div>
 
         <div class="card bento-area-l3">
-          <div class="card-header"><div class="card-title">三级组合<span class="t-note-sm">共 <span id="l3-n">0</span> 个</span></div></div>
+          <div class="card-header card-header-ctl"><div class="card-title">三级组合<span class="t-note-sm">共 <span id="l3-n">0</span> 个</span></div></div>
           <div class="bar-list" id="leg-l3"></div>
         </div>
 
@@ -1497,7 +1507,16 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
         </div>
 
         <div class="card bento-area-mkt">
-          <div class="card-header"><div class="card-title">市场分布</div></div>
+          <div class="card-header card-header-ctl">
+            <div class="seg-tabs seg-sm">
+              <button class="seg-btn active" id="ov-dist-mkt" onclick="setOvDistTab('mkt')">市场分布</button>
+              <button class="seg-btn" id="ov-dist-l5" onclick="setOvDistTab('l5')">五级组合</button>
+            </div>
+          </div>
+          <div class="legend-fill" id="fill-l5" style="display:none">
+            <div class="donut-wrap"><canvas id="c-l5" role="img" aria-label="五级组合分布" width="130" height="130"></canvas><div class="donut-center"><div class="donut-num" id="l5-n">0</div><div class="donut-lbl">个五级</div></div></div>
+            <div class="legend" id="leg-l5"></div>
+          </div>
           <div class="legend-fill" id="fill-mkt">
             <div class="donut-wrap"><canvas id="c-mkt" role="img" aria-label="市场分布" width="130" height="130"></canvas><div class="donut-center"><div class="donut-num" id="mkt-n">0</div><div class="donut-lbl">个市场</div></div></div>
             <div class="legend" id="mkt-leg"></div>
@@ -1515,7 +1534,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
           <div class="hd-actions">
             <div class="seg-tabs seg-sm">
               <button class="seg-btn" id="h-view-detail" onclick="setHView('detail')">明细</button>
-              <button class="seg-btn" id="h-view-merge" onclick="setHView('merge')">按品种汇总</button>
+              <button class="seg-btn" id="h-view-merge" onclick="setHView('merge')">按类型</button>
             </div>
             <div class="chips chips-inline" id="h-tabs"></div>
             <select class="fi fi-compact" id="h-sort-sel" onchange="setHSort(this.value)">
@@ -1534,6 +1553,13 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
         <div class="hd-filter-row">
           <div class="chips chips-inline hd-plat-chips" id="h-plat-chips"></div>
           <div id="h-plat-summary" class="hd-summary"></div>
+        </div>
+        <div class="h-eb">
+          <div class="legend-fill legend-fixed" id="h-eb-fill">
+            <div class="donut-wrap"><canvas id="c-h-eb" role="img" aria-label="权益与债券占比" width="130" height="130"></canvas><div class="donut-center"><div class="donut-num" id="h-eb-n">—</div><div class="donut-lbl">权益</div></div></div>
+            <div class="legend" id="h-eb-leg"></div>
+          </div>
+          <div class="text-hint" id="h-eb-hint"></div>
         </div>
         <div class="table-wrap" id="h-detail-wrap">
           <table class="tbl-fixed tbl-clip tbl-holdings">
@@ -1565,7 +1591,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
           <table class="tbl-fixed tbl-clip tbl-hmerge">
             <colgroup><col class="hm-name"><col class="hm-val"><col class="hm-pct"><col class="hm-pct"><col class="hm-l1"><col class="hm-plat"></colgroup>
             <thead><tr>
-              <th class="sticky-l">品种</th>
+              <th class="sticky-l">类型 / 品种</th>
               <th class="num">市值CNY</th>
               <th class="num">占范围%</th>
               <th class="num">占总资产%</th>
@@ -1837,7 +1863,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
               </button>
             </div>
             <div class="type-table-wrap type-table-narrow"><table>
-              <thead><tr><th>类型</th><th>大类</th><th class="no-sort"></th></tr></thead>
+              <thead><tr><th>类型</th><th>大类</th><th>权益 / 债券</th><th class="no-sort"></th></tr></thead>
               <tbody id="type-tbody"></tbody>
             </table></div>
           </div>
@@ -2283,8 +2309,9 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
 
    录入全部快照                   SnapAll                     命名空间对象。总览「市值趋势」卡头的橙色按钮（取代原「录入快照」）→ 弹窗：选日期，一次存下总资产+一到五级所有组合当天的快照；
                                                            金额预填口径与单个录入快照共用 _snapPrefill；同日已有则覆盖，市值为 0 的组合跳过。
+   权益 / 债券占比                EqBond                      命名空间对象（总览 + 持仓明细页各一个饼图，持仓页跟着范围走）。类型层级表每个类型可设「权益占比」eq（债券=100−eq，只存 eq，TYPE_TABLE 行上的可选字段）；EqBond.split/render 按类型占比拆品种市值，未设定的类型不计入并提示。要精确到品种再给品种加可选字段
 
-   持仓范围 / 按品种汇总          _hScopeData / _renderHMerge   持仓明细页的范围（五级/三级/平台三排筛选）只在 _hScopeData 里算，明细和「按品种汇总」共用，加新范围只改它；
+   持仓范围 / 按品种汇总          _hScopeData / _renderHMerge   持仓明细页的范围（五级/三级/平台三排筛选）；汇总页 类型→同品种→品种 三层，同品种挂在旗下品种的类型下只在 _hScopeData 里算，明细和「按品种汇总」共用，加新范围只改它；
                                                            汇总按品种的「同品种」字段合并（留空则用品种名），点开一行看各组合/平台的分布；占范围＝范围内占比，占总资产＝全部资产占比。
 
    手动数据 vs 界面偏好           _collectData / UI_PREFS     手动录入的数据（含持仓手动排序 HOLDINGS_ORDER/HOLDINGS_CAT_ORDER）进 _collectData；
@@ -2307,6 +2334,43 @@ function donutOptions({cutout='72%', tooltipFmt}){
     plugins:{ legend:{display:false}, tooltip:{callbacks:{label:tooltipFmt}} }
   };
 }
+// ── 权益 / 债券 占比（EqBond）──────────────────────────────
+// 每个「类型」有一个可选的「权益占比」eq（0~100，存在 TYPE_TABLE 行上；债券占比 = 100 − eq，不另存）。
+// 品种的权益/债券市值 = 品种市值 × 它所属类型的占比。没设定权益占比的类型不计入，图下方提示漏了哪些类型。
+// 要精确到品种时再给品种加可选字段（留空用类型的），现在只在类型层面。
+const EqBond = (()=>{
+  const COLORS = {eq: PALETTE[0], bond: PALETTE[2]};
+  const charts = {};
+  function eqOf(type){ const r = TYPE_TABLE.find(x=>x.type===type); return r && typeof r.eq==='number' ? r.eq : null; }
+  function split(prods){
+    let eq=0, bond=0, unset=0; const miss = new Set();
+    prods.forEach(p=>{
+      const v = toCNY(p.amount,p.ccy), e = eqOf(p.type);
+      if(e==null){ unset += v; if(v>0) miss.add(p.type||'未分类'); }
+      else { eq += v*e/100; bond += v*(100-e)/100; }
+    });
+    return {eq, bond, unset, miss:[...miss]};
+  }
+  // ids: {canvas, num, leg, fill, hint}
+  function render(ids, prods){
+    const s = split(prods), tot = s.eq + s.bond;
+    document.getElementById(ids.num).textContent = tot>0 ? (s.eq/tot*100).toFixed(1)+'%' : '—';
+    const rows = [['权益', s.eq, COLORS.eq], ['债券', s.bond, COLORS.bond]];
+    document.getElementById(ids.leg).innerHTML = rows.map(([k,v,c])=>
+      `<div class="leg"><div class="leg-l"><div class="leg-dot" style="background:${c}"></div>${k}</div><div class="leg-v">${tot>0?(v/tot*100).toFixed(2)+'%':'—'}</div></div>`).join('');
+    document.getElementById(ids.fill).style.gridTemplateRows = 'repeat(2,auto)';
+    document.getElementById(ids.hint).textContent = s.miss.length
+      ? `${s.miss.length} 个类型未设定权益占比（${s.miss.slice(0,3).join('、')}${s.miss.length>3?' 等':''}），${fmtCNY(s.unset)} 未计入`
+      : '';
+    if(charts[ids.canvas]) charts[ids.canvas].destroy();
+    charts[ids.canvas] = new Chart(document.getElementById(ids.canvas), {
+      type:'doughnut',
+      data:{labels: tot>0 ? ['权益','债券'] : ['未设定'], datasets:[{data: tot>0 ? [s.eq,s.bond] : [1], backgroundColor: tot>0 ? [COLORS.eq,COLORS.bond] : ['#ddd'], borderWidth:0, hoverOffset:4}]},
+      options: donutOptions({cutout:'72%', tooltipFmt:c=> tot>0 ? ` ${c.label}: ${fmtCNY(c.raw)}（${(c.raw/tot*100).toFixed(2)}%）` : ' 还没有设定类型的权益占比'})
+    });
+  }
+  return {eqOf, split, render};
+})();
 const CAT_ORDER = ['现金债券','红利','大盘','小盘','双创','行业类','恒生指数','恒生科技','投顾债券','投顾权益'];
 function catSortIndex(name){const i=CAT_ORDER.indexOf(name);return i===-1?CAT_ORDER.length:i;}
 const CAT_COLOR = {
@@ -2835,7 +2899,16 @@ function _globalYearlyStats(){
 // board 的标题不再写"一级组合看板"：看板页现在是 1~5 级任选 + 穿透，写死"一级"跟实际功能对不上
 // （侧栏图标的 aria-label / 悬浮提示一直是"组合看板"，现在三处一致了）
 const TITLES={overview:'投资组合总览',holdings:'持仓明细',xirr:'收益分析',analysis:'收益分析',board:'组合看板',perpetual:'永续提取计划',watch:'自选',data:'数据管理'};
-let chartL5,chartMkt;  // chartL3 已删：声明后从未被 new Chart 赋值过，是历史遗留
+let chartL5,chartMkt;
+let _ovDistTab = 'mkt';   // 总览「市场分布 / 五级组合」页签，不持久化，默认市场分布
+function setOvDistTab(t){
+  _ovDistTab = t;
+  document.getElementById('ov-dist-mkt').classList.toggle('active', t==='mkt');
+  document.getElementById('ov-dist-l5').classList.toggle('active', t==='l5');
+  document.getElementById('fill-mkt').style.display = t==='mkt' ? '' : 'none';
+  document.getElementById('fill-l5').style.display  = t==='l5'  ? '' : 'none';
+  const c = t==='mkt' ? chartMkt : chartL5; if(c) c.resize();
+}  // chartL3 已删：声明后从未被 new Chart 赋值过，是历史遗留
 let chartScatter,chartBenchmark;
 let chartBoardMarket,chartBoardCcy;
 
@@ -3522,6 +3595,7 @@ function _scopedL1Val(l1name,scope,_hierByL1){
 // 但现金流（买入/卖出/分红）只标记到一级，所以需要先找出这个分类下面包含哪些一级组合，
 // 再把这些一级组合的现金流全部合并、按时间顺序统一处理。
 function _groupL1Members(level, groupName){
+  if(level===0) return getAllL1();                // 总资产：全部一级组合
   if(level===1) return [groupName];
   return getAllL1().filter(l1=>getAncestors(l1)['l'+level]===groupName);
 }
@@ -4681,6 +4755,7 @@ function renderOverview(){
     + statBoxHTML({val:cr5G.toFixed(2)+'%', lbl:'CR5', note:_esc(mergedExp.slice(0,5).map(([n])=>n).join('、'))})
     + statBoxHTML({val:top1Pct.toFixed(2)+'%', lbl:'最大单一品种', note:_esc(top1?top1[0]:'—')})
     : '<div class="empty empty-compact col-full">暂无持仓数据</div>';
+  EqBond.render({canvas:'c-eb', num:'eb-n', leg:'leg-eb', fill:'fill-eb', hint:'eb-hint'}, PRODUCTS);
   // l5 donut
   const l5m={};PRODUCTS.forEach(p=>{const k=p.l5||'未分配';if(!l5m[k])l5m[k]=0;l5m[k]+=toCNY(p.amount,p.ccy)});
   const l5k=Object.keys(l5m);
@@ -4797,7 +4872,7 @@ function _hScopeData(){
   return data;
 }
 function _hIsFiltered(){ return (hFilter!=='all')||(hL3Filter!=='all')||(hPlatFilter&&hPlatFilter!=='all'); }
-// 顶部摘要：明细按品种名去重，汇总按「同品种」合并
+// 顶部摘要：明细按品种名去重，汇总按「同品种」合并（汇总页按 类型 → 同品种 → 品种 三层）
 function _hSummary(data){
   const el = document.getElementById('h-plat-summary'); if(!el) return;
   const filteredTotal = data.reduce((s,p)=>s+toCNY(p.amount,p.ccy),0);
@@ -4815,68 +4890,84 @@ function _hRender(total){
   const sel = document.getElementById('h-sort-sel');
   [...sel.options].forEach(o=>{ o.hidden = merge && (o.value==='custom'||o.value==='l1'); });
   sel.value = (merge && (hSortMode==='custom'||hSortMode==='l1')) ? 'cny' : hSortMode;
+  EqBond.render({canvas:'c-h-eb', num:'h-eb-n', leg:'h-eb-leg', fill:'h-eb-fill', hint:'h-eb-hint'}, _hScopeData());   // 权益/债券饼图跟着当前范围走（明细和按类型两个视图都显示）
   if(merge) _renderHMerge(total); else _renderHTable(total);
 }
 
-// ── 按品种汇总：把范围内「同品种」合并成一行，点开看它在哪些组合/平台各是多少 ──
+// ── 按品种汇总：类型 → 同品种 → 品种 三层，点开逐层往下看 ──
+// 同品种本身没有类型，挂在「它旗下品种的类型」下面：同一个同品种跨类型时，每个类型下各出现一次、只算该类型里的部分。
+// 没填同品种（或同品种下只有一个品种）的不多套一层，直接是品种行。
+// 展开状态按层记在 _hMergeOpen（key: 't|类型' / 's|类型|同品种'），重画后还在；显隐沿用看板 bdToggleType 的做法（行一直在 DOM 里，不整表重画）。
 const _hMergeOpen = new Set();
-// 展开/收起：沿用组合看板品种明细表（bdToggleType）的做法——子行一直在 DOM 里，用 data 属性显隐，不整表重画
-function hMergeToggle(gid, key){
-  const rows = document.querySelectorAll(`[data-merge-group="${gid}"]`);
-  const willOpen = !(rows.length && rows[0].style.display !== 'none');
-  if(willOpen) _hMergeOpen.add(key); else _hMergeOpen.delete(key);
-  rows.forEach(r=>{ r.style.display = willOpen ? '' : 'none'; });
+let _hmKeys = {};   // 行 id → 展开状态 key（渲染时重建）
+function _hmApply(){
+  document.querySelectorAll('#h-merge-tbody tr[data-hm-t]').forEach(r=>{
+    const tOpen = _hMergeOpen.has(_hmKeys[r.dataset.hmT]);
+    const sOpen = r.dataset.hmS ? _hMergeOpen.has(_hmKeys[r.dataset.hmS]) : true;
+    r.style.display = (tOpen && sOpen) ? '' : 'none';
+  });
+}
+function hMergeToggle(id){
+  const k = _hmKeys[id]; if(k==null) return;
+  if(_hMergeOpen.has(k)) _hMergeOpen.delete(k); else _hMergeOpen.add(k);
+  _hmApply();
 }
 function _renderHMerge(total){
   const data = _hScopeData();
   _hSummary(data);
   const scopeTotal = data.reduce((s,p)=>s+toCNY(p.amount,p.ccy),0);
-  const groups = new Map();
+  const val = p => toCNY(p.amount,p.ccy);
+  const sum = arr => arr.reduce((s,p)=>s+val(p),0);
+  const byVal = (a,b)=> b.val-a.val;
+  const sortBy = arr => hSortMode==='name' ? arr.sort((a,b)=>a.key.localeCompare(b.key)) : arr.sort(byVal);   // 按市值 / 按占比 / 其它 都是市值从大到小
+  // 类型 → 同品种 → 品种
+  const tMap = new Map();
   data.forEach(p=>{
-    const k = _hSameKey(p);
-    if(!groups.has(k)) groups.set(k,{key:k, val:0, items:[]});
-    const g = groups.get(k); g.val += toCNY(p.amount,p.ccy); g.items.push(p);
+    const t = p.type || '未分类';
+    if(!tMap.has(t)) tMap.set(t,{key:t, items:[], sames:new Map()});
+    const g = tMap.get(t); g.items.push(p);
+    const sk = _hSameKey(p);
+    if(!g.sames.has(sk)) g.sames.set(sk,{key:sk, items:[]});
+    g.sames.get(sk).items.push(p);
   });
-  const rows = [...groups.values()];
-  if(hSortMode==='name') rows.sort((a,b)=>a.key.localeCompare(b.key));
-  else rows.sort((a,b)=>b.val-a.val);                       // 按市值 / 按占比 / 其它 都是市值从大到小
+  const types = sortBy([...tMap.values()].map(g=>({...g, val:sum(g.items)})));
   const pr = (v,t)=> t>0 ? (v/t*100).toFixed(2)+'%' : '—';
   const list = (arr, unit)=>{ const u=[...new Set(arr.filter(Boolean))]; return u.length===0 ? '—' : u.length<=2 ? u.map(_esc).join('、') : `${u.length} 个${unit}`; };
-  let html = '';
-  rows.forEach((g,gi)=>{
-    const l1s = list(g.items.map(p=>p.l1),'组合'), plats = list(g.items.map(p=>p.platform),'平台');
-    if(g.items.length===1){
-      // 只有一个来源：普通品种行，和明细表的品种行同一写法
-      html += `<tr>
-        <td class="sticky-l cell-name-ind" title="${_escAttr(g.key)}">${_esc(g.key)}</td>
-        <td class="num">${fmtCNY(g.val)}</td>
-        <td class="num">${pr(g.val,scopeTotal)}</td>
-        <td class="num">${pr(g.val,total)}</td>
-        <td class="cell-sm">${l1s}</td>
-        <td class="cell-sub">${plats}</td>
-      </tr>`;
-      return;
-    }
-    // 多个来源：分组汇总行（沿用持仓页 / 组合看板的 .cat-row），点击展开子行
-    const gid = 'hm-'+gi, isOpen = _hMergeOpen.has(g.key), ek = _escAttrJs(g.key);
-    html += `<tr class="cat-row" style="cursor:pointer" onclick="hMergeToggle('${gid}','${ek}')">
-      <td class="sticky-l"><div class="cat-name"><span class="cat-title">${_esc(g.key)}</span><span class="cat-count">${g.items.length} 个品种</span></div></td>
-      <td class="num cat-val">${fmtCNY(g.val)}</td>
-      <td class="num cat-val">${pr(g.val,scopeTotal)}</td>
-      <td class="num cat-val">${pr(g.val,total)}</td>
-      <td class="cell-sm">${l1s}</td>
-      <td class="cell-sub">${plats}</td>
+  const tail = items => `<td class="cell-sm">${list(items.map(p=>p.l1),'组合')}</td><td class="cell-sub">${list(items.map(p=>p.platform),'平台')}</td>`;
+  const nums = (v, cls) => `<td class="num ${cls}">${fmtCNY(v)}</td><td class="num ${cls}">${pr(v,scopeTotal)}</td><td class="num ${cls}">${pr(v,total)}</td>`;
+  const numsP = v => `<td class="num cell-strong">${fmtCNY(v)}</td><td class="num">${pr(v,scopeTotal)}</td><td class="num">${pr(v,total)}</td>`;
+  _hmKeys = {};
+  let html = '', seq = 0;
+  const reg = k => { const id='m'+(seq++); _hmKeys[id]=k; return id; };
+  types.forEach(tg=>{
+    const tId = reg('t|'+tg.key);
+    // 类型行：沿用组合看板品种明细表的类型行（cat-row board-type-row）
+    html += `<tr class="cat-row board-type-row" onclick="hMergeToggle('${tId}')">
+      <td class="sticky-l"><div class="cat-name"><span class="cat-title">${_esc(tg.key)}</span><span class="cat-count">${tg.items.length} 个品种</span></div></td>
+      ${nums(tg.val,'cat-val')}${tail(tg.items)}
     </tr>`;
-    [...g.items].sort((a,b)=>toCNY(b.amount,b.ccy)-toCNY(a.amount,a.ccy)).forEach(p=>{
-      const v = toCNY(p.amount,p.ccy);
-      html += `<tr data-merge-group="${gid}"${isOpen?'':' style="display:none"'}>
-        <td class="sticky-l cell-child"><span class="row-grip">└</span><span class="cell-strong">${_esc(p.name)}</span></td>
-        <td class="num cell-strong">${fmtCNY(v)}</td>
-        <td class="num">${pr(v,scopeTotal)}</td>
-        <td class="num">${pr(v,total)}</td>
-        <td class="cell-sm">${_esc(p.l1||'—')}</td>
-        <td class="cell-sub">${_esc(p.platform||'—')}</td>
+    const sames = sortBy([...tg.sames.values()].map(g=>({...g, val:sum(g.items)})));
+    sames.forEach(sg=>{
+      const prods = [...sg.items].sort((a,b)=>val(b)-val(a));
+      if(sg.items.length===1){
+        const p = sg.items[0];
+        html += `<tr data-hm-t="${tId}"${_hMergeOpen.has('t|'+tg.key)?'':' style="display:none"'}>
+          <td class="sticky-l cell-child"><span class="row-grip">└</span><span class="cell-strong">${_esc(p.name)}</span></td>
+          ${numsP(val(p))}${tail([p])}
+        </tr>`;
+        return;
+      }
+      const sId = reg('s|'+tg.key+'|'+sg.key), sOpen = _hMergeOpen.has('s|'+tg.key+'|'+sg.key), tOpen = _hMergeOpen.has('t|'+tg.key);
+      html += `<tr data-hm-t="${tId}" style="cursor:pointer${tOpen?'':';display:none'}" onclick="hMergeToggle('${sId}')">
+        <td class="sticky-l cell-child"><span class="row-grip">└</span><span class="cell-strong">${_esc(sg.key)}</span> <span class="cat-count">${sg.items.length} 个品种</span></td>
+        ${numsP(sg.val)}${tail(sg.items)}
       </tr>`;
+      prods.forEach(p=>{
+        html += `<tr data-hm-t="${tId}" data-hm-s="${sId}"${(tOpen&&sOpen)?'':' style="display:none"'}>
+          <td class="sticky-l cell-child cell-child-2"><span class="row-grip">└</span>${_esc(p.name)}</td>
+          <td class="num t-secondary">${fmtCNY(val(p))}</td><td class="num t-secondary">${pr(val(p),scopeTotal)}</td><td class="num t-secondary">${pr(val(p),total)}</td>${tail([p])}
+        </tr>`;
+      });
     });
   });
   document.getElementById('h-merge-tbody').innerHTML = html || `<tr><td colspan="6" class="empty">暂无数据</td></tr>`;
@@ -4938,6 +5029,12 @@ function _renderHTable(total){
   const savedCats = HOLDINGS_CAT_ORDER.filter(c=>catMap[c]);
   const newCats = catOrderRaw.filter(c=>!HOLDINGS_CAT_ORDER.includes(c));
   const catOrder = [...savedCats, ...newCats];
+  // 按市值 / 按占比排序时，大类也要按「大类合计」从大到小排（先看汇总，再看大类里面的品种），不再沿用拖拽存下来的大类顺序；
+  // 自定义排序才用拖拽顺序。名称 / 一级组合排序仍沿用原来的大类顺序。
+  if(hSortMode==='cny' || hSortMode==='pct'){
+    const catSum = c => catMap[c].reduce((s,p)=>s+toCNY(p.amount,p.ccy),0);
+    catOrder.sort((a,b)=>catSum(b)-catSum(a));
+  }
 
   // 品种对象 → 它在 PRODUCTS 里的下标。原来每行现算一次 PRODUCTS.indexOf(p)，整表下来是 O(品种数²)；
   // 建一次 Map 就够（data 里的元素是 PRODUCTS 里同一批对象引用，用对象当 key 安全）。
@@ -5881,6 +5978,7 @@ function renderTypeTable(){
     <tr>
       <td class="cell-semi">${_esc(r.type)}</td>
       <td><span class="pill" style="background:${catClr(r.cat,allCats.indexOf(r.cat))}22;color:${catClr(r.cat,allCats.indexOf(r.cat))};border:1px solid ${catClr(r.cat,allCats.indexOf(r.cat))}55">${_esc(r.cat)}</span></td>
+      <td>${typeof r.eq==='number' ? `${r.eq}% / ${Math.round((100-r.eq)*100)/100}%` : '<span class="t-secondary">未设定</span>'}</td>
       <td>${kebabBtn([{l:'编辑',a:`openTypeModal(${i})`},{l:'删除',a:`deleteType(${i})`,d:1}])}</td>
     </tr>`).join('');
   // 结构总览：全部持仓 → 大类（配色跟图表统一）→ 类型，逻辑跟组合层级树一致，同一份连线函数
@@ -5915,9 +6013,13 @@ function renderTypeTable(){
 }
 function openTypeModal(idx){
   openDynModal('modal-type', modalShell({
-    id:'modal-type', title: idx<0?'新增类型':'编辑类型', width:400,
+    id:'modal-type', title: idx<0?'新增类型':'编辑类型', width:520,
     body:`<input type="hidden" id="mt-idx">
-      <div class="form-row"><label class="form-label">类型名称</label><input class="fi" id="mt-type" placeholder="如 沪深300"></div>
+      <div class="form-grid form-grid-3 form-grid-mb">
+        <div><label class="form-label">类型名称</label><input class="fi" id="mt-type" placeholder="如 沪深300"></div>
+        <div><label class="form-label">权益占比</label><div class="pct-input-wrap"><input type="number" class="fi" id="mt-eq" min="0" max="100" step="1" placeholder="未设定" oninput="onTypeEqInput('eq')"><span class="pct-suffix">%</span></div></div>
+        <div><label class="form-label">债券占比</label><div class="pct-input-wrap"><input type="number" class="fi" id="mt-bond" min="0" max="100" step="1" placeholder="未设定" oninput="onTypeEqInput('bond')"><span class="pct-suffix">%</span></div></div>
+      </div>
       <div class="form-row"><label class="form-label">大类</label><input class="fi" id="mt-cat" placeholder="如 大盘"></div>`,
     footer:`<button class="btn" onclick="closeDynMo('modal-type')">取消</button><button class="btn btn-primary" onclick="saveType()">保存</button>`
   }));
@@ -5925,13 +6027,24 @@ function openTypeModal(idx){
   const r=idx>=0?TYPE_TABLE[idx]:{type:'',cat:''};
   document.getElementById('mt-type').value=r.type;
   document.getElementById('mt-cat').value=r.cat;
+  if(typeof r.eq==='number'){ document.getElementById('mt-eq').value=r.eq; document.getElementById('mt-bond').value=Math.round((100-r.eq)*100)/100; }
+}
+// 权益占比 / 债券占比联动：改一个，另一个自动 = 100 − 它；清空一个就两个都清空（未设定）。只存权益占比。
+function onTypeEqInput(which){
+  const a=document.getElementById(which==='eq'?'mt-eq':'mt-bond'), b=document.getElementById(which==='eq'?'mt-bond':'mt-eq');
+  if(a.value===''){ b.value=''; return; }
+  const v=Math.min(100,Math.max(0,parseFloat(a.value)||0));
+  b.value=Math.round((100-v)*100)/100;
 }
 function saveType(){
   const idx=(v=>v===''?-1:parseInt(v))(document.getElementById('mt-idx').value);
   const typeName=document.getElementById('mt-type').value.trim();
   const cat=document.getElementById('mt-cat').value.trim();
   if(!typeName||!cat){toast('类型和大类均不能为空',true);return}
-  if(idx<0)TYPE_TABLE.push({type:typeName,cat});else TYPE_TABLE[idx]={type:typeName,cat};
+  const eqRaw=document.getElementById('mt-eq').value;
+  const row={type:typeName,cat};
+  if(eqRaw!=='') row.eq=Math.min(100,Math.max(0,parseFloat(eqRaw)||0));
+  if(idx<0)TYPE_TABLE.push(row);else TYPE_TABLE[idx]=row;
   lsSave();
   closeDynMo('modal-type');
   renderTypeTable();
@@ -6705,13 +6818,11 @@ function _getSnapshotPoints(mode, level, group){
   // pull yearly snapshots from CASHFLOWS as history anchors
   let yearlySnaps = [];
   if(mode==='total'){
-    // sum all year-end snapshots across all L1s for the same date
-    const byDate = {};
-    CASHFLOWS.filter(c=>c.type==='年度快照').forEach(c=>{
-      if(!byDate[c.date]) byDate[c.date]=0;
-      byDate[c.date] += costCNY(c);
-    });
-    yearlySnaps = Object.entries(byDate).map(([date,amount])=>({date, amount, src:'yearly'}));
+    // 总资产的年度点 = 全部一级组合的年度快照按年合计，规则同二级及以上组合（_groupYearEnd）：
+    // 当年已有流水的一级组合缺年度快照 → 该年标「不完整」（空心点、不计入统计/净值）
+    const ys = [...new Set(CASHFLOWS.filter(c=>c.type==='年度快照').map(c=>new Date(c.date).getFullYear()))].sort((a,b)=>a-b);
+    yearlySnaps = ys.map(Y=>_groupYearEnd(0, null, Y)).filter(r=>r.date)
+      .map(r=>({date:r.date, amount:r.amount, src:'yearly', derived:true, incomplete:!r.complete, missing:r.missing}));
   } else if(parseInt(level)>1){
     yearlySnaps = _groupSnapYears(parseInt(level), group).map(Y=>_groupYearEnd(parseInt(level), group, Y))
       .filter(r=>r.date)
