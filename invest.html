@@ -23,7 +23,7 @@
         存量全局函数不强改，碰到哪块顺手收。
      5) 本文件不放个人数据：组合名/品种名不写进代码（颜色表、映射表都不行），一律由用户数据驱动；DEFAULTS 是空的。
      6) 数据口径（这里踩过坑）：
-          · 二级及以上组合不单独存年度快照，一律经 _groupYearEnd 由成员一级组合合计；缺成员快照的年份 complete=false，
+          · 二级及以上组合、总资产(level 0，成员=全部一级组合)不单独存年度快照，一律经 _groupYearEnd 由成员一级组合合计；缺成员快照的年份 complete=false，
             只能显示/提示，不得当 0 或偏低值参与收益、回撤、XIRR 计算。
           · 新增顶层数据字段：改 _saved 退回初始化 和 _collectData 两处（细节见下方参考 D）。
           · 动数据模型（改名、删除、新增字段）时：关联数据要同步（如品种改名要带走目标比例）、旧存档里的残留要清理、
@@ -39,7 +39,9 @@
      8) 改动流程：
           · 只改被要求的范围，别处发现问题先说，不偷偷改；不顺手"优化"无关代码。
           · 财务逻辑（XIRR、份额、再平衡、年度快照聚合）不动，除非用户明确报了 BUG；修 BUG 找根因，不打补丁盖现象。
-          · 改 UI 前先记基线、改后对比，除有意改动外应零差异；改完必须跑验证；注释改动也要重跑。
+          · 改公共样式、公共组件、已有页面的版面时：改之前先 cp invest.html 存一份，改完 ./run.sh invest.html 改前副本.html，
+            自动前后各拍一份样式基线并列出差异，除有意改动外应零差异；只新增独立内容（新类名、不碰已有元素）可以不跑基线，
+            但交付说明里要写明没跑。改完必须跑验证；注释改动也要重跑。
 
      验证：改完必须验证。
         · 如果手边有 verify/ 文件夹（见其 README.md）就用它，最少跑：
@@ -55,13 +57,13 @@
      文件结构：① <style> CSS（设计变量 --sp-*/--fs-* 在最前）→ ② HTML 页面骨架 → ③ <script> 逻辑 → ④ Init 在最末。
      页面 id：overview 总览 / holdings 持仓 / analysis 分析 / board 穿透 / perpetual 永续规划 / watch 自选 / data 数据管理
      数据管理子页：target weight cashflow hierarchy typetable fx marketplan shared fundsource xirr-calc
-     命名空间对象：QuickCalc、GroupCompare、SnapView、SnapAll、EqBond（新功能照此写法）
+     命名空间对象：QuickCalc、GroupCompare、SnapView、SnapAll、EqBond、HMerge、OvDist（新功能照此写法）
 
      搜这些关键词定位（// ── 分区横幅 或 函数名）：
        基础工具   数值输入聚焦即全选 / kebab menu / helpers / XIRR (Newton) / Page nav / 应用内确认框 appConfirm / 动态弹窗外壳 modalShell / 弹窗行为统一管理
        数据与存储 _collectData / lsSave / Gist（冲突提示条）/ 载入时整理数据 / 视图排序偏好 _UI_PREF_KEYS / 备份：导出·导入 / 导入前体检
        总览       renderOverview / Overview
-       持仓       renderHoldings / Holdings / 拖动排序 / 按品种汇总（_hScopeData 范围、_renderHMerge）
+       持仓       renderHoldings / Holdings / 拖动排序 / 按品种汇总（_hScopeData 范围、HMerge）
        分析       renderAnalysis / 集中度分析 / 收益-权重散点 / 业绩比较 / 混合基准 / 排行榜 / 自定义指数 / 我的组合 slots
        穿透       renderBoard / selectBoardPierce / 看板通用层级支持 / 品种构成 / L1-L5 组合区块
        快照与趋势 Snapshot（市值快照）/ 二级及以上组合年度快照 / renderSnapshotChart / SnapView（净值视图+本金线）/ SnapAll（录入全部快照）
@@ -199,6 +201,11 @@
   --fs-16:16px; --fs-18:18px; --fs-20:20px; --fs-22:22px; --fs-30:30px;
   /* 控件高度三档：小 24（卡片头里的按钮/chip/分段）、中 28（默认按钮/下拉/表格内输入）、大 34（表单 .fi）。新控件按档取值，不再各写 padding 凑高度 */
   --ctl-h-sm:24px; --ctl-h-md:28px; --ctl-h-lg:34px;
+  /* 交互色（紫罗兰）：选中态 / 主按钮 / 页内导航下划线共用这一组，三个变量就是全部；以后换交互色只改这里。
+     不用绿(涨/盈利)、红(跌/亏损/买入)、橙(只属于橙色主角卡)。 */
+  --accent:#8057C9; --accent-bg:#F1EBFA; --accent-fg:#5B3A9E;
+  /* 筛选胶囊(.chip)未选中的底 和 分段(.seg-tabs)轨道 同一种浅灰；悬停略深 */
+  --seg-track:rgba(0,0,0,.06); --seg-track-hover:rgba(0,0,0,.1);
   --r:10px;--rs:6px;--sh:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04)}
 
 /* ══ Bento Grid：只用于总览页这类"展示面"，密集表格页面不受影响 ══
@@ -301,13 +308,13 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);font-size:var(--fs-14);font-variant-numeric:tabular-nums;font-feature-settings:'tnum'}
 .sidebar{position:fixed;left:0;top:0;bottom:0;width:56px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:var(--sp-4) 0;gap:var(--sp-1);z-index:100}
-.slogo{width:32px;height:32px;background:var(--text);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;margin-bottom:var(--sp-3);cursor:pointer}
+.slogo{width:32px;height:32px;background:var(--accent);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;margin-bottom:var(--sp-3);cursor:pointer}
 .slogo svg{width:18px;height:18px;fill:white}
 .ni{width:40px;height:40px;border-radius:var(--rs);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);transition:background .15s,color .15s;position:relative}
 .ni:hover{background:var(--bg);color:var(--text2)}
-.ni.active{background:var(--bg);color:var(--text)}
-.ni.active::before{content:'';position:absolute;left:-8px;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;background:var(--text)}
-.ni:focus-visible,.slogo:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.ni.active{background:var(--accent-bg);color:var(--accent-fg)}
+.ni.active::before{content:'';position:absolute;left:-8px;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;background:var(--accent)}
+.ni:focus-visible,.slogo:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ni svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .ni-tip{display:none;position:absolute;left:52px;background:var(--text);color:var(--surface);font-size:var(--fs-11);padding:var(--sp-1) var(--sp-2);border-radius:var(--rs);white-space:nowrap;pointer-events:none;z-index:999}
 .ni:hover .ni-tip,.ni:focus-visible .ni-tip{display:block}
@@ -318,8 +325,8 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 .tbadge{font-size:var(--fs-11);padding:var(--sp-1) var(--sp-3);border-radius:20px;background:var(--bg);color:var(--text2);border:1px solid var(--border2)}
 .btn{font-size:var(--fs-12);padding:0 14px;height:var(--ctl-h-md);box-sizing:border-box;border-radius:var(--rs);border:1px solid var(--border2);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .15s;font-family:inherit;white-space:nowrap}
 .btn:hover{background:var(--bg)}
-.btn-primary{background:var(--text);color:#fff;border-color:var(--text)}
-.btn-primary:hover{opacity:.85;background:var(--text)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{opacity:.85;background:var(--accent)}
 .btn-danger{background:var(--red-bg);color:var(--red);border-color:var(--red)}
 .btn-danger:hover{background:#f5c4b3}
 .btn-sm{font-size:var(--fs-11);padding:0 8px;height:var(--ctl-h-sm)}
@@ -363,7 +370,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 .legend-fill{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;row-gap:6px;align-items:center;margin:0 calc(2px - var(--card-pad))}  /* 左右各撑出卡片内边距，只留 2px 贴边余量；跟 --card-pad 联动，别写死数字 */
 .legend-fill>.donut-wrap{grid-column:2;grid-row:1/-1;justify-self:center;margin:0}
 .legend-fill .leg-l{grid-column:4}
-.legend-fill .leg-v{grid-column:6}
+.legend-fill .leg-v{grid-column:6;min-width:64px}   /* 数值列定宽：图例列是 auto 宽，数字位数一变（0.59% → 15.20% / 100.00% / —）整组图例会左右挪；所有用 .legend-fill 的环形图共用这一条 */
 /* 组合看板 bento（以 1707px 为基准，4 列；<1600px 改 2 列——看板每张卡内容更密，4 列时卡宽只有 280~320px 放不下；总览仍是 <1400px，详见顶部约定参考 E（UI规范 v1）） */
 .board-bento{
   display:grid;
@@ -517,10 +524,10 @@ tbody tr:last-child td{border-bottom:none}
 tbody tr:hover td{background:var(--surface2)}
 
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
-.chip{font-size:var(--fs-11);padding:0 12px;height:var(--ctl-h-sm);box-sizing:border-box;display:inline-flex;align-items:center;border-radius:20px;border:1px solid var(--border2);color:var(--text2);cursor:pointer;background:transparent}
-.chip:hover{background:var(--bg)}
+.chip{font-size:var(--fs-11);padding:0 12px;height:var(--ctl-h-sm);box-sizing:border-box;display:inline-flex;align-items:center;border-radius:20px;border:1px solid transparent;color:var(--text2);cursor:pointer;background:var(--seg-track)}
+.chip:hover{background:var(--seg-track-hover)}
 .chip.chip-accent.active{background:rgba(244,81,30,.1);border-color:#F4511E;color:#C2540E;font-weight:600}   /* 橙色主角卡里的开关（本金线）：不用绿色——绿色在本应用里表示盈利 */
-.chip.active{background:var(--green-bg);border-color:var(--green);color:var(--green);font-weight:600}
+.chip.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent-fg);font-weight:600}
 .cf-positive td:first-child{border-left:3px solid var(--green)}
 .cf-negative td:first-child{border-left:3px solid var(--red)}
 .cf-snapshot td:first-child{border-left:3px solid var(--blue)}
@@ -605,7 +612,7 @@ tbody tr:hover td{background:var(--surface2)}
 .modal-flex{max-height:92vh;display:flex;flex-direction:column}
 .modal-title{font-size:var(--fs-16);font-weight:600;margin-bottom:var(--sp-4);display:flex;align-items:center;justify-content:space-between}
 .modal-close{cursor:pointer;color:var(--text3);font-size:var(--fs-20);line-height:1;background:none;border:0;padding:0;font-family:inherit}
-.modal-close:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:var(--rs)}
+.modal-close:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:var(--rs)}
 .modal-close:hover{color:var(--text)}
 /* 弹窗表单与面板组件（弹窗内不再写内联布局样式） */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3)}
@@ -710,12 +717,9 @@ input.fi.fi-auto{background:var(--bg);color:var(--text3);cursor:default}
 .type-split{display:grid;grid-template-columns:380px 1fr;gap:var(--sp-4);align-items:start}
 .type-split>.card{margin-bottom:0}
 .type-table-wrap td{white-space:nowrap}
+.row-click{cursor:pointer}
 .h-eb{max-width:380px;margin:var(--sp-4) 0 var(--sp-4)}
 .h-eb .legend-fill{margin:0}
-/* 图例列宽固定：.legend-fill 的图例列是 auto 宽，数字位数一变（78.21% → 100.00% / —）整组图例会左右挪；
-   权益/债券这种两行固定文案的图例给标签列和数值列定宽，位置就不随数字动 */
-.legend-fixed .leg-l{min-width:44px}
-.legend-fixed .leg-v{min-width:64px}
 .type-split>.card:last-child{min-width:0}
 .fx-card{max-width:480px}
 input.fi.fx-input{width:110px;padding:5px 8px;margin-left:-9px;font-size:var(--fs-13);font-weight:600}  /* 负边距：数字与基准货币行的静态文字左对齐 */
@@ -805,7 +809,7 @@ input.fi,select.fi,textarea.fi{width:100%;padding:8px 10px;border:1px solid var(
 .mk-custom{max-width:240px;margin-bottom:4px}
 .mk-l3-list{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
 .mk-l3{display:flex;align-items:center;gap:5px;font-size:var(--fs-12);padding:5px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;user-select:none}
-.mk-l3.is-on{background:var(--blue-bg);border-color:var(--blue)}
+.mk-l3.is-on{background:var(--accent-bg);border-color:var(--accent)}
 .mk-l3 input{margin:0}
 .mk-sumcheck{margin-bottom:14px}
 .mk-sum{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:var(--fs-12);padding:8px 12px;background:var(--surface2);border-radius:var(--rs)}
@@ -836,12 +840,12 @@ input.fi,select.fi,textarea.fi{width:100%;padding:8px 10px;border:1px solid var(
 .mkplan-pct-pill-input{width:28px;background:transparent;border:none;outline:none;color:#fff;font-weight:800;font-size:var(--fs-12);text-align:right;padding:0;font-family:inherit;-moz-appearance:textfield}
 .mkplan-pct-pill-input::-webkit-inner-spin-button,.mkplan-pct-pill-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 select.fi{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
-input.fi:focus,select.fi:focus{border-color:var(--blue)}
+input.fi:focus,select.fi:focus{border-color:var(--accent)}
 /* 行内编辑数值（表格/数据行里直接改数字）统一外观：平时无框像普通文字，悬停浅框，聚焦蓝框+光晕，超限红框。
    新增这类输入一律加 class="in-cell"（尺寸/对齐另写在各自的类里）；弹窗里的表单字段不用它，用 .fi */
 input.in-cell{border:1px solid transparent;border-radius:var(--rs);background:transparent;color:inherit;font-family:inherit;outline:none;transition:border-color .12s,background .12s}
 input.in-cell:hover{border-color:var(--border2);background:var(--surface)}
-input.in-cell:focus{border-color:var(--blue);background:var(--surface);box-shadow:0 0 0 2px rgba(55,138,221,.15)}
+input.in-cell:focus{border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 2px rgba(128,87,201,.15)}
 input.in-cell.over{border-color:var(--red);background:var(--red-bg)}
 input.in-cell:disabled{opacity:.35;cursor:not-allowed;border-color:transparent;background:transparent}
 /* 年份选择胶囊 yearRangePillHtml()：整条胶囊=底色槽，年份是里面的白色小药丸（原生 select 去掉外观，箭头画在 label 的 ::after 上，
@@ -1008,17 +1012,19 @@ input.in-cell:disabled{opacity:.35;cursor:not-allowed;border-color:transparent;b
 .data-tabs{display:flex;gap:2px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0}
 .dtab{font-size:var(--fs-12);font-weight:500;padding:8px 16px;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:all .15s}
 .dtab:hover{color:var(--text2)}
-.dtab.active{color:var(--text);border-bottom-color:var(--text)}
+.dtab.active{color:var(--text);border-bottom-color:var(--accent)}
 .data-panel{display:none}.data-panel.active{display:block}
 /* 分段切换按钮：2-3项紧凑二选一/三选一场景（流水记录主/实操流水、永续计划弹窗系统/自定义组合、
    看板XIRR明细全程/转让后/实操）。跟.dtab分工不同——.dtab是主导航型多项tab，这个用于局部紧凑切换。
-   结构（边框/圆角/内边距/字重）统一，颜色允许变体：默认黑色，seg-blue用于XIRR相关面板，seg-accent用于橙色主角卡（市值趋势）。 */
-.seg-tabs{height:var(--ctl-h-sm);box-sizing:border-box;display:flex;gap:0;border:1px solid var(--border2);border-radius:6px;overflow:hidden}
+   形状：浅灰胶囊轨道 + 选中项是交互色滑块（浅紫底+紫描边+深紫字，跟选中的筛选胶囊同一套 --accent-* 令牌）；只有橙色主角卡里的 seg-accent 选中项用橙色渐变（跟「录入快照」同色），
+   轨道在 .card-hero-soft 里带一点橙色底。XIRR 面板的分段（原 seg-blue）已并入默认样式。 */
+.seg-tabs{height:var(--ctl-h-sm);box-sizing:border-box;display:flex;gap:2px;padding:2px;border-radius:20px;background:var(--seg-track)}
 .seg-tabs.seg-sm .seg-btn{padding:0 10px;font-size:var(--fs-11)}
-.seg-btn{padding:0 14px;display:flex;align-items:center;font-size:var(--fs-12);font-weight:600;border:none;cursor:pointer;background:var(--surface);color:var(--text3);transition:background .15s,color .15s}
-.seg-btn.active{background:var(--text);color:#fff}
-.seg-btn.active.seg-blue{background:var(--blue)}
-.seg-btn.active.seg-accent{background:var(--grad-snap)}   /* 橙色主角卡(.card-hero-soft)里的分段：跟「录入快照」同一个橙色渐变 */
+.seg-btn{padding:0 12px;display:flex;align-items:center;font-size:var(--fs-12);font-weight:500;border:none;border-radius:20px;cursor:pointer;background:transparent;color:var(--text2);transition:background .15s,color .15s,box-shadow .15s}
+.seg-btn:hover:not(.active){color:var(--text)}
+.seg-btn.active{background:var(--accent-bg);color:var(--accent-fg);font-weight:600;box-shadow:0 0 0 1px var(--accent) inset}
+.seg-btn.active.seg-accent{background:var(--grad-snap);color:#fff;box-shadow:0 1px 3px rgba(244,81,30,.35)}   /* 橙色主角卡(.card-hero-soft)里的分段：跟「录入快照」同一个橙色渐变 */
+.card-hero-soft .seg-tabs{background:rgba(244,81,30,.09)}
 .target-input{width:70px;padding:4px 6px;font-size:var(--fs-12);text-align:right}
 
 /* click-to-edit target cells */
@@ -1088,7 +1094,7 @@ input[type=number]{-moz-appearance:textfield}
 .board-l1-cards::-webkit-scrollbar{height:4px}.board-l1-cards::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 .bl1-card{flex-shrink:0;background:var(--surface);border:none;border-radius:20px;padding:var(--sp-3-5) var(--card-pad);box-shadow:0 4px 16px -6px rgba(0,0,0,.08);cursor:pointer;transition:background .18s,box-shadow .18s;min-width:140px;position:relative;user-select:none}
 .bl1-card:hover{background:var(--blue-bg)}
-.bl1-card.active{background:var(--blue-bg);box-shadow:0 0 0 2px var(--blue)}
+.bl1-card.active{background:var(--accent-bg);box-shadow:0 0 0 2px var(--accent)}
 .bl1-card-name{font-size:var(--fs-13);line-height:18px;font-weight:700;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bl1-card-val{font-size:var(--fs-12);line-height:16px;color:var(--text);font-weight:700}
 .bl1-card-sub{display:flex;gap:8px;margin-top:3px;font-size:var(--fs-11);line-height:15px;color:var(--text3)}
@@ -1475,7 +1481,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
 
         <div class="card bento-area-l5">
           <div class="card-header card-header-ctl"><div class="card-title">权益 / 债券</div></div>
-          <div class="legend-fill legend-fixed" id="fill-eb">
+          <div class="legend-fill" id="fill-eb">
             <div class="donut-wrap"><canvas id="c-eb" role="img" aria-label="权益与债券占比" width="130" height="130"></canvas><div class="donut-center"><div class="donut-num" id="eb-n">—</div><div class="donut-lbl">权益</div></div></div>
             <div class="legend" id="leg-eb"></div>
           </div>
@@ -1509,8 +1515,8 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
         <div class="card bento-area-mkt">
           <div class="card-header card-header-ctl">
             <div class="seg-tabs seg-sm">
-              <button class="seg-btn active" id="ov-dist-mkt" onclick="setOvDistTab('mkt')">市场分布</button>
-              <button class="seg-btn" id="ov-dist-l5" onclick="setOvDistTab('l5')">五级组合</button>
+              <button class="seg-btn active" id="ov-dist-mkt" onclick="OvDist.set('mkt')">市场分布</button>
+              <button class="seg-btn" id="ov-dist-l5" onclick="OvDist.set('l5')">五级组合</button>
             </div>
           </div>
           <div class="legend-fill" id="fill-l5" style="display:none">
@@ -1555,7 +1561,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
           <div id="h-plat-summary" class="hd-summary"></div>
         </div>
         <div class="h-eb">
-          <div class="legend-fill legend-fixed" id="h-eb-fill">
+          <div class="legend-fill" id="h-eb-fill">
             <div class="donut-wrap"><canvas id="c-h-eb" role="img" aria-label="权益与债券占比" width="130" height="130"></canvas><div class="donut-center"><div class="donut-num" id="h-eb-n">—</div><div class="donut-lbl">权益</div></div></div>
             <div class="legend" id="h-eb-leg"></div>
           </div>
@@ -1719,13 +1725,13 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
           <div class="dtab" onclick="showDataTab('xirr-calc')" id="dtab-xirr-calc">XIRR 计算器</div>
         </div>
         <div class="data-bar-actions">
-        <button class="btn btn-primary btn-sm btn-hd" id="gist-sync-btn" onclick="showGistPanel()"><svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>已连接云同步</button>
+        <button class="btn btn-sm btn-hd" id="gist-sync-btn" onclick="showGistPanel()"><svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>已连接云同步</button>
         <span id="gist-last-push-hint" class="text-hint data-bar-hint"></span>
         <button class="btn btn-sm btn-hd hover-tip" onclick="pickJsonFile()" data-tip="从之前导出的 JSON 备份（或从云端 Gist 下载下来的文件）恢复数据，会整体覆盖当前浏览器里的全部数据。">
           <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
           导入 JSON
         </button>
-        <button class="btn btn-primary btn-sm btn-hd" onclick="exportJSON()">
+        <button class="btn btn-sm btn-hd" onclick="exportJSON()">
           <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
           导出 JSON
         </button>
@@ -2311,7 +2317,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
                                                            金额预填口径与单个录入快照共用 _snapPrefill；同日已有则覆盖，市值为 0 的组合跳过。
    权益 / 债券占比                EqBond                      命名空间对象（总览 + 持仓明细页各一个饼图，持仓页跟着范围走）。类型层级表每个类型可设「权益占比」eq（债券=100−eq，只存 eq，TYPE_TABLE 行上的可选字段）；EqBond.split/render 按类型占比拆品种市值，未设定的类型不计入并提示。要精确到品种再给品种加可选字段
 
-   持仓范围 / 按品种汇总          _hScopeData / _renderHMerge   持仓明细页的范围（五级/三级/平台三排筛选）；汇总页 类型→同品种→品种 三层，同品种挂在旗下品种的类型下只在 _hScopeData 里算，明细和「按品种汇总」共用，加新范围只改它；
+   持仓范围 / 按品种汇总          _hScopeData / HMerge          持仓明细页的范围（五级/三级/平台三排筛选）；汇总页 类型→同品种→品种 三层，同品种挂在旗下品种的类型下只在 _hScopeData 里算，明细和「按品种汇总」共用，加新范围只改它；
                                                            汇总按品种的「同品种」字段合并（留空则用品种名），点开一行看各组合/平台的分布；占范围＝范围内占比，占总资产＝全部资产占比。
 
    手动数据 vs 界面偏好           _collectData / UI_PREFS     手动录入的数据（含持仓手动排序 HOLDINGS_ORDER/HOLDINGS_CAT_ORDER）进 _collectData；
@@ -2369,7 +2375,14 @@ const EqBond = (()=>{
       options: donutOptions({cutout:'72%', tooltipFmt:c=> tot>0 ? ` ${c.label}: ${fmtCNY(c.raw)}（${(c.raw/tot*100).toFixed(2)}%）` : ' 还没有设定类型的权益占比'})
     });
   }
-  return {eqOf, split, render};
+  // 类型弹窗里「权益占比 / 债券占比」联动：改一个，另一个自动 = 100 − 它；清空一个就两个都清空（未设定）。只存权益占比。
+  function linkInputs(which){
+    const a=document.getElementById(which==='eq'?'mt-eq':'mt-bond'), b=document.getElementById(which==='eq'?'mt-bond':'mt-eq');
+    if(a.value===''){ b.value=''; return; }
+    const v=Math.min(100,Math.max(0,parseFloat(a.value)||0));
+    b.value=Math.round((100-v)*100)/100;
+  }
+  return {eqOf, split, render, linkInputs};
 })();
 const CAT_ORDER = ['现金债券','红利','大盘','小盘','双创','行业类','恒生指数','恒生科技','投顾债券','投顾权益'];
 function catSortIndex(name){const i=CAT_ORDER.indexOf(name);return i===-1?CAT_ORDER.length:i;}
@@ -2900,15 +2913,17 @@ function _globalYearlyStats(){
 // （侧栏图标的 aria-label / 悬浮提示一直是"组合看板"，现在三处一致了）
 const TITLES={overview:'投资组合总览',holdings:'持仓明细',xirr:'收益分析',analysis:'收益分析',board:'组合看板',perpetual:'永续提取计划',watch:'自选',data:'数据管理'};
 let chartL5,chartMkt;
-let _ovDistTab = 'mkt';   // 总览「市场分布 / 五级组合」页签，不持久化，默认市场分布
-function setOvDistTab(t){
-  _ovDistTab = t;
-  document.getElementById('ov-dist-mkt').classList.toggle('active', t==='mkt');
-  document.getElementById('ov-dist-l5').classList.toggle('active', t==='l5');
-  document.getElementById('fill-mkt').style.display = t==='mkt' ? '' : 'none';
-  document.getElementById('fill-l5').style.display  = t==='l5'  ? '' : 'none';
-  const c = t==='mkt' ? chartMkt : chartL5; if(c) c.resize();
-}  // chartL3 已删：声明后从未被 new Chart 赋值过，是历史遗留
+// 总览「市场分布 / 五级组合」页签：不持久化，默认市场分布
+const OvDist = (()=>{
+  function set(t){
+    document.getElementById('ov-dist-mkt').classList.toggle('active', t==='mkt');
+    document.getElementById('ov-dist-l5').classList.toggle('active', t==='l5');
+    document.getElementById('fill-mkt').style.display = t==='mkt' ? '' : 'none';
+    document.getElementById('fill-l5').style.display  = t==='l5'  ? '' : 'none';
+    const c = t==='mkt' ? chartMkt : chartL5; if(c) c.resize();
+  }
+  return {set};
+})();  // chartL3 已删：声明后从未被 new Chart 赋值过，是历史遗留
 let chartScatter,chartBenchmark;
 let chartBoardMarket,chartBoardCcy;
 
@@ -4891,13 +4906,14 @@ function _hRender(total){
   [...sel.options].forEach(o=>{ o.hidden = merge && (o.value==='custom'||o.value==='l1'); });
   sel.value = (merge && (hSortMode==='custom'||hSortMode==='l1')) ? 'cny' : hSortMode;
   EqBond.render({canvas:'c-h-eb', num:'h-eb-n', leg:'h-eb-leg', fill:'h-eb-fill', hint:'h-eb-hint'}, _hScopeData());   // 权益/债券饼图跟着当前范围走（明细和按类型两个视图都显示）
-  if(merge) _renderHMerge(total); else _renderHTable(total);
+  if(merge) HMerge.render(total); else _renderHTable(total);
 }
 
 // ── 按品种汇总：类型 → 同品种 → 品种 三层，点开逐层往下看 ──
 // 同品种本身没有类型，挂在「它旗下品种的类型」下面：同一个同品种跨类型时，每个类型下各出现一次、只算该类型里的部分。
 // 没填同品种（或同品种下只有一个品种）的不多套一层，直接是品种行。
 // 展开状态按层记在 _hMergeOpen（key: 't|类型' / 's|类型|同品种'），重画后还在；显隐沿用看板 bdToggleType 的做法（行一直在 DOM 里，不整表重画）。
+const HMerge = (()=>{
 const _hMergeOpen = new Set();
 let _hmKeys = {};   // 行 id → 展开状态 key（渲染时重建）
 function _hmApply(){
@@ -4942,7 +4958,7 @@ function _renderHMerge(total){
   types.forEach(tg=>{
     const tId = reg('t|'+tg.key);
     // 类型行：沿用组合看板品种明细表的类型行（cat-row board-type-row）
-    html += `<tr class="cat-row board-type-row" onclick="hMergeToggle('${tId}')">
+    html += `<tr class="cat-row board-type-row" onclick="HMerge.toggle('${tId}')">
       <td class="sticky-l"><div class="cat-name"><span class="cat-title">${_esc(tg.key)}</span><span class="cat-count">${tg.items.length} 个品种</span></div></td>
       ${nums(tg.val,'cat-val')}${tail(tg.items)}
     </tr>`;
@@ -4958,7 +4974,7 @@ function _renderHMerge(total){
         return;
       }
       const sId = reg('s|'+tg.key+'|'+sg.key), sOpen = _hMergeOpen.has('s|'+tg.key+'|'+sg.key), tOpen = _hMergeOpen.has('t|'+tg.key);
-      html += `<tr data-hm-t="${tId}" style="cursor:pointer${tOpen?'':';display:none'}" onclick="hMergeToggle('${sId}')">
+      html += `<tr class="row-click" data-hm-t="${tId}"${tOpen?'':' style="display:none"'} onclick="HMerge.toggle('${sId}')">
         <td class="sticky-l cell-child"><span class="row-grip">└</span><span class="cell-strong">${_esc(sg.key)}</span> <span class="cat-count">${sg.items.length} 个品种</span></td>
         ${numsP(sg.val)}${tail(sg.items)}
       </tr>`;
@@ -4972,6 +4988,8 @@ function _renderHMerge(total){
   });
   document.getElementById('h-merge-tbody').innerHTML = html || `<tr><td colspan="6" class="empty">暂无数据</td></tr>`;
 }
+return {render:_renderHMerge, toggle:hMergeToggle, reset:()=>_hMergeOpen.clear()};
+})();
 
 function _getHSorted(data){
   if(hSortMode==='custom'){
@@ -6017,8 +6035,8 @@ function openTypeModal(idx){
     body:`<input type="hidden" id="mt-idx">
       <div class="form-grid form-grid-3 form-grid-mb">
         <div><label class="form-label">类型名称</label><input class="fi" id="mt-type" placeholder="如 沪深300"></div>
-        <div><label class="form-label">权益占比</label><div class="pct-input-wrap"><input type="number" class="fi" id="mt-eq" min="0" max="100" step="1" placeholder="未设定" oninput="onTypeEqInput('eq')"><span class="pct-suffix">%</span></div></div>
-        <div><label class="form-label">债券占比</label><div class="pct-input-wrap"><input type="number" class="fi" id="mt-bond" min="0" max="100" step="1" placeholder="未设定" oninput="onTypeEqInput('bond')"><span class="pct-suffix">%</span></div></div>
+        <div><label class="form-label">权益占比</label><div class="pct-input-wrap"><input type="number" class="fi" id="mt-eq" min="0" max="100" step="1" placeholder="未设定" oninput="EqBond.linkInputs('eq')"><span class="pct-suffix">%</span></div></div>
+        <div><label class="form-label">债券占比</label><div class="pct-input-wrap"><input type="number" class="fi" id="mt-bond" min="0" max="100" step="1" placeholder="未设定" oninput="EqBond.linkInputs('bond')"><span class="pct-suffix">%</span></div></div>
       </div>
       <div class="form-row"><label class="form-label">大类</label><input class="fi" id="mt-cat" placeholder="如 大盘"></div>`,
     footer:`<button class="btn" onclick="closeDynMo('modal-type')">取消</button><button class="btn btn-primary" onclick="saveType()">保存</button>`
@@ -6028,13 +6046,6 @@ function openTypeModal(idx){
   document.getElementById('mt-type').value=r.type;
   document.getElementById('mt-cat').value=r.cat;
   if(typeof r.eq==='number'){ document.getElementById('mt-eq').value=r.eq; document.getElementById('mt-bond').value=Math.round((100-r.eq)*100)/100; }
-}
-// 权益占比 / 债券占比联动：改一个，另一个自动 = 100 − 它；清空一个就两个都清空（未设定）。只存权益占比。
-function onTypeEqInput(which){
-  const a=document.getElementById(which==='eq'?'mt-eq':'mt-bond'), b=document.getElementById(which==='eq'?'mt-bond':'mt-eq');
-  if(a.value===''){ b.value=''; return; }
-  const v=Math.min(100,Math.max(0,parseFloat(a.value)||0));
-  b.value=Math.round((100-v)*100)/100;
 }
 function saveType(){
   const idx=(v=>v===''?-1:parseInt(v))(document.getElementById('mt-idx').value);
@@ -7669,9 +7680,9 @@ function _bdXirrPanelHtml(x){
   return `${(hasTransferOut||hasActual)?`<div class="xf-view-head">
       <div class="${labelCls}" id="bd-xirr-view-label">现金流明细</div>
       <div class="seg-tabs seg-sm">
-        ${hasTransferOut?`<button class="seg-btn seg-blue active" id="bd-xirr-tab-without" onclick="bdXirrTab('without')">全程</button>`:''}
-        <button class="seg-btn seg-blue${hasTransferOut?'':' active'}" id="bd-xirr-tab-with" onclick="bdXirrTab('with')">${hasTransferOut?'转让后':'全程'}</button>
-        ${hasActual?`<button class="seg-btn seg-blue" id="bd-xirr-tab-actual" onclick="bdXirrTab('actual')">实操 XIRR</button>`:''}
+        ${hasTransferOut?`<button class="seg-btn active" id="bd-xirr-tab-without" onclick="bdXirrTab('without')">全程</button>`:''}
+        <button class="seg-btn${hasTransferOut?'':' active'}" id="bd-xirr-tab-with" onclick="bdXirrTab('with')">${hasTransferOut?'转让后':'全程'}</button>
+        ${hasActual?`<button class="seg-btn" id="bd-xirr-tab-actual" onclick="bdXirrTab('actual')">实操 XIRR</button>`:''}
       </div>
     </div>`:`<div class="${labelCls} xf-view-label-solo">现金流明细</div>`}
     <div id="bd-xirr-view-with"${hasTransferOut?' style="display:none"':''}>
@@ -8897,7 +8908,7 @@ function renderSharedList(){
           <div class="shp-stat-note">${latestVal?(latestVal.date===todayStr?'今日已更新':'上次更新 '+latestVal.date):'尚未录入'}</div>
         </div>
         <div class="shp-acts">
-          <button class="btn btn-sm btn-primary" onclick="openSharedEventModal('${sp.id}','lot',null)">+ 买入</button>
+          <button class="btn btn-sm" onclick="openSharedEventModal('${sp.id}','lot',null)">+ 买入</button>
           ${kebabBtn([{l:'编辑',a:`openSharedProductModal('${sp.id}')`},{l:'删除',a:`deleteSharedProduct('${sp.id}')`,d:1}])}
         </div>
       </div>
