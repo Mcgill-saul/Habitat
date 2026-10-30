@@ -186,7 +186,7 @@
   --card-pad:20px; --card-pad-x:24px;  /* 卡片内边距：上下 --card-pad、左右 --card-pad-x（普通卡、主KPI紫卡共用）：改这两个值全站卡片内边距一起变 */
   --grad-hero:linear-gradient(140deg,#9A72DD 0%,#7A4FC4 55%,#5F3CA3 100%);  /* 焦点卡（hero）紫色渐变，白字；每页至多 1 张，只在这里写一份 */
   --page-gutter:16px;
-  --hero-h:560px; --conc-h:213px; --xirr-h:128px; --struct-h:392px;   /* 总览/看板宽屏：主卡片（紫色大卡）高度固定（--xirr-h = 看板右列两张 XIRR 卡各自的固定高度；--struct-h = 看板第三行「结构分布 | 最近现金流」的固定高度，约 8 行条形图，多了卡内滚动）；右列「全局集中度」固定 --conc-h，逐年收益率补满剩下的高度，内容多了在卡内滚动 */  /* 页面内容区四边留白（顶栏→首行卡片、卡片→窗口左右缘/底部）：只改这一个值 */
+  --hero-h:560px; --conc-h:213px; --xirr-h:128px; --struct-h:392px; --an-h:700px;   /* 总览/看板宽屏：主卡片（紫色大卡）高度固定（--xirr-h = 看板右列两张 XIRR 卡各自的固定高度；--struct-h = 看板第三行「结构分布 | 最近现金流」的固定高度，约 8 行条形图，多了卡内滚动）；右列「全局集中度」固定 --conc-h，逐年收益率补满剩下的高度，内容多了在卡内滚动 */  /* 页面内容区四边留白（顶栏→首行卡片、卡片→窗口左右缘/底部）：只改这一个值 */
   --card-gap:16px;  /* 卡片与卡片之间的间距（网格 gap、上下叠放的 margin-bottom 都用它） */
   --scroll-gap:12px; /* 卡内滚动区：内容和滚动条之间的间距，见 .scroll-gutter */
   /* 字号刻度（只有这 10 档；新代码一律用 var(--fs-N)，不再写 12px 之类的字面值）
@@ -296,7 +296,7 @@
    另外还有一种"跟随鼠标"型（canvas里没有DOM元素可锚定，比如多层饼图扇区悬浮），用同一个气泡元素、
    同一套样式，只是定位策略不同（跟随鼠标而不是锚定某个元素），见 showFollowTip。 */
 .hover-tip{cursor:default}
-.info-icon{display:inline-flex;flex-shrink:0;color:var(--text3)}
+.info-icon{display:inline-flex;flex-shrink:0;color:var(--text3);vertical-align:-1.5px;position:relative;top:1px}   /* 行内文字后面(非 flex 父级)时与文字垂直居中；不写这条会按基线对齐，图标底边贴基线、看起来偏上（实测：行内 vertical-align:-1.5px 加 top:1px、flex 父级里只靠 top:1px，两种情况都与 11~12px 文字中心对齐到 ±0.5px 内；中文字形的视觉中心比行盒中心略低，所以要整体下移 1px） */
 .info-icon svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block}
 .kpi-card-v.card-hero{
   background:var(--grad-hero);border:none;box-shadow:var(--sh-card);
@@ -407,6 +407,8 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 .kpi-v-big.pos,.kpi-v-big .pos,.kpi-v-num.pos,.kpi-v-num .pos{color:var(--green)}
 .kpi-v-big.neg,.kpi-v-big .neg,.kpi-v-num.neg,.kpi-v-num .neg{color:var(--red)}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:var(--card-gap);margin-bottom:var(--card-gap)}
+.an-toolbar{display:flex;align-items:center;gap:var(--sp-3);margin-bottom:var(--sp-4)}   /* 分析页 tab 内的页面级控件行 */
+
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--card-gap);margin-bottom:var(--card-gap)}
 .card{background:var(--surface);border:none;border-radius:var(--r-card);padding:var(--card-pad) var(--card-pad-x);box-shadow:var(--sh-card)}
 .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--sp-4)}
@@ -638,20 +640,18 @@ tbody tr:hover td{background:var(--surface2)}
 .kpi-v-val{font-size:var(--fs-18);font-weight:700;line-height:1.2}
 .kpi-v-sub{font-size:var(--fs-11);color:var(--text3);margin-top:2px}
 /* 主 KPI 紫卡里的 2×2 数值格（本金/浮动盈亏/盈亏比例/持仓起始/全程XIRR）：15px 粗体，白字；
-   .kpi-v-num-2 = 双币种时第二行（外币金额），行距更紧、颜色略淡。.kpi-stats 里每格居中 */
+   外币口径一律不加行：数值后面挂 .kpi-num-ccy 小字、标题行挂 .hero-ccy-chip，保证不同组合切换时版面位置不动。.kpi-stats 里每格居中 */
 .kpi-stats>div{text-align:center}
 .kpi-v-num{font-size:var(--fs-14);font-weight:700;margin-top:var(--sp-1)}
 .card-hero .kpi-v-num{color:var(--on-dark)}
-.kpi-v-num-2{margin-top:2px}
 .kpi-v-big{font-size:var(--fs-30)}
 .kpi-v-big-solo{margin-top:var(--sp-2)}
-.kpi-v-big-sub{font-weight:700;margin-top:2px}
-.card-hero .kpi-v-num-2:not(.pos):not(.neg){color:var(--on-dark-2)}
+.hero-ccy-chip{font-size:var(--fs-13);font-weight:600;color:var(--on-dark-2);margin-left:var(--sp-2)}   /* 看板紫卡标题行里的外币总额 */
+.kpi-num-ccy{font-size:var(--fs-12);font-weight:500;color:var(--on-dark-2);margin-left:var(--sp-2)}   /* 数值后面同一行的外币口径小字 */
 /* kebab menu */
 .kebab-btn{background:none;border:none;cursor:pointer;padding:2px 7px;font-size:var(--fs-18);color:var(--text3);border-radius:4px;line-height:1;letter-spacing:-.5px}
 .kebab-btn:hover{background:var(--surface2);color:var(--text)}
 .kebab-menu{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-ctl);box-shadow:var(--sh-pop);min-width:90px;overflow:hidden;z-index:var(--z-pop)}
-.num-pair{display:inline-grid;grid-template-columns:auto auto}.num-pair .np-i{justify-self:end}.num-pair .np-d{justify-self:start}
 .pp-explain-box{position:fixed;z-index:var(--z-pop);background:var(--surface);border:1px solid var(--border);border-radius:var(--r-ctl);box-shadow:var(--sh-pop);padding:12px 14px;font-size:var(--fs-11);line-height:1.7;width:360px;color:var(--text)}
 .pp-explain-line{margin-bottom:8px}
 .pp-explain-line:last-child{margin-bottom:0}
@@ -819,16 +819,51 @@ input.fi.fx-input{width:110px;padding:5px 8px;margin-left:-9px;font-size:var(--f
 .fx-table td.fx-age{font-size:var(--fs-11);color:var(--text3);white-space:nowrap;padding-left:var(--sp-2)}
 .fx-warn{color:var(--amber);font-weight:600}
 .fundsource-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(500px,100%),500px));gap:var(--card-gap)}
-.scatter-wrap{height:420px}
+/* 收益表现版面：收益-权重分布是主角，占左侧 2/3 通高；右列 1/3 = 收益率（按内容，最多 ~6 年，再多卡内滚动）+ 各级 XIRR（吃剩余高度，条形多了卡内滚动）。
+   整块高度固定 --an-h，切层级（一级 18 行 / 二级以上很少）页面不跳动 */
+.an-xirr-grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:var(--card-gap);height:var(--an-h)}
+.an-xirr-yr{grid-column:2;grid-row:1}
+.an-xirr-right{grid-column:2;grid-row:2;display:flex;flex-direction:column;min-height:0}
+.an-xirr-right #xirr-by-p{flex:1;min-height:0;overflow-y:auto}
+#xirr-by-y{max-height:170px;overflow-y:auto}
+.an-scatter-slot{display:flex;flex-direction:column;min-height:0;grid-column:1;grid-row:1/3}
+@media (max-width:1399px){
+  .an-xirr-grid{height:auto;grid-template-columns:minmax(0,1fr);grid-template-rows:none}
+  .an-xirr-yr,.an-xirr-right,.an-scatter-slot{grid-column:1;grid-row:auto}
+  .an-scatter-slot .tm-wrap{min-height:380px}
+  .an-xirr-right #xirr-by-p{max-height:440px;flex:none}
+}
+.an-scatter-slot>.card{flex:1;display:flex;flex-direction:column;min-height:0}
+.tm-wrap{flex:1;min-height:0;position:relative}   /* 矩形热力图：格子绝对定位，由 JS 按容器宽高铺满，不撑开容器 */
+.tm-tile{position:absolute;box-sizing:border-box;border-radius:var(--r-ctl);padding:var(--sp-2);overflow:hidden;cursor:pointer;display:flex;flex-direction:column;gap:2px;transition:filter var(--t-state)}
+.tm-tile:hover{filter:brightness(.94)}
+.tm-name{font-size:var(--fs-12);font-weight:700;color:var(--text);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tm-name.tm-sm{font-size:var(--fs-10);font-weight:600}
+.tm-val{font-size:var(--fs-12);font-weight:600;font-variant-numeric:tabular-nums}
+.tm-legend{display:flex;align-items:center;justify-content:center;gap:var(--sp-2);margin-top:var(--sp-3);font-size:var(--fs-10);color:var(--text3)}
+.tm-legend i{display:block;width:90px;height:6px;border-radius:var(--r-pill);background:linear-gradient(to right,var(--red),rgba(0,0,0,.08))}
+.tm-legend i.is-up{background:linear-gradient(to right,rgba(0,0,0,.08),var(--green))}
+.an-global{display:flex;align-items:baseline;gap:var(--sp-3);margin-bottom:var(--sp-4);padding-bottom:var(--sp-4);border-bottom:1px solid var(--border)}
+.an-global-val{font-size:var(--fs-30);font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.an-global-lbl{font-size:var(--fs-12);color:var(--text2);font-weight:600}
+.an-global-sub{font-size:var(--fs-11);color:var(--text3);margin-left:auto}
+.an-sub-lbl{margin-bottom:var(--sp-3)}
 .is-teal{color:var(--green-fg)}
 .stack-10{display:flex;flex-direction:column;gap:10px}
 .chart-wrap-260{position:relative;height:260px;margin-top:var(--sp-2)}
 .hhi-tag{font-size:var(--fs-11);font-weight:700}
-.conc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-3);margin-bottom:var(--sp-5)}
-.conc-split{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-4);margin-bottom:var(--sp-5)}
+.conc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--card-gap);margin-bottom:var(--card-gap)}
+.conc-stats .stat-box{background:var(--surface);box-shadow:var(--sh-card);border-radius:var(--r-card);padding:var(--card-pad) var(--card-pad-x)}   /* 直接放在页面底色上，用 surface2 会和底色一样看不出是卡片 */
+.conc-stats .stat-box-val{font-size:var(--fs-22)}
+.conc-split{display:grid;grid-template-columns:1fr 1fr;gap:var(--card-gap);margin-bottom:var(--card-gap)}
 .conc-split>.card{margin-bottom:0}
 .conc-note{padding:14px var(--sp-4);background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-ctl);font-size:var(--fs-12);color:var(--text2);line-height:1.8}
-.conc-note-hd{font-weight:700;margin-bottom:var(--sp-2);color:var(--text)}
+.conc-note-hd{font-weight:700;color:var(--text);cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+.conc-note-hd::-webkit-details-marker{display:none}
+.conc-note-hd::after{content:'展开 ▾';font-weight:500;font-size:var(--fs-11);color:var(--text3)}
+.conc-note[open] .conc-note-hd{margin-bottom:var(--sp-2)}
+.conc-note[open] .conc-note-hd::after{content:'收起 ▴'}
+.conc-split .card-title-solo{min-height:var(--ctl-h-sm)}   /* 右卡标题行带 24px 的分段控件，左卡同高，两边条形起点才对得齐 */
 .card-slim .card-title{margin:0;white-space:nowrap}
 .card-slim>.text-hint{flex:1;min-width:0}
 .psb-row{display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) 0;border-bottom:1px solid var(--border)}
@@ -946,6 +981,8 @@ input.in-cell{border:1px solid transparent;border-radius:var(--r-ctl);background
 input.in-cell:hover{border-color:var(--border2);background:var(--surface)}
 input.in-cell:focus{border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 2px rgba(128,87,201,.15)}
 input.in-cell.over{border-color:var(--red);background:var(--red-bg)}
+input.in-cell.pos{color:var(--green-fg)}
+input.in-cell.neg{color:var(--red-fg)}   /* 单元格内输入的收益率也按涨绿跌红上色（in-cell 的 color:inherit 会盖掉 .pos/.neg） */
 input.in-cell:disabled{opacity:.35;cursor:not-allowed;border-color:transparent;background:transparent}
 /* 年份选择胶囊 yearRangePillHtml()：整条胶囊=底色槽，年份是里面的白色小药丸（原生 select 去掉外观，箭头画在 label 的 ::after 上，
    跟年份数字之间留固定间距，不会再叠在一起）。XIRR 两个计算器共用，今后别处要选年份区间也用这个。 */
@@ -979,7 +1016,9 @@ input.in-cell:disabled{opacity:.35;cursor:not-allowed;border-color:transparent;b
 .card-note{font-size:var(--fs-11);font-weight:400;color:var(--text3);margin:-6px 0 var(--sp-2)}
 .cf-mini-date{color:var(--text3);flex-shrink:0;white-space:nowrap}
 .cf-mini-date.grow{flex:1;flex-shrink:1}
-.cf-mini-amt{font-weight:600;width:80px;text-align:right;flex-shrink:0}
+.cf-mini-amt{font-weight:600;min-width:80px;text-align:right;flex-shrink:0;white-space:nowrap}
+.cf-mini-ref{font-size:var(--fs-12);font-weight:500;color:var(--text3);margin-left:var(--sp-2)}   /* 外币流水：原币金额后面的人民币折算（参考） */
+.xf-ccy-ref{font-size:var(--fs-12);font-weight:500;color:var(--text3);margin-left:var(--sp-2)}   /* 全程 XIRR 浮层：外币口径结果后面的人民币口径（参考） */
 .leg-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fw-7{font-weight:700}
 /* 涨跌速算 QuickCalc：窄卡片网格（一行放多张），卡片复用 .card */
@@ -1232,28 +1271,30 @@ input[type=number]{-moz-appearance:textfield}
 .stat-box-val{font-size:var(--fs-20);font-weight:700;line-height:1.2}
 .stat-box-lbl{font-size:var(--fs-11);color:var(--text3);margin-top:3px}
 /* ── 业绩比较 ──
-   第一行三块：对比项配置 360px | 业绩排行 300px | 净值走势（吃剩余宽度）。
-   <1400px 窄屏兜底：图表整行换到下面，配置和排行并排（详见顶部约定参考 E（UI规范 v1））。 */
-.bp-top{display:grid;grid-template-columns:360px 300px minmax(0,1fr);gap:var(--card-gap);align-items:start;margin-bottom:var(--card-gap)}
+   最上面：对比项配置（默认折叠成一行摘要，.is-open 时展开成三段并排；窄屏三段上下排）。
+   中间：业绩排行 300px | 累计净值对比（吃剩余宽度），两张卡固定同高 --bp-h，排行列表超出就卡内滚动。 */
+.bp-cfg-card{margin-bottom:var(--card-gap)}
+.bp-cfg-card:not(.is-open) .card-header{margin-bottom:0}
+.bp-cfg-body{display:none}
+.bp-cfg-card.is-open .bp-cfg-body{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--card-gap)}
+@media (max-width:1399px){ .bp-cfg-card.is-open .bp-cfg-body{grid-template-columns:minmax(0,1fr)} }
+.bp-top{--bp-h:520px;display:grid;grid-template-columns:300px minmax(0,1fr);grid-template-rows:var(--bp-h);gap:var(--card-gap);margin-bottom:var(--card-gap)}
+.bp-top>.card{min-height:0;display:flex;flex-direction:column}
 .bp-top-chart{min-width:0}
-@media (max-width:1399px){
-  .bp-top{grid-template-columns:360px minmax(0,1fr)}
-  .bp-top-chart{grid-column:1/-1}
-}
-.bp-chart-wrap{position:relative;height:360px}
+.bp-rank-list{flex:1;min-height:0;overflow-y:auto}
+.bp-chart-wrap{position:relative;flex:1;min-height:0}
 /* 对比项配置：三段（我的组合/自定义指数/混合基准），每段一个标题行 + 一个+按钮 */
 .bp-cfg-sec{margin-bottom:var(--sp-3)}
 .bp-cfg-sec:last-child{margin-bottom:0}
 .bp-cfg-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--sp-2)}
 /* 业绩排行：卡片无内边距，header 与每一行的左右内边距统一为 18px */
 .bp-rank-card{padding:0;overflow:hidden}
-.bp-rank-card .card-header{padding:var(--sp-4) 18px;margin-bottom:0;border-bottom:1px solid var(--border)}
+.bp-rank-card .card-header{padding:var(--sp-4) 18px;margin-bottom:0;border-bottom:1px solid var(--border);flex:none}
 .bp-rank-row{display:flex;align-items:center;gap:var(--sp-2);padding:10px 18px;background:var(--surface)}
 .bp-rank-row + .bp-rank-row{border-top:1px solid var(--border)}
-.bp-rank-gold{background:linear-gradient(135deg,#FFF6CC 0%,#FFFBEA 60%)}
-.bp-rank-silver{background:linear-gradient(135deg,#EDEDEB 0%,#F7F7F7 60%)}
-.bp-rank-bronze{background:linear-gradient(135deg,#FAE8D4 0%,#FDF5EE 60%)}
-.bp-rank-medal{font-size:var(--fs-14);line-height:1;flex-shrink:0;width:22px;text-align:center}
+.bp-rank-no{font-size:var(--fs-13);font-weight:600;line-height:1;flex-shrink:0;width:22px;text-align:center;color:var(--text3);font-variant-numeric:tabular-nums}
+.bp-rank-row.is-top .bp-rank-no{color:var(--accent-fg);font-weight:800;font-size:var(--fs-18)}   /* 前三名：名次数字放大加粗用强调色 + 行左侧 3px 紫条（下一行），不用奖牌 emoji 和金银铜底色 */
+.bp-rank-row.is-top{box-shadow:inset 3px 0 0 var(--accent)}
 .bp-rank-main{flex:1;min-width:0}
 .bp-rank-name{font-size:var(--fs-12);font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bp-rank-sub{font-size:var(--fs-11);color:var(--text3);margin-top:1px}
@@ -1300,7 +1341,7 @@ input.fi.shp-val-input{width:120px;font-weight:700;text-align:right;padding:4px 
 .shp-rec{display:flex;gap:12px;font-size:var(--fs-11);color:var(--text2);padding:5px 0;border-bottom:1px solid var(--border);align-items:center;flex-wrap:wrap}
 .ccy-amt{display:flex;align-items:center;justify-content:flex-end;gap:4px}
 /* 逐年收益率明细表（分析页）：与持仓表同一套规范(.tbl-fixed + .num)，列宽走 colgroup 类 */
-.tbl-bp .bc-name{width:200px}.tbl-bp .bc-sm{width:60px}.tbl-bp .bc-nav{width:100px}.tbl-bp .bc-cum{width:110px}.tbl-bp .bc-yr{width:90px}
+.tbl-bp .bc-name{width:220px}.tbl-bp .bc-sm{width:72px}   /* 名称、费率定宽紧挨着；净值/收益率/各年不写宽度，瓜分剩余宽度，费率才不会被撑到离名称很远 */
 .th-muted{color:var(--text3);font-weight:400}
 .cell-strong{font-weight:700}
 .cell-edit{padding:3px 8px;cursor:pointer}
@@ -1720,28 +1761,33 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
 
       <!-- XIRR 概览 -->
       <div id="apanel-xirr" class="data-panel">
-        <div class="row2">
-          <div class="card">
-            <div class="card-header"><div class="card-title">逐年收益率</div></div>
-            <div id="xirr-by-y" class="bar-list bar-list-roomy"></div>
-          </div>
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title"><span id="xirr-by-p-title">各一级组合 XIRR</span></div>
-              <div class="data-tabs data-tabs-bare" id="xirr-rank-tabs">
-                <div class="dtab dtab-sm" onclick="setXirrRankLevel(1)">一级</div>
-                <div class="dtab dtab-sm" onclick="setXirrRankLevel(2)">二级</div>
-                <div class="dtab dtab-sm" onclick="setXirrRankLevel(3)">三级</div>
-                <div class="dtab dtab-sm" onclick="setXirrRankLevel(4)">四级</div>
-                <div class="dtab dtab-sm" onclick="setXirrRankLevel(5)">五级</div>
-              </div>
-            </div>
-            <div class="card-hint">点击一条可跳转到组合看板查看该组合详情</div>
-            <div id="xirr-by-p" class="bar-list"></div>
+        <div class="an-toolbar">
+          <span class="sec-label">组合层级<span class="info-icon hover-tip" data-tip="同时作用于「各级组合 XIRR」和「收益-权重分布」"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span></span>
+          <div class="seg-tabs seg-sm" id="xirr-rank-tabs">
+            <button class="seg-btn" onclick="setXirrRankLevel(1)">一级</button>
+            <button class="seg-btn" onclick="setXirrRankLevel(2)">二级</button>
+            <button class="seg-btn" onclick="setXirrRankLevel(3)">三级</button>
+            <button class="seg-btn" onclick="setXirrRankLevel(4)">四级</button>
+            <button class="seg-btn" onclick="setXirrRankLevel(5)">五级</button>
           </div>
         </div>
-        <!-- 收益-权重分布：原"收益分布"独立tab内容，跟这里的逐年收益率/各组合XIRR是同一个主题，合并进来 -->
-        <div id="xirr-scatter-wrap" class="mt-4"></div>
+        <div class="an-xirr-grid">
+          <div class="card an-xirr-yr">
+            <div class="card-header"><div class="card-title">收益率</div></div>
+            <div id="xirr-global"></div>
+            <div class="sec-label an-sub-lbl">逐年收益率</div>
+            <div id="xirr-by-y" class="bar-list bar-list-roomy scroll-gutter"></div>
+          </div>
+          <div class="card an-xirr-right">
+            <div class="card-header">
+              <div class="card-title"><span id="xirr-by-p-title">各一级组合 XIRR</span></div>
+            </div>
+            <div class="card-hint">点击一条可跳转到组合看板查看该组合详情</div>
+            <div id="xirr-by-p" class="bar-list scroll-gutter"></div>
+          </div>
+          <!-- 收益-权重分布：原"收益分布"独立tab内容，放在左列逐年收益率下面，补满到和右侧 XIRR 卡同高 -->
+          <div id="xirr-scatter-wrap" class="an-scatter-slot"></div>
+        </div>
       </div>
 
       <!-- 集中度 -->
@@ -1751,14 +1797,14 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
       <div id="apanel-benchmark" class="data-panel">
         <datalist id="bp-group-options"></datalist>
 
-        <!-- ══ 第一行：对比项配置 | 业绩排行 | 净值走势（响应式见 .bp-top） ══ -->
-        <div class="bp-top">
-
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">对比项配置</div>
-              <input type="number" class="fi" id="bp-baseyear" style="display:none" value="" min="2000" max="2100" onchange="onBPBaseYearChange()" title="起始年份（基准100）">
-            </div>
+        <!-- ══ 对比项配置：默认折叠成一行摘要，点「编辑」展开（三段并排）；业绩排行 | 累计净值对比 两栏在它下面 ══ -->
+        <div class="card bp-cfg-card" id="bp-cfg-card">
+          <div class="card-header card-header-ctl">
+            <div class="card-title">对比项配置<span id="bp-cfg-sum" class="hd-summary"></span></div>
+            <button class="btn btn-sm" id="bp-cfg-toggle" onclick="toggleBPCfg()">编辑</button>
+            <input type="number" class="fi" id="bp-baseyear" style="display:none" value="" min="2000" max="2100" onchange="onBPBaseYearChange()" title="起始年份（基准100）">
+          </div>
+          <div class="bp-cfg-body">
             <div class="bp-cfg-sec">
               <div class="bp-cfg-hd">
                 <span class="sec-label">我的组合</span>
@@ -1781,17 +1827,18 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
               <div id="bp-blend-tracks"></div>
             </div>
           </div>
+        </div>
 
+        <div class="bp-top">
           <div class="card bp-rank-card">
-            <div class="card-header"><div class="card-title">业绩排行</div></div>
-            <div id="bp-leaderboard"></div>
+            <div class="card-header card-header-ctl"><div class="card-title">业绩排行</div></div>
+            <div id="bp-leaderboard" class="bp-rank-list scroll-gutter"></div>
           </div>
 
           <div class="card bp-top-chart">
-            <div class="card-header"><div class="card-title">净值走势（基准 100）</div></div>
+            <div class="card-header card-header-ctl"><div class="card-title">累计净值对比（基准 100）</div></div>
             <div id="bp-chart-wrap" class="bp-chart-wrap"><canvas id="c-benchmark"></canvas></div>
           </div>
-
         </div>
 
         <!-- ══ 第二行：逐年收益率明细（含录入） ══ -->
@@ -2394,10 +2441,10 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
    权益/债券配色                 EB_COLOR                    权益琥珀金、债券灰蓝（= CAT_COLOR 债券系），.dark 是紫卡里的浅色版；
                                                            三处环形图都走 EqBond.render，颜色不要在调用处另写。
 
-   主 KPI 紫卡里的数值格         .kpi-v-num (+ .kpi-v-num-2) 15px 粗体白字；.kpi-v-num-2 是双币种时的第二行（外币）。
+   主 KPI 紫卡里的数值格         .kpi-v-num 15px 粗体白字；外币口径同一行挂 .kpi-num-ccy 小字（不加行，位置不随币种变）。
                                  .kpi-v-inline               数值后面要挂 ⓘ 时加，数值居中、图标紧跟。
-                                                           双币种对齐用 alignedNumPair(主文,主class,'',副文,副class,'')，
-                                                           样式只传 class，不再传内联 style 字符串。
+   紫卡大数字小数位             bigAmtHtml(text)            整数正常大小、小数位上标小字，总览/看板共用。
+   紫卡外币总额                 .hero-ccy-chip              看板标题行「≈ $x」，大数字永远只有人民币一行。
 
    市值趋势卡底部两行            .snap-stat-row/-label/-val  「历史峰值回撤 / 历史最大涨幅」，总览和看板共用；JS 里改
                                  /-sub                       数值 className 时要连 snap-stat-val 一起写，别整个覆盖掉。
@@ -2502,6 +2549,16 @@ const EqBond = (()=>{
       data:{labels: tot>0 ? ['权益','债券'] : ['未设定'], datasets:[{data: tot>0 ? [s.eq,s.bond] : [1], backgroundColor: tot>0 ? [C.eq,C.bond] : [noneClr], borderWidth:0, hoverOffset:4}]},
       options: donutOptions({cutout:'72%', tooltipFmt:c=> tot>0 ? ` ${c.label}: ${fmtCNY(c.raw)}（${(c.raw/tot*100).toFixed(2)}%）` : ' 还没有设定类型的权益占比'})
     });
+    // 环只有 88px：Chart.js 自带的悬浮框画在画布里面，会被画布裁掉、还盖住环中间的数字。
+    // 改走全站统一的悬浮气泡引擎，锚定在环的正下方（页面层，不被裁、不盖中间数字）。
+    const ch = charts[ids.canvas], fmt = ch.options.plugins.tooltip.callbacks.label; let lastIdx = -1;
+    ch.options.plugins.tooltip.enabled = false;
+    ch.options.plugins.tooltip.external = ({tooltip})=>{
+      if(!tooltip.opacity || !tooltip.dataPoints || !tooltip.dataPoints.length){ if(lastIdx!==-1) hideTip(); lastIdx=-1; return; }
+      const dp = tooltip.dataPoints[0]; if(dp.dataIndex===lastIdx) return;
+      lastIdx = dp.dataIndex; showAnchorTip(ch.canvas.parentElement, fmt(dp).trim());
+    };
+    ch.update('none');
   }
   // 类型弹窗里「权益占比 / 债券占比」联动：改一个，另一个自动 = 100 − 它；清空一个就两个都清空（未设定）。只存权益占比。
   function linkInputs(which){
@@ -2934,14 +2991,10 @@ function fmtCNY(v){return '¥'+v.toLocaleString('zh-CN',{minimumFractionDigits:2
 // 整数部分统一放第1列(右对齐)、小数点开始的部分统一放第2列(左对齐)，Grid会让第1列宽度自动撑到两行里最宽的那个，
 // 于是两行的小数点天然落在同一条竖线上，不用JS去量文字宽度(量字宽这条路这次已经踩过一次坑了)。
 // 如果某一行没有小数点(比如日期"2026-03-05")，就整行都当"整数部分"，右对齐即可，不参与对齐也没关系。
-function alignedNumPair(mainText, mainCls, mainStyle, subText, subCls, subStyle){
-  const split = s=>{ const i=s.lastIndexOf('.'); return i>=0 ? [s.slice(0,i), s.slice(i)] : [s, '']; };
-  const [mi,md] = split(mainText);
-  const [si,sd] = split(subText);
-  return `<div class="num-pair">
-    <span class="np-i ${mainCls||''}" style="${mainStyle}">${mi}</span><span class="np-d ${mainCls||''}" style="${mainStyle}">${md}</span>
-    <span class="np-i ${subCls||''}" style="${subStyle}">${si}</span><span class="np-d ${subCls||''}" style="${subStyle}">${sd}</span>
-  </div>`;
+// 紫色主角卡（总览「总市值」/看板「当前市值」）的大数字：整数部分正常大小，小数位缩成上标小字。两页共用这一个，别各写一份
+function bigAmtHtml(text){
+  const i=text.lastIndexOf('.');
+  return i>0 ? text.slice(0,i)+'<sup>'+text.slice(i)+'</sup>' : text;
 }
 function _xirrResultHtml(r,cf){
   return `<div class="xr-hero-val ${r!=null&&r>=0?'pos':'neg'}">${r!=null?(r>=0?'+':'')+(r*100).toFixed(2)+'%':'N/A'}</div>
@@ -3057,7 +3110,7 @@ const OvDist = (()=>{
   }
   return {set};
 })();  // chartL3 已删：声明后从未被 new Chart 赋值过，是历史遗留
-let chartScatter,chartBenchmark;
+let chartBenchmark;
 let chartBoardMarket,chartBoardCcy;
 
 /* 结构分布"大类"tab的条形图渲染——原来这里操作的是chartBoardType(甜甜圈)，7-8个大类甜甜圈色块太多不好分辨，
@@ -3773,12 +3826,14 @@ function _groupCashflows(level, groupName){
 // 合并、按时间排序，加上今日市值收口。
 // 注：共管持仓的"转让"不再生成任何 CASHFLOWS 记录（详见 _syncSharedProductRows），
 // 所以这里天然就是"钱没有被转让影响过"的真实口径，不需要额外处理。
-function buildGroupXirrFlows(level, groupName){
+// ccy 不传 = 人民币口径（每笔按流水保存的汇率折算）；传外币代码（外币组合看板）= 外币口径：同币种的流水用原币金额，期末用当前市值折回该外币
+function buildGroupXirrFlows(level, groupName, ccy){
   const costs=_groupCashflows(level,groupName).filter(c=>c.type==='成本资金'||c.type==='分红');
   if(!costs.length)return null;
-  const marketVal=_groupMarketVal2(level,groupName);
+  const fx = ccy ? (FX[ccy]||1) : 1;
+  const marketVal=_groupMarketVal2(level,groupName)/fx;
   if(!marketVal)return null;
-  const cf=costs.map(c=>({date:c.date,amount:costCNY(c)}));
+  const cf=costs.map(c=>({date:c.date,amount:(ccy && c.ccy===ccy) ? c.amount : costCNY(c)/fx}));
   cf.push({date:today(),amount:marketVal});
   cf.sort((a,b)=>a.date.localeCompare(b.date));
   return cf;
@@ -4864,8 +4919,7 @@ function renderOverview(){
     globalR=xirr(cf);
   }
   // 总市值大数字：小数位用上标小字（设计规范：hero / KPI 大数字的小数位与单位上标）
-  const _tot=fmtCNY(total), _dot=_tot.lastIndexOf('.');
-  const totHtml=_dot>0?_tot.slice(0,_dot)+'<sup>'+_tot.slice(_dot)+'</sup>':_tot;
+  const totHtml=bigAmtHtml(fmtCNY(total));
   // 进度条：本金占总市值的比例（亏损时市值 < 本金，整条都是本金）；其余是浮动盈亏
   const principalShare=total>0?Math.min(Math.max(netCost,0),total)/total*100:0;
   document.getElementById('kpi-grid').innerHTML=heroInfoHTML({
@@ -5080,7 +5134,8 @@ function _renderHMerge(total){
   });
   const types = sortBy([...tMap.values()].map(g=>({...g, val:sum(g.items)})));
   const pr = (v,t)=> t>0 ? (v/t*100).toFixed(2)+'%' : '—';
-  const list = (arr, unit)=>{ const u=[...new Set(arr.filter(Boolean))]; return u.length===0 ? '—' : u.length<=2 ? u.map(_esc).join('、') : `${u.length} 个${unit}`; };
+  // 一级 / 平台两列统一写「N 个组合 / N 个平台」（1 个也写计数），具体名字悬浮查看——不再有时是计数、有时是名字
+  const list = (arr, unit)=>{ const u=[...new Set(arr.filter(Boolean))]; return u.length===0 ? '—' : `<span class="hover-tip" data-tip="${_escAttr(u.join('、'))}">${u.length} 个${unit}</span>`; };
   const tail = items => `<td class="cell-sm">${list(items.map(p=>p.l1),'组合')}</td><td class="cell-sub">${list(items.map(p=>p.platform),'平台')}</td>`;
   const nums = (v, cls) => `<td class="num ${cls}">${fmtCNY(v)}</td><td class="num ${cls}">${pr(v,scopeTotal)}</td><td class="num ${cls}">${pr(v,total)}</td>`;
   const numsP = v => `<td class="num cell-strong">${fmtCNY(v)}</td><td class="num">${pr(v,scopeTotal)}</td><td class="num">${pr(v,total)}</td>`;
@@ -5477,7 +5532,6 @@ function _renderCFTable(){
 let _xirrRankLevel = 1; // 各组合 XIRR 排行榜当前看的层级(1-5)，跟看板页的层级选择互相独立
 function setXirrRankLevel(lv){
   _xirrRankLevel = lv;
-  document.querySelectorAll('#xirr-rank-tabs .dtab').forEach((el,i)=>el.classList.toggle('active', i+1===lv));
   renderXirr();
 }
 function jumpToBoardGroup(lv, groupName){
@@ -5492,6 +5546,7 @@ function renderXirr(){
   const yd=_globalYearlyStats().filter(d=>d.rate!==null);
   const lv=_xirrRankLevel;
   const lvLabel=['','一','二','三','四','五'][lv];
+  document.querySelectorAll('#xirr-rank-tabs .seg-btn').forEach((el,i)=>el.classList.toggle('active', i+1===lv));
   const titleEl=document.getElementById('xirr-by-p-title');
   if(titleEl) titleEl.textContent=`各${lvLabel}级组合 XIRR`;
   const groups = lv===1 ? getAllL1() : [...new Set(HIERARCHY.map(h=>h['l'+lv]).filter(Boolean))];
@@ -5500,10 +5555,13 @@ function renderXirr(){
   document.getElementById('xirr-by-p').innerHTML=l1xirrData.map(d=>{
     return xirrBarRowHTML(_esc(d.name), d.r*100, mxP, {labelWidth:90, title:d.name, onclick:`jumpToBoardGroup(${lv},'${_escAttrJs(d.name)}')`});
   }).join('')||'<div class="empty">流水数据不足</div>';
-  const mxY=Math.max(...yd.map(d=>Math.abs(d.rate*100)),gr?Math.abs(gr*100):0,5);
+  const mxY=Math.max(...yd.map(d=>Math.abs(d.rate*100)),5);
   const ydSorted=yd.slice().sort((a,b)=>_yearlyStatsAsc?(a.year-b.year):(b.year-a.year));
-  const ydWithGlobal=[...(gr!=null?[{year:'全程',rate:gr}]:[]),...ydSorted];
-  document.getElementById('xirr-by-y').innerHTML=ydWithGlobal.map(d=>xirrBarRowHTML(d.year, d.rate*100, mxY, {labelWidth:44})).join('')||'<div class="empty">年度快照不足</div>';
+  // 「全程」是 XIRR（现金流口径），逐年是年度收益率（快照口径），口径不同：全程单独做顶部大数字，不和年度条形放同一组
+  document.getElementById('xirr-global').innerHTML = gr!=null
+    ? `<div class="an-global"><span class="an-global-lbl">全程 XIRR</span><span class="an-global-val ${gr>=0?'pos':'neg'}">${gr>=0?'+':''}${(gr*100).toFixed(2)}%</span><span class="an-global-sub">按全部现金流年化</span></div>`
+    : '';
+  document.getElementById('xirr-by-y').innerHTML=ydSorted.map(d=>xirrBarRowHTML(d.year, d.rate*100, mxY, {labelWidth:44})).join('')||'<div class="empty">年度快照不足</div>';
   renderScatter();
 }
 
@@ -7829,7 +7887,7 @@ const _xfPct = v => v!=null ? (v>=0?'+':'')+(v*100).toFixed(2)+'%' : 'N/A';
 // 看板 KPI 卡里展开的 XIRR 面板内部：全程 / 转让后 / 实操 三个视图
 function _bdXirrPanelHtml(x){
   const {lv, cfs, groupTransfersDisplay, actualFlowsDisplay, soleCcy, grpTotal, grpTotalF, groupName,
-         hasTransferOut, hasActual, xirrWouldBe, xirrR, xirrActual, nonCashVal, nonCashValF} = x;
+         hasTransferOut, hasActual, xirrWouldBe, xirrWouldBeCny, xirrR, xirrActual, nonCashVal, nonCashValF} = x;
   const isSole = soleCcy && soleCcy!=='MIXED';
   // 多币种混合时（二级及以上常见），XIRR 本身是按人民币算的，明细里的每一笔也统一折成人民币显示，原币种金额放进 ⓘ；
   // 单一外币/纯人民币时保持原币显示。只改展示，不影响 XIRR 计算
@@ -7878,12 +7936,12 @@ function _bdXirrPanelHtml(x){
     <div id="bd-xirr-view-with"${hasTransferOut?' style="display:none"':''}>
       ${(flowRows+transferRows)||'<div class="empty-line">暂无成本资金记录</div>'}
       ${afterTermHtml}
-      ${_xfResultHtml((hasTransferOut?'转让后':'全程')+' XIRR', withV!=null&&withV>=0?'pos':'neg', _xfPct(withV))}
+      ${_xfResultHtml((hasTransferOut?'转让后':'全程')+' XIRR', withV!=null&&withV>=0?'pos':'neg', _xfPct(withV)+(!hasTransferOut&&isSole?`<span class="xf-ccy-ref">CNY ${_xfPct(xirrWouldBeCny)}</span>`:''))}
     </div>
     <div id="bd-xirr-view-without"${hasTransferOut?'':' style="display:none"'}>
       ${flowRows||'<div class="empty-line">暂无成本资金记录</div>'}
       ${fullTermHtml}
-      ${_xfResultHtml('全程 XIRR', xirrWouldBe!=null&&xirrWouldBe>=0?'pos':'neg', _xfPct(xirrWouldBe))}
+      ${_xfResultHtml('全程 XIRR', xirrWouldBe!=null&&xirrWouldBe>=0?'pos':'neg', _xfPct(xirrWouldBe)+(isSole?`<span class="xf-ccy-ref">CNY ${_xfPct(xirrWouldBeCny)}</span>`:''))}
     </div>
     ${hasActual?`<div id="bd-xirr-view-actual" style="display:none">
       ${actualRows||'<div class="empty-line">暂无实操流水记录</div>'}
@@ -7939,31 +7997,32 @@ function heroInfoHTML({label, count, pill='', big, aside='', barPct, barL, barR,
 
 // KPI 主角卡：当前市值/本金/盈亏/持仓起始 + 可展开的全程 XIRR 面板
 function _bdKpiCardHtml(x){
-  const {costDates, gain, gainF, gainFPct, gainPct, grpPct, grpTotal, grpTotalF, hasActual, hasTransferOut, heldDays, heldYears, netCost, netCostF, prods, soleCcy, startDate, xirrActual, xirrR, xirrWouldBe, groupName, lv} = x;
+  const {costDates, gain, gainF, gainFPct, gainPct, grpPct, grpTotal, grpTotalF, hasActual, hasTransferOut, heldDays, heldYears, netCost, netCostF, prods, soleCcy, startDate, xirrActual, xirrR, xirrWouldBe, xirrWouldBeCny, groupName, lv} = x;
+  // 外币组合（币种唯一）：大数字、本金、盈亏、盈亏比例都以外币为主（操作就是外币），人民币折算退到同一行的小字；位置不随币种变
+  const D = soleCcy && soleCcy!=='MIXED' ? soleCcy : null;
+  const bigTxt = D ? fmtForeign(grpTotal/(FX[D]||1), D) : fmtCNY(grpTotal);
+  const sg = v => (v>=0?'+':'');
   return `
       <!-- 看板「当前市值」主角卡：左半部分与总览「总市值」共用 heroInfoHTML 模板（版式一致），这里只传数据；全程 XIRR 在右格，点击展开下方面板 -->
       <div class="kpi-card-v card-hero bento-area-bhero hero-split">
         <div class="hero-info bkpi-info">
           ${heroInfoHTML({
             label:'当前市值', count:[...new Set(prods.map(p=>p.name))].length,
-            pill:`<span class="badge-pill hover-tip" data-tip="占总比">占总比 ${grpPct.toFixed(2)}%</span>`,
-            big: soleCcy&&soleCcy!=='MIXED'
-              ? alignedNumPair(fmtCNY(grpTotal),'kpi-v-val kpi-v-big','', fmtForeign(grpTotalF,soleCcy),'kpi-v-sub kpi-v-big kpi-v-big-sub','')
-              : `<div class="kpi-v-val kpi-v-big kpi-v-big-solo">${fmtCNY(grpTotal)}</div>`,
+            // 外币组合：外币总额放标题行小字，大数字永远只有人民币一行——任何组合切换，进度条/统计行/权益债券环的位置都不动
+            pill:(D?`<span class="hero-ccy-chip">≈ ${fmtCNY(grpTotal)}</span>`:'')+`<span class="badge-pill hover-tip" data-tip="占总比">占总比 ${grpPct.toFixed(2)}%</span>`,
+            big: `<div class="kpi-v-val kpi-v-big kpi-v-big-solo">${bigAmtHtml(bigTxt)}</div>`,
             aside:`<div class="hero-aside"><span class="kpi-v-label">持仓起始</span><span class="hero-aside-v">${startDate||'—'}${heldDays!==null?infoIcon(`已持有 ${heldDays} 天 / ${heldYears} 年`):''}</span></div>`,
             barPct: grpTotal>0 ? Math.min(Math.max(netCost,0),grpTotal)/grpTotal*100 : 0,
-            barL:`本金 ${fmtCNY(netCost)}${soleCcy&&soleCcy!=='MIXED'?` · ${fmtForeign(netCostF,soleCcy)}`:''}`,
-            barR:`浮动盈亏 ${gain>=0?'+':''}${fmtCNY(gain)}${soleCcy&&soleCcy!=='MIXED'?` · ${gainF>=0?'+':''}${fmtForeign(gainF,soleCcy)}`:''}`,
+            barL:D ? `本金 ${fmtForeign(netCostF,D)} · ${fmtCNY(netCost)}` : `本金 ${fmtCNY(netCost)}`,
+            barR:D ? `浮动盈亏 ${sg(gainF)}${fmtForeign(gainF,D)} · ${sg(gain)}${fmtCNY(gain)}` : `浮动盈亏 ${sg(gain)}${fmtCNY(gain)}`,
             stats:`
               <div>
                 <div class="kpi-v-label">盈亏比例</div>
-                ${soleCcy&&soleCcy!=='MIXED'
-                  ? alignedNumPair((gain>=0?'+':'')+gainPct.toFixed(2)+'%', 'kpi-v-num', '', (gainF>=0?'+':'')+gainFPct.toFixed(2)+'%', 'kpi-v-num kpi-v-num-2', '')
-                  : `<div class="kpi-v-sub kpi-v-num">${gain>=0?'+':''}${gainPct.toFixed(2)}%</div>`}
+                <div class="kpi-v-sub kpi-v-num">${D?`${sg(gainF)}${gainFPct.toFixed(2)}%<span class="kpi-num-ccy">CNY ${sg(gain)}${gainPct.toFixed(2)}%</span>`:`${sg(gain)}${gainPct.toFixed(2)}%`}</div>
               </div>
               <div class="bkpi-xirr" onclick="XirrPop.hero(this)">
                 <div class="kpi-v-label">全程 XIRR <span class="bd-xirr-arrow">▾</span></div>
-                <div class="kpi-v-sub kpi-v-num">${xirrWouldBe!=null?(xirrWouldBe>=0?'+':'')+(xirrWouldBe*100).toFixed(2)+'%':'N/A'}</div>
+                <div class="kpi-v-sub kpi-v-num">${xirrWouldBe!=null?(xirrWouldBe>=0?'+':'')+(xirrWouldBe*100).toFixed(2)+'%':'N/A'}${D&&xirrWouldBeCny!=null?`<span class="kpi-num-ccy">CNY ${(xirrWouldBeCny>=0?'+':'')+(xirrWouldBeCny*100).toFixed(2)}%</span>`:''}</div>
                 <div class="kpi-v-sub bkpi-xirr-sub">${xirrWouldBe!=null?`${costDates.length} 笔流水 · ${heldYears} 年`:'流水数据不足'}${hasTransferOut&&xirrR!=null?` · 转让后 <b>${xirrR>=0?'+':''}${(xirrR*100).toFixed(2)}%</b>`:''}${hasActual?` · 实操 <b>${xirrActual>=0?'+':''}${(xirrActual*100).toFixed(2)}%</b>`:''}</div>
               </div>`,
             mid:`
@@ -8130,13 +8189,14 @@ function _bdRecentCfCardHtml(x){
           ? recentCF.map(c=>{
               const isCost=c.type==='成本资金';
               const cny=costCNY(c);
+              const fgn=c.ccy&&c.ccy!=='CNY';   // 外币流水：原币金额为主（实际操作的币种），人民币折算退到小字
               return`<div class="cf-mini-row">
                 <span class="cf-mini-date${showGrp?'':' grow'}">${c.date}</span>
                 ${showGrp
                   ? `<span class="cf-mini-grp" title="${_escAttr(c.l1||c.product)}">${_esc(c.l1||c.product)}</span>`
                   : ''}
                 <span class="pill ${c.type==='年度快照'?'pill-accent':cfDirCls(c)==='pos'?'pill-up':'pill-down'}">${c.type}</span>
-                <span class="cf-mini-amt ${isCost?cfDirCls(c):''}">${cny>0?'+':''}${fmtCNY(cny)}</span>
+                <span class="cf-mini-amt ${isCost?cfDirCls(c):''}">${fgn?`${c.amount>0?'+':''}${fmtForeign(c.amount,c.ccy)}<span class="cf-mini-ref">${cny>0?'+':''}${fmtCNY(cny)}</span>`:`${cny>0?'+':''}${fmtCNY(cny)}`}</span>
               </div>`;
             }).join('')
           : '<div class="empty empty-compact">暂无流水记录</div>'}</div>
@@ -8278,7 +8338,9 @@ function _renderGroupBoard(lv, groupName){
     gainFPct = netCostF>0 ? gainF/netCostF*100 : 0;
   }
   const flows   = buildGroupXirrFlows(lv, groupName);
-  const xirrWouldBe = flows ? xirr(flows) : null; // 变量名沿用，现在就是真实/全程口径（转让不再影响 CASHFLOWS，这就是真值）
+  const xirrWouldBeCny = flows ? xirr(flows) : null; // 变量名沿用，现在就是真实/全程口径（转让不再影响 CASHFLOWS，这就是真值）
+  // 外币组合：全程 XIRR 以外币口径为主（和本金/盈亏一致），人民币口径退到小字做参考；其他组合 = 人民币口径
+  const xirrWouldBe = (soleCcy && soleCcy!=='MIXED') ? (()=>{const f=buildGroupXirrFlows(lv, groupName, soleCcy); return f?xirr(f):null;})() : xirrWouldBeCny;
   const hasTransferOut = _groupHasTransferOut(lv, groupName);
   // "转让后"参考口径——纯粹的假设性对照数字，只在存在转让时才有意义
   const afterFlows = hasTransferOut ? buildGroupXirrFlowsAfterTransfer(lv, groupName) : null;
@@ -8379,7 +8441,7 @@ function _renderGroupBoard(lv, groupName){
   const x = {
     lv, groupName, esc, lvLabel, prods, members, cfs,
     grpTotal, grpPct, soleCcy, grpTotalF, netCost, netCostF, gain, gainF, gainPct, gainFPct,
-    xirrWouldBe, xirrR, xirrActual, hasTransferOut, hasActual,
+    xirrWouldBe, xirrWouldBeCny, xirrR, xirrActual, hasTransferOut, hasActual,
     actualFlowsDisplay, groupTransfersDisplay, nonCashVal, nonCashValF,
     costDates, startDate, heldDays, heldYears,
     targetChartHtml, yearlyStats, recentCF,
@@ -8435,9 +8497,10 @@ const _bdTypeKey = (lv, groupName, type)=>lv+'|'+groupName+'|'+type;
 // 偏差配色：|偏差|<1% 灰；超配(>0)红；低配(<0)绿
 function _devCls(dev){ return Math.abs(dev)<1 ? 'dev-ok' : dev>0 ? 'dev-pos' : 'dev-neg'; }
 // 再平衡建议：>0 买入(绿) / <0 卖出(红)；没到阈值只显示灰色提示，不抢眼
-function _rebalHtml(rebalAmt, grpTotal){
+function _rebalHtml(rebalAmt, grpTotal, dispCcy){
   if(rebalAmt==null) return '<span class="t-muted">—</span>';
-  const txt = (rebalAmt>0?'买入 ':'卖出 ')+fmtCNY(Math.abs(rebalAmt));
+  // 金额口径：外币组合按外币显示（下单就是外币）；阈值比较仍按人民币口径(rebalAmt/阈值都是人民币)
+  const txt = (rebalAmt>0?'买入 ':'卖出 ')+(dispCcy ? fmtForeign(Math.abs(rebalAmt)/(FX[dispCcy]||1), dispCcy) : fmtCNY(Math.abs(rebalAmt)));
   if(Math.abs(rebalAmt)<_rebalThreshAmt(grpTotal)) return `<span class="cell-sub">${txt}</span>`;
   return `<span class="cell-strong ${rebalAmt>0?'dev-neg':'dev-pos'}">${txt}</span>`;
 }
@@ -8447,6 +8510,10 @@ function _buildProdTable(prods, grpTotal, lv, groupName){
 
   // 二级及以上且组合内币种不止一种：整张表的市值/小计统一显示人民币（见 _soleForeignCcy）
   const grpCny = lv>=2 && _soleForeignCcy(prods, lv)==='MIXED';
+  // 外币组合（组合内外币币种唯一）：表里所有金额（市值/目标金额/再平衡建议/小计）统一用这个外币，人民币不再出现；
+  // 二级及以上多币种混合的组合仍统一人民币。比例类列（目标/当前/偏差）与币种无关。
+  const dispCcy = (()=>{ const c=_soleForeignCcy(prods, lv); return c && c!=='MIXED' ? c : null; })();
+  const money = v => dispCcy ? fmtForeign(v/(FX[dispCcy]||1), dispCcy) : fmtCNY(v);
   // L2+: deduplicate by name, sum CNY values, keep first occurrence's metadata
   let displayProds = prods;
   if(lv > 1){
@@ -8499,11 +8566,11 @@ function _buildProdTable(prods, grpTotal, lv, groupName){
       onclick="bdToggleType('${typeId}','${ek}',event)">
       <td class="sticky-l"><div class="cat-name"><span class="cat-grip">⠿</span><span class="cat-title">${_esc(type)}</span><span class="cat-count">${groupProds.length}</span></div></td>
       <td class="num">${hasTarget?targetSum.toFixed(2)+'%':'—'}</td>
-      <td class="num">${hasTarget?fmtCNY(targetAmtSum):'—'}</td>
-      <td class="num cat-val">${fmtCNY(valSum)}${typeFgnExtra}</td>
+      <td class="num">${hasTarget?money(targetAmtSum):'—'}</td>
+      <td class="num cat-val">${money(valSum)}${dispCcy?'':typeFgnExtra}</td>
       <td class="num cat-val">${actualSum.toFixed(2)}%</td>
       <td class="num">${devSum!=null?`<span class="cell-strong ${_devCls(devSum)}">${devSum>=0?'+':''}${devSum.toFixed(2)}%</span>`:'<span class="t-muted">—</span>'}</td>
-      <td class="num">${_rebalHtml(rebalSum, grpTotal)}</td>
+      <td class="num">${_rebalHtml(rebalSum, grpTotal, dispCcy)}</td>
     </tr>`;
 
     groupProds.forEach(p=>{
@@ -8519,11 +8586,11 @@ function _buildProdTable(prods, grpTotal, lv, groupName){
       html += `<tr data-type-group="${typeId}"${isOpen?'':' style="display:none"'}>
         <td class="sticky-l cell-child"><span class="row-grip">└</span><span class="cell-strong">${_esc(p.name)}</span>${p.enhance?'<span class="pill pill-accent pill-inline">增强</span>':''}</td>
         <td class="num t-secondary">${target!=null?parseFloat(target).toFixed(2)+'%':'—'}</td>
-        <td class="num t-secondary">${target!=null?fmtCNY(targetAmt):'—'}</td>
-        <td class="num cell-strong">${(p.ccy==='CNY'||grpCny)?fmtCNY(val):fmtForeign(nativeAmt,p.ccy)}</td>
+        <td class="num t-secondary">${target!=null?money(targetAmt):'—'}</td>
+        <td class="num cell-strong">${dispCcy?money(val):((p.ccy==='CNY'||grpCny)?fmtCNY(val):fmtForeign(nativeAmt,p.ccy))}</td>
         <td class="num">${actual.toFixed(2)}%</td>
         <td class="num">${dev!=null?`<span class="cell-strong ${_devCls(dev)}">${dev>=0?'+':''}${dev.toFixed(2)}%</span>`:'<span class="t-muted">—</span>'}</td>
-        <td class="num">${_rebalHtml(rebalAmt, grpTotal)}</td>
+        <td class="num">${_rebalHtml(rebalAmt, grpTotal, dispCcy)}</td>
       </tr>`;
     });
   });
@@ -8632,6 +8699,8 @@ function statBoxHTML({val, valColor, lbl, tag, note, noteTruncate}){
       </div>
     </div>`;
 }
+let _concCatSort = 'default';   // 大类分布排序：default=大类固定顺序 / desc=占比从高到低
+function setConcCatSort(m){ _concCatSort=m; renderConcentration(); }
 function renderConcentration(){
   const total=totalCNY();
   if(!total||!PRODUCTS.length){
@@ -8639,6 +8708,7 @@ function renderConcentration(){
     return;
   }
   const merged=_mergedProductExposure();
+  const noteOpen=!!document.querySelector('#apanel-conc .conc-note[open]');   // 重画前记住「指标说明」是否展开
   document.getElementById('apanel-conc').innerHTML = `
     <div id="conc-stats" class="conc-stats"></div>
     <div class="conc-split">
@@ -8648,25 +8718,30 @@ function renderConcentration(){
       </div>
       <div class="card">
         <div class="card-title card-title-solo card-title-split">
-          <span>大类分布</span>
-          <span id="conc-cat-hhi-tag" class="hhi-tag"></span>
+          <span>大类分布<span id="conc-cat-hhi-tag" class="hhi-tag hd-summary"></span></span>
+          <div class="seg-tabs seg-sm">
+            <button class="seg-btn${_concCatSort==='default'?' active':''}" onclick="setConcCatSort('default')">默认顺序</button>
+            <button class="seg-btn${_concCatSort==='desc'?' active':''}" onclick="setConcCatSort('desc')">占比降序</button>
+          </div>
         </div>
         <div class="bar-list" id="conc-cat-bars"></div>
       </div>
     </div>
-    <div class="conc-note">
-      <div class="conc-note-hd">指标说明</div>
+    <details class="conc-note"${noteOpen?' open':''}>
+      <summary class="conc-note-hd">指标说明</summary>
       <div><b>HHI × 100</b>：赫芬达尔指数，把每一份占比的平方加总再乘以100，数值越高越集中——大于25视为高度集中，15~25为中度集中，小于15视为较分散。</div>
       <div><b>CR5 / CR10</b>：市值最大的5个/10个品种合计占总市值的比例，直接反映"头部仓位"占了多少。</div>
       <div><b>为什么大类的HHI通常比品种的HHI高</b>：把多个品种合并成一个大类，集中度只会升高、不会降低——这是数学上的必然（两份仓位各占a%、b%，合并后一份的贡献是(a+b)²，一定 ≥ 合并前两份的贡献 a²+b²）。所以"大类读数偏高"是正常现象，不代表风险变了，只是换了个统计粒度去看同一份持仓。</div>
-    </div>
+    </details>
   `;
   const cr5=merged.slice(0,5).reduce((s,[,v])=>s+v,0)/total*100;
   const cr10=merged.slice(0,10).reduce((s,[,v])=>s+v,0)/total*100;
   const hhiProd=calcHHI(merged.map(([,v])=>v));
   const l3m={};PRODUCTS.forEach(p=>{const k=p.l3||'未分配';if(!l3m[k])l3m[k]=0;l3m[k]+=toCNY(p.amount,p.ccy)});
   const catm={};PRODUCTS.forEach(p=>{const k=p.cat||getCatOf(p.type)||'其他';if(!catm[k])catm[k]=0;catm[k]+=toCNY(p.amount,p.ccy)});
-  const catEntries=Object.entries(catm).sort((a,b)=>catSortIndex(a[0])-catSortIndex(b[0])||a[0].localeCompare(b[0]));
+  const catEntries=Object.entries(catm).sort(_concCatSort==='desc'
+    ? (a,b)=>b[1]-a[1]
+    : (a,b)=>catSortIndex(a[0])-catSortIndex(b[0])||a[0].localeCompare(b[0]));
 
   const hl=hhiLabel(hhiProd);
   document.getElementById('conc-stats').innerHTML=
@@ -8679,8 +8754,8 @@ function renderConcentration(){
   const top15Max=Math.max(...top15.map(([,v])=>total>0?v/total*100:0), 10);
   document.getElementById('conc-prod-bars').innerHTML = top15.map(([name,v],i)=>{
     const pct = total>0 ? v/total*100 : 0;
-    const color = PALETTE[i%PN];
-    return barRowHtml({label:name, dot:color, color, fill:pct/top15Max*100, valueHtml:pct.toFixed(2)+'%'});
+    // Top15 是单品种排名，颜色没有分类含义：统一紫色（强调色），不再按名次循环上色
+    return barRowHtml({label:_esc(name), title:name, color:'var(--accent)', fill:pct/top15Max*100, valueHtml:pct.toFixed(2)+'%'});
   }).join('');
 
   // 大类分布 —— 大类通常有10个左右，甜甜圈色块太多不好分辨，改用跟看板"结构分布"同一个 renderBoardCatBars()，不重复造轮子
@@ -8694,68 +8769,64 @@ function renderConcentration(){
 }
 
 // ── 收益-权重散点 ──
+// 矩形热力图（原气泡图）：面积=当前市值，颜色=全程 XIRR（涨绿跌红，越极端越深），点击跳转看板。
+// 18 个点大多挤在 0% 附近，气泡会重叠；矩形互不重叠、名字直接写在格子里。
+function _squarify(items,x,y,w,h){
+  const out=[]; let rest=items.slice(); const sc=(w*h)/rest.reduce((t,d)=>t+d.mv,0);
+  while(rest.length){
+    const short=Math.min(w,h); let row=[], best=Infinity;
+    for(let i=1;i<=rest.length;i++){
+      const r=rest.slice(0,i), sum=r.reduce((t,d)=>t+d.mv*sc,0), th=sum/short;
+      const worst=Math.max(...r.map(d=>{const l=d.mv*sc/th; return Math.max(l/th,th/l);}));
+      if(worst<=best){best=worst; row=r;} else break;
+    }
+    const sum=row.reduce((t,d)=>t+d.mv*sc,0), th=sum/short; let o=0;
+    row.forEach(d=>{const l=d.mv*sc/th; out.push(w>=h?{d,x,y:y+o,w:th,h:l}:{d,x:x+o,y,w:l,h:th}); o+=l;});
+    if(w>=h){x+=th; w-=th;} else {y+=th; h-=th;}
+    rest=rest.slice(row.length);
+  }
+  return out;
+}
 function renderScatter(){
   const total=totalCNY();
-  // 层级跟上方"各X级组合 XIRR"共用同一个 _xirrRankLevel 状态，切一次两张卡一起联动，
-  // 不再单独铺一套1-5级tab（同一面板里两组tab会是重复交互，参见与用户的讨论）。
+  // 层级跟上方"各X级组合 XIRR"共用同一个 _xirrRankLevel 状态，切一次两张卡一起联动
   const lv=_xirrRankLevel;
   const lvLabel=['','一','二','三','四','五'][lv];
   const groups = lv===1 ? getAllL1() : [...new Set(HIERARCHY.map(h=>h['l'+lv]).filter(Boolean))];
   const wrapEl=document.getElementById('xirr-scatter-wrap');
   if(!wrapEl) return;
-  if(!total||!groups.length){
-    wrapEl.innerHTML='';
-    return;
-  }
+  if(!total||!groups.length){ wrapEl.innerHTML=''; return; }
+  const items=[];
+  groups.forEach(g=>{
+    const fl=buildGroupXirrFlows(lv,g); const r=fl?xirr(fl):null; if(r===null) return;
+    const mv=groupMarketVal(g,lv); if(!(mv>0)) return;
+    items.push({name:g,mv,w:mv/total*100,x:r*100});
+  });
+  items.sort((a,b)=>b.mv-a.mv);
   wrapEl.innerHTML = `
     <div class="card">
-      <div class="card-title card-title-solo">收益-权重分布 · ${lvLabel}级</div>
-      <div class="scatter-wrap"><canvas id="c-scatter"></canvas></div>
-    </div>
-  `;
-  // Build dataset: groups at current level with both weight & XIRR
-  const dots=[];
-  groups.forEach((g,i)=>{
-    const fl=buildGroupXirrFlows(lv,g);
-    const r=fl?xirr(fl):null;
-    if(r===null)return;
-    const weight=groupMarketVal(g,lv)/total*100;
-    dots.push({name:g,x:parseFloat(weight.toFixed(2)),y:parseFloat((r*100).toFixed(2)),r:Math.max(Math.sqrt(weight)*6,5),color:PALETTE[i%PN]});
-  });
-
-  if(chartScatter){chartScatter.destroy();chartScatter=null;}
-  const scatterEl=document.getElementById('c-scatter');
-  if(!scatterEl)return;
-  if(!dots.length){
-    scatterEl.parentElement.innerHTML='<div class="empty">流水数据不足（需有成本资金+年度快照才能计算 XIRR）</div>';
-  } else {
-    chartScatter=new Chart(scatterEl,{
-      type:'bubble',
-      data:{datasets:[{
-        label:lvLabel+'级组合',
-        data:dots.map(d=>({x:d.x,y:d.y,r:d.r,name:d.name})),
-        backgroundColor:dots.map(d=>d.color+'bb'),
-        borderColor:dots.map(d=>d.color),
-        borderWidth:1.5
-      }]},
-      options:{
-        responsive:true,maintainAspectRatio:false,
-        plugins:{
-          legend:{display:false},
-          tooltip:{callbacks:{
-            label:c=>{const d=c.raw;return[` ${d.name}`,` 权重: ${d.x.toFixed(2)}%  XIRR: ${d.y>=0?'+':''}${d.y.toFixed(2)}%`];}
-          }}
-        },
-        scales:{
-          x:{title:{display:true,text:'当前权重 %',font:{size:CHART_FS}},ticks:{callback:v=>v+'%',font:{size:CHART_FS}},grid:{color:'rgba(0,0,0,.04)'}},
-          y:{title:{display:true,text:'全程 XIRR %',font:{size:CHART_FS}},ticks:{callback:v=>(v>=0?'+':'')+v+'%',font:{size:CHART_FS}},grid:{color:'rgba(0,0,0,.04)'}}
-        }
-      }
-    });
-    // Draw L1 name labels below bubbles
-  }
-
-  // Rank table removed (now in XIRR tab)
+      <div class="card-header"><div class="card-title">收益-权重分布</div><div class="text-hint">${lvLabel}级 · 面积＝当前市值 · 颜色＝全程 XIRR · 点击跳转看板</div></div>
+      ${items.length?`<div class="tm-wrap" id="tm-wrap"></div>
+      <div class="tm-legend"><span>-15%</span><i></i><span>0</span><i class="is-up"></i><span>+15%</span></div>`
+        :'<div class="empty">流水数据不足（需有成本资金+年度快照才能计算 XIRR）</div>'}
+    </div>`;
+  const wrap=document.getElementById('tm-wrap'); if(!wrap) return;
+  const cs=getComputedStyle(document.documentElement);
+  const rgb=v=>{const h=cs.getPropertyValue(v).trim().replace('#',''); return [0,2,4].map(i=>parseInt(h.substr(i,2),16)).join(',');};
+  const GREEN=rgb('--green'), RED=rgb('--red');
+  const draw=()=>{
+    const W=wrap.clientWidth, H=wrap.clientHeight; if(!W||!H) return;
+    wrap.innerHTML=_squarify(items,0,0,W,H).map(({d,x,y,w,h})=>{
+      const k=Math.min(Math.abs(d.x)/15,1), bg=`rgba(${d.x>=0?GREEN:RED},${(.18+.62*k).toFixed(2)})`;
+      const pct=(d.x>=0?'+':'')+d.x.toFixed(2)+'%';
+      const label = w>56&&h>34 ? `<span class="tm-name">${_esc(d.name)}</span><span class="tm-val ${d.x>=0?'pos':'neg'}">${pct}</span>`
+                  : w>34&&h>18 ? `<span class="tm-name tm-sm">${_esc(d.name.slice(0,4))}</span>` : '';
+      const tip=`${d.name} · 市值 ¥${Math.round(d.mv).toLocaleString('zh-CN')}（${d.w.toFixed(2)}%）· 全程 XIRR ${pct}`;
+      return `<div class="tm-tile hover-tip" data-tip="${_escAttr(tip)}" style="left:${x+1}px;top:${y+1}px;width:${w-2}px;height:${h-2}px;background:${bg}" onclick="jumpToBoardGroup(${lv},'${_escAttrJs(d.name)}')">${label}</div>`;
+    }).join('');
+  };
+  draw();
+  new ResizeObserver(draw).observe(wrap);   // 容器随窗口变化时重新铺格子（wrap 每次重画都是新元素，旧的观察器随旧元素回收）
 }
 
 // ── 业绩比较 ──
@@ -10233,7 +10304,18 @@ function _bpAllGroups(){
   return [...g];
 }
 
+let _bpCfgOpen = false;   // 对比项配置是否展开（默认折叠成一行摘要；一个对比项都没有时自动展开）
+function toggleBPCfg(){ _bpCfgOpen=!_bpCfgOpen; _syncBPCfg(); }
+function _syncBPCfg(){
+  const empty = !BENCHMARK_PLAN.l1Slots.length && !BENCHMARK_PLAN.customTracks.length && !BENCHMARK_PLAN.blendTracks.length;
+  const open = _bpCfgOpen || empty;
+  document.getElementById('bp-cfg-card').classList.toggle('is-open', open);
+  document.getElementById('bp-cfg-toggle').textContent = open ? '收起' : '编辑';
+  document.getElementById('bp-cfg-toggle').style.display = empty ? 'none' : '';
+  document.getElementById('bp-cfg-sum').textContent = `我的组合 ${BENCHMARK_PLAN.l1Slots.length} · 自定义指数 ${BENCHMARK_PLAN.customTracks.length} · 混合基准 ${BENCHMARK_PLAN.blendTracks.length}`;
+}
 function renderBenchmark(){
+  _syncBPCfg();
   document.getElementById('bp-baseyear').value = BENCHMARK_PLAN.baseYear||(new Date().getFullYear()-1);
   document.getElementById('bp-group-options').innerHTML = _bpAllGroups().map(g=>`<option value="${g}">`).join('');
 
@@ -10404,7 +10486,7 @@ function _renderBPResults(){
   if(!items.length){
     document.getElementById('bp-leaderboard').innerHTML='';
     document.getElementById('bp-summary-table').innerHTML='';
-    document.getElementById('bp-chart-wrap').innerHTML='<div class="empty">还没有任何对比项，先在左侧「对比项配置」里添加</div>';
+    document.getElementById('bp-chart-wrap').innerHTML='<div class="empty">还没有任何对比项，先在上方「对比项配置」里添加</div>';
     if(chartBenchmark){chartBenchmark.destroy();chartBenchmark=null;}
     return;
   }
@@ -10442,18 +10524,14 @@ function _renderBPResults(){
 
   // ── 排行榜（紧凑竖列） ──
   const sorted=[...computed].sort((a,b)=>b.cumPct-a.cumPct);
-  const rankMedals=['🥇','🥈','🥉'];
-  const rankClasses=['bp-rank-gold','bp-rank-silver','bp-rank-bronze'];
   const typeLabel=t=>t==='l1'?'组合':t==='custom'?'指数':'混合';
   document.getElementById('bp-leaderboard').innerHTML =
     sorted.map((it,i)=>{
       const rank=i+1;
       const curRet=it.retByYear[curYear];
       const curFmt=curRet!=null?(curRet>=0?'+':'')+curRet.toFixed(1)+'%':'—';
-      const medal=rank<=3?rankMedals[rank-1]:rank;
-      const medalCls=rank<=3?rankClasses[rank-1]:'';
-      return `<div class="bp-rank-row ${medalCls}">
-        <div class="bp-rank-medal">${medal}</div>
+      return `<div class="bp-rank-row${rank<=3?' is-top':''}">
+        <div class="bp-rank-no">${rank}</div>
         <div class="bp-rank-main">
           <div class="bp-rank-name">${it.name}</div>
           <div class="bp-rank-sub">今年 <span class="${curRet!=null?(curRet>=0?'pos':'neg'):''}">${curFmt}</span></div>
@@ -10571,7 +10649,7 @@ function _renderBPResults(){
         // No fee: original editable input
         const display = v!=null ? v+'%' : '';
         return `<td class="num cell-edit-in">
-          <input type="text" class="bp-minput in-cell" value="${display}" placeholder="—"
+          <input type="text" class="bp-minput in-cell${v!=null?(v>=0?' pos':' neg'):''}" value="${display}" placeholder="—"
             onfocus="this.value=this.value.replace('%','');this.type='number';this.select()"
             onblur="this.type='text';const n=parseFloat(this.value);this.value=isNaN(n)?'':(n+'%')"
             onchange="const n=parseFloat(this.value.replace('%',''));onBPReturnInput('custom','${it.id}',${y},isNaN(n)?'':n)"
@@ -10584,7 +10662,6 @@ function _renderBPResults(){
       <td class="cell-bar" style="--c:${it.shadeColor}">
         ${it.name}<span class="pill bp-type-pill" style="background:${it.shadeColor}33">${typeLabel(it.refType)}</span>
       </td>
-      <td class="num cell-sub">100</td>
       <td class="num cell-sub">${it.refType==='custom'&&it.track.fee?it.track.fee+'%':''}</td>
       <td class="num cell-strong">${it.finalNav.toFixed(2)}</td>
       <td class="num cell-strong ${it.cumPct>=0?'pos':'neg'}">${it.cumPct>=0?'+':''}${it.cumPct.toFixed(2)}%</td>
@@ -10594,19 +10671,18 @@ function _renderBPResults(){
 
   document.getElementById('bp-summary-table').innerHTML=`
     <colgroup>
-<col class="bc-name"><col class="bc-sm"><col class="bc-sm"><col class="bc-nav"><col class="bc-cum">
+<col class="bc-name"><col class="bc-sm"><col class="bc-nav"><col class="bc-cum">
 ${yearsDesc.map(()=>'<col class="bc-yr">').join('')}
 </colgroup>
     <thead><tr>
       <th class="no-sort">名称</th>
-      <th class="no-sort num th-muted">基准</th>
       <th class="no-sort num th-muted">费率</th>
       <th class="no-sort num">累计净值</th>
       <th class="no-sort num">累计收益率</th>
       ${yearsDesc.map(y=>`<th class="no-sort num">${y}${y===curYear?ytdTagHtml():''}</th>`).join('')}
     </tr></thead>
     <tbody>${rowsHtml}</tbody>`;
-document.getElementById('bp-summary-table').style.minWidth=(200+60+60+100+110+90*yearsDesc.length)+'px';
+document.getElementById('bp-summary-table').style.minWidth=(200+60+100+110+90*yearsDesc.length)+'px';
 }
 
 // ── Batch market value update ──
