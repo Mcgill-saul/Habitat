@@ -186,7 +186,7 @@
   --card-pad:20px; --card-pad-x:24px;  /* 卡片内边距：上下 --card-pad、左右 --card-pad-x（普通卡、主KPI紫卡共用）：改这两个值全站卡片内边距一起变 */
   --grad-hero:linear-gradient(140deg,#9A72DD 0%,#7A4FC4 55%,#5F3CA3 100%);  /* 焦点卡（hero）紫色渐变，白字；每页至多 1 张，只在这里写一份 */
   --page-gutter:16px;
-  --hero-h:560px; --conc-h:213px; --xirr-h:128px; --struct-h:392px; --an-h:700px;   /* 总览/看板宽屏：主卡片（紫色大卡）高度固定（--xirr-h = 看板右列两张 XIRR 卡各自的固定高度；--struct-h = 看板第三行「结构分布 | 最近现金流」的固定高度，约 8 行条形图，多了卡内滚动）；右列「全局集中度」固定 --conc-h，逐年收益率补满剩下的高度，内容多了在卡内滚动 */  /* 页面内容区四边留白（顶栏→首行卡片、卡片→窗口左右缘/底部）：只改这一个值 */
+  --hero-h:560px; --conc-h:213px; --xirr-h:128px; --struct-h:392px; --an-h:700px; --pp-tbl-h:560px; --gc-h:720px; --cf-h:560px;   /* 总览/看板宽屏：主卡片（紫色大卡）高度固定（--xirr-h = 看板右列两张 XIRR 卡各自的固定高度；--struct-h = 看板第三行「结构分布 | 最近现金流」的固定高度，约 8 行条形图，多了卡内滚动）；右列「全局集中度」固定 --conc-h，逐年收益率补满剩下的高度，内容多了在卡内滚动 */  /* 页面内容区四边留白（顶栏→首行卡片、卡片→窗口左右缘/底部）：只改这一个值 */
   --card-gap:16px;  /* 卡片与卡片之间的间距（网格 gap、上下叠放的 margin-bottom 都用它） */
   --scroll-gap:12px; /* 卡内滚动区：内容和滚动条之间的间距，见 .scroll-gutter */
   /* 字号刻度（只有这 10 档；新代码一律用 var(--fs-N)，不再写 12px 之类的字面值）
@@ -335,6 +335,7 @@
 .hero-aside{display:flex;flex-direction:column;align-items:flex-end;margin-left:auto;margin-bottom:var(--sp-3);white-space:nowrap}
 .hero-info .hero-aside .kpi-v-label{font-size:var(--fs-12);font-weight:400;color:var(--on-dark-2);justify-content:flex-end}
 .hero-aside-v{display:inline-flex;align-items:center;gap:var(--sp-1);font-size:var(--fs-14);font-weight:600;color:var(--on-dark)}
+.hero-aside-v .info-icon{top:0}   /* 这里父级是 inline-flex 已垂直居中，通用的 top:1px 下移微调不要再叠加 */
 .bkpi-xirr{cursor:pointer;user-select:none}
 .bkpi-xirr .kpi-v-label{gap:var(--sp-1)}
 .bkpi-xirr-sub{font-size:var(--fs-11);color:var(--on-dark-2);margin-top:2px}
@@ -665,8 +666,6 @@ tbody tr:hover td{background:var(--surface2)}
 .pp-main>.pp-res{flex:1;display:flex;flex-direction:column}
 .pp-main>.pp-res>.card{flex:1;display:flex;flex-direction:column;margin-bottom:0}
 .pp-groups-hd{margin-top:var(--sp-2);margin-bottom:var(--sp-1)}
-.pp-toggle-hd{cursor:pointer}
-.pp-arrow{font-size:var(--fs-11);color:var(--text3)}
 .pp-formula{font-size:var(--fs-12);line-height:1.8;color:var(--text2)}
 .pp-formula-box{margin-bottom:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--r-ctl)}
 .pp-formula-item{margin-bottom:var(--sp-2)}
@@ -682,7 +681,18 @@ tbody tr:hover td{background:var(--surface2)}
 .pp-grp-sub{grid-column:2 / 4;display:flex;align-items:center;gap:var(--sp-2);margin-top:var(--sp-2)}
 .pp-grp-sub{font-size:var(--fs-11)}
 .pp-grp-row.drag-over{outline:2px solid var(--accent);outline-offset:-2px}
-.pp-row-cur{background:rgba(68,136,204,.12)}
+.pp-row-cur{background:var(--accent-bg)}   /* 当年行：浅紫底（全站只用紫色强调） */
+/* 年度明细 | 分组明细：固定同高 --pp-tbl-h，表在卡内滚动、表头吸顶；年度明细 9 列所以占 3/5 */
+.pp-tables{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:var(--card-gap);height:var(--pp-tbl-h);margin-bottom:var(--card-gap)}
+.pp-tables>.card{display:flex;flex-direction:column;min-height:0}
+.pp-tables .table-wrap{flex:1;min-height:0;overflow:auto}
+.pp-tables thead th{position:sticky;top:0;z-index:2;background:var(--surface)}
+.pp-tables #pp-group-detail-panel{flex:1;min-height:0;display:flex;flex-direction:column}
+@media (max-width:1399px){.pp-tables{grid-template-columns:minmax(0,1fr);height:auto}.pp-tables>.card{height:var(--pp-tbl-h)}}
+.pp-formula-hd{font-size:var(--fs-15);font-weight:600;color:var(--text)}   /* 公式说明：<details> 折叠，右侧「展开 ▾/收起 ▴」复用 .conc-note-hd */
+.pp-formula-card>summary{margin-bottom:0}
+.pp-formula-card[open]>summary{margin-bottom:var(--sp-4)}
+.pp-formula-card[open]>summary::after{content:'收起 ▴'}
 .pp-row-future{color:var(--text3)}
 .pp-tr{cursor:pointer}
 .pp-cell{text-align:right;white-space:nowrap;height:40px}
@@ -804,7 +814,7 @@ input.fi.fi-auto{background:var(--bg);color:var(--text3);cursor:default}
 .kpi-grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}
 .weight-notes{margin-bottom:10px}
 .weight-note{font-size:var(--fs-11);padding:var(--sp-2) 10px;background:var(--surface2);border-radius:var(--r-ctl);margin-bottom:var(--sp-2)}
-.weight-note.is-warn{color:var(--amber,#b8860b)}
+.weight-note.is-warn{color:var(--text2)}
 .weight-note.is-err{color:var(--red)}
 .type-split{display:grid;grid-template-columns:380px 1fr;gap:var(--sp-4);align-items:start}
 .type-split>.card{margin-bottom:0}
@@ -927,10 +937,8 @@ input.fi,select.fi,textarea.fi{width:100%;padding:8px 10px;border:1px solid var(
 .pct-input-wrap input.fi{padding-right:26px}
 .pct-input-wrap input.fi::-webkit-inner-spin-button,.pct-input-wrap input.fi::-webkit-outer-spin-button{margin-left:4px}
 .pct-input-wrap .pct-suffix{position:absolute;right:10px;color:var(--text2);font-size:var(--fs-12);font-weight:600;pointer-events:none}
-/* accent-card：卡片顶部彩色强调条，全局通用——凡是需要用颜色区分类别/属性的卡片都应该用这个 class，
-   不要再各自内联 border-left/border-top 了（曾经市场规划和资金来源两处各写一套、方向还不一样）。
-   具体颜色通过内联 style="border-top-color:xxx" 指定，粗细/位置统一交给这个 class 管。 */
-.card.accent-card{border-top:3px solid var(--border2)}
+/* accent-card：卡片顶部彩色强调条，全局通用——需要用颜色区分类别/属性的卡片都用这个 class（市场规划、资金来源、自选），颜色靠 border-top-color（市场规划用 --mk）指定；形状是圆弧，不要改成直线，也不要另做描边小卡或灰线。 */
+.card.accent-card{border-top:3px solid var(--border2)}   /* 圆弧形顶部色条：靠 border-top + 卡片圆角自然形成，颜色用 border-top-color，不要改成直线 */
 /* accent-card 套在 .card 上后，.card 的 border:none 会连带吃掉这条彩色顶边——用组合选择器 .card.accent-card 把顶边单独加回来。 */
 .mkplan-card .card-title{display:flex;align-items:center;gap:7px}
 .mkplan-card .card-title .mkplan-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--mk)}
@@ -938,6 +946,7 @@ input.fi,select.fi,textarea.fi{width:100%;padding:8px 10px;border:1px solid var(
 .mkplan-name{display:flex;align-items:center;gap:7px}
 .mk-intro{margin-bottom:14px}
 .mk-base{margin-bottom:16px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-ctl)}
+.mk-base .seg-tabs{width:fit-content}
 .mk-base-lbl{font-size:var(--fs-11);color:var(--text3);margin-bottom:8px;font-weight:600}
 .mk-base-extra{margin-top:10px}
 .mk-custom{max-width:240px;margin-bottom:4px}
@@ -1047,10 +1056,7 @@ input.in-cell:disabled{opacity:.35;cursor:not-allowed;border-color:transparent;b
 .qc-res-line{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-1)}
 .qc-big{font-size:var(--fs-20);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
 .qc-back{display:flex;align-items:center;gap:var(--sp-1);white-space:nowrap}
-.qc-res-val{font-weight:700;font-size:var(--fs-14);font-variant-numeric:tabular-nums}
-.qc-add{display:flex;align-items:center;justify-content:center;gap:var(--sp-2);min-height:150px;border:1.5px dashed var(--border2);border-radius:var(--r-pill);background:transparent;color:var(--text3);font:inherit;font-size:var(--fs-12);cursor:pointer;transition:all var(--t-state)}
-.qc-add svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.qc-add:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+.qc-res-val{color:var(--text2);font-weight:700;font-size:var(--fs-14);font-variant-numeric:tabular-nums}
 /* 组合对比 GroupCompare（看板「对比」页签） */
 .pz-grid{display:grid;grid-template-columns:1fr 1px 1fr}
 .pz-col-l{padding-right:var(--sp-6)}.pz-col-r{padding-left:var(--sp-6)}
@@ -1081,9 +1087,26 @@ input.in-cell:disabled{opacity:.35;cursor:not-allowed;border-color:transparent;b
 .pz-sub-row td{padding-top:var(--sp-2);padding-bottom:var(--sp-2);font-size:var(--fs-12);color:var(--text2);background:var(--surface2)}
 .gc-dot{display:inline-block;margin-right:var(--sp-2);vertical-align:middle}
 .chip .gc-dot{margin-right:var(--sp-2)}
-.gc-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--sp-3)}
-.gc-table{max-width:960px}
-.gc-table .gc-c-num{width:120px}
+/* 对比页版面：三列并排、固定同高 --gc-h：关键指标 | 重合度（上）+ 类型差异（下）| 品种差异；差异表卡内滚动、表头吸顶；<1400 单列，每张卡各自固定 --gc-h */
+.gc-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--card-gap);height:var(--gc-h);margin-bottom:var(--card-gap)}
+.gc-grid .card{margin:0;display:flex;flex-direction:column;min-height:0}
+.gc-col{display:flex;flex-direction:column;gap:var(--card-gap);min-height:0}
+.gc-col>.card:last-child{flex:1}
+.gc-grid .table-wrap{flex:1;min-height:0;overflow:auto}
+.gc-grid thead th{position:sticky;top:0;z-index:2;background:var(--surface)}
+@media (max-width:1399px){.gc-grid{grid-template-columns:minmax(0,1fr);height:auto}.gc-grid .card{height:var(--gc-h)}.gc-col{display:contents}.gc-col>.card:first-child{height:auto}}
+.gc-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:var(--sp-2)}
+.gc-sub{display:block;font-size:var(--fs-11);font-weight:400;color:var(--text3);line-height:1.3;margin-top:1px}
+.gc-sum{font-size:var(--fs-12);color:var(--text2);margin-bottom:var(--sp-3)}
+.gc-sum b{font-weight:700;color:var(--text)}
+.gc-mx-wrap{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-3)}
+.gc-mx{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:3px}
+.gc-mx th{font-size:var(--fs-11);font-weight:600;color:var(--text2);padding:4px 2px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gc-mx th.gc-mx-row{text-align:left;width:56px}
+.gc-mx td{text-align:center;font-size:var(--fs-12);font-weight:600;padding:8px 2px;border-radius:var(--r-ctl);font-variant-numeric:tabular-nums}
+.gc-mx td.gc-mx-self{color:var(--text3);font-weight:400;background:var(--surface2)}
+.gc-table .gc-c-num{width:96px}
+.gc-table .gc-c-lbl{width:130px}
 .qc-group+.qc-group{margin-top:var(--sp-5)}
 .qc-group-head{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-3);margin-bottom:var(--sp-3);border-radius:var(--r-ctl);background:var(--bg);cursor:pointer;user-select:none}
 .qc-group-name{font-weight:700;color:var(--text2)}
@@ -1098,7 +1121,9 @@ input.in-cell:disabled{opacity:.35;cursor:not-allowed;border-color:transparent;b
 .qc-list .fi{height:28px;box-sizing:border-box;padding:4px 8px;width:100%}
 .qc-list .qc-num{text-align:right}
 .qc-list td{vertical-align:middle}
-.qc-c-num{width:120px}.qc-c-date{width:140px}.qc-c-chg{width:100px}.qc-c-el{width:150px}.qc-c-op{width:48px}
+.qc-list{max-width:1200px}   /* 列表别拉满整屏：名称列定宽，整表靠左 */
+.qc-c-name{width:220px}.qc-c-num{width:120px}.qc-c-date{width:150px}.qc-c-chg{width:100px}.qc-c-el{width:200px}.qc-c-back{width:150px}.qc-c-op{width:56px}
+.qc-list .qc-el{white-space:nowrap}
 .qc-grow td{padding:8px 10px}
 .yr-end{font-size:var(--fs-13);font-weight:700;color:var(--text);padding:6px 4px}
 .fg2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -1116,10 +1141,10 @@ input.in-cell:disabled{opacity:.35;cursor:not-allowed;border-color:transparent;b
 .tree-orgchart-h li>ul{margin-top:0;margin-left:40px}
 #hier-tree-svg,#type-tree-svg{position:absolute;top:0;left:0;pointer-events:none;overflow:visible}
 .tree-node{display:inline-block;box-sizing:border-box;border-radius:var(--r-ctl);padding:6px 8px 7px;font-size:var(--fs-11);line-height:1.4;position:relative;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
-.tree-node-root{width:120px;background:linear-gradient(160deg,#2a2a2a,#1a1a1a);color:var(--on-dark);font-weight:700;font-size:var(--fs-12);padding:9px 10px}
+.tree-node-root{width:120px;background:var(--accent-fg);color:var(--on-dark);font-weight:700;font-size:var(--fs-12);padding:9px 10px}
 .tree-node-root .tree-node-sub{color:var(--on-dark-2)}
 .tree-node-root .tree-node-pct{color:var(--on-dark-3)}
-.tree-l5-header{width:108px;background:var(--text);color:var(--on-dark);font-weight:700}
+.tree-l5-header{width:108px;background:var(--accent-fg);color:var(--on-dark);font-weight:700}
 .tree-l5-header .tree-node-sub{color:var(--on-dark-2)}
 .tree-l5-header .tree-node-pct{color:var(--on-dark-3)}
 .tree-l4-h{width:98px;background:var(--bg);border:1px solid var(--border2);color:var(--text);font-weight:600}
@@ -1129,13 +1154,16 @@ input.in-cell:disabled{opacity:.35;cursor:not-allowed;border-color:transparent;b
 .tree-node-sub{color:var(--text2);font-weight:600;font-size:var(--fs-11);margin-top:3px}
 .tree-node-pct{color:var(--text2);opacity:.8;font-weight:400}
 .tree-node-placeholder{color:var(--text3);border-style:dashed !important;font-style:italic;font-weight:400}
-.tree-cat-header{width:110px;color:var(--on-dark);font-weight:700}
-.tree-cat-header .tree-node-sub{color:var(--on-dark-2)}
-.tree-cat-header .tree-node-pct{color:var(--on-dark-3)}
+.tree-cat-header{width:110px;background:var(--surface);border:1px solid var(--border2);box-shadow:inset 4px 0 0 var(--cc);color:var(--text);font-weight:700;text-align:left;padding-left:14px}   /* 大类色只做左侧色条，--cc 由 JS 传入 */
+.tree-cat-header .tree-node-sub{color:var(--text2)}
+.tree-cat-header .tree-node-pct{color:var(--text2)}
 .tree-type-n{width:92px;background:var(--surface);border:1px solid var(--border2);color:var(--text);font-weight:600}
 /* multi-pie cards */
-.pie-cards-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:16px;padding:4px 0}
-.pie-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-row);padding:8px 6px 12px;flex:1 1 0;min-width:200px;max-width:360px;box-shadow:var(--sh-card);transition:box-shadow .2s}
+.pie-cards-row{display:flex;gap:14px;justify-content:flex-start;flex-wrap:wrap;margin-bottom:16px;padding:4px 0}   /* 下钻后才出现右边的卡片，所以靠左排，不居中 */
+.cf-scroll{max-height:var(--cf-h);overflow:auto}   /* 流水记录：表格在卡内滚动、表头吸顶，页面不再随流水条数无限变长 */
+.cf-scroll thead th{position:sticky;top:0;z-index:2;background:var(--surface)}
+.pie-hint{flex:1;min-width:160px;align-self:center;text-align:center;color:var(--text3);font-size:var(--fs-13)}
+.pie-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-row);padding:8px 6px 12px;flex:0 0 calc((100% - 56px)/5);min-width:200px;box-shadow:var(--sh-card);transition:box-shadow .2s}
 .pie-card:hover{box-shadow:var(--sh-pop)}
 .pie-card canvas{display:block;margin:0 auto;width:100%!important;height:auto!important}
 .mp-breadcrumb{font-size:var(--fs-12);color:var(--text2);margin-left:auto;white-space:nowrap}
@@ -1148,6 +1176,7 @@ input.in-cell:disabled{opacity:.35;cursor:not-allowed;border-color:transparent;b
 /* type table in settings */
 .type-table-wrap{border:1px solid var(--border);border-radius:var(--r-ctl)}
 .data-tabs{display:flex;gap:2px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0}
+.dtab-sep{align-self:center;flex:0 0 1px;height:14px;margin:0 6px;background:var(--border2)}   /* 数据管理页签分段：日常录入 | 结构设置 | 工具 */
 .dtab{font-size:var(--fs-12);font-weight:500;padding:8px 16px;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:all var(--t-state)}
 .dtab:hover{color:var(--text2)}
 .dtab.active{color:var(--text);border-bottom-color:var(--accent)}
@@ -1212,10 +1241,10 @@ input.in-cell:disabled{opacity:.35;cursor:not-allowed;border-color:transparent;b
 .tg-c{text-align:center;padding:6px}
 .tg-act{padding:4px;text-align:center}
 .tg-hprod{position:sticky;left:0;background:var(--surface);font-weight:600;padding:6px 12px;white-space:nowrap}
-.ht-lv-2{--ht-hdr:#dbeafe;--ht-txt:#1d4ed8;--ht-cell:#eff6ff;--ht-bd:#bfdbfe}
-.ht-lv-3{--ht-hdr:#d1fae5;--ht-txt:#065f46;--ht-cell:#f0fdf4;--ht-bd:#a7f3d0}
-.ht-lv-4{--ht-hdr:#fef3c7;--ht-txt:#92400e;--ht-cell:#fffbeb;--ht-bd:#fde68a}
-.ht-lv-5{--ht-hdr:#ede9fe;--ht-txt:#4c1d95;--ht-cell:#f5f3ff;--ht-bd:#ddd6fe}
+.ht-lv-2{--ht-hdr:#EFE8FA;--ht-txt:#5B3A9E;--ht-cell:#FAF7FE;--ht-bd:#E2D6F4}
+.ht-lv-3{--ht-hdr:#E2D6F4;--ht-txt:#5B3A9E;--ht-cell:#F6F1FC;--ht-bd:#D2C0EE}
+.ht-lv-4{--ht-hdr:#D2C0EE;--ht-txt:#4A2F85;--ht-cell:#F1EAFA;--ht-bd:#C0A8E6}
+.ht-lv-5{--ht-hdr:#C0A8E6;--ht-txt:#3B246E;--ht-cell:#EBE1F8;--ht-bd:#AE8FDD}
 .ht-th1{text-align:center;background:var(--ht-hdr);color:var(--ht-txt);border-bottom:2px solid var(--ht-bd);font-size:var(--fs-12)}
 .ht-th2{min-width:80px;text-align:center;background:var(--ht-hdr);color:var(--ht-txt)}
 .ht-td,.target-cat-row:hover td.ht-td,.target-prod-row:hover td.ht-td{text-align:center;background:var(--ht-cell)}
@@ -1350,7 +1379,6 @@ input.fi.shp-val-input{width:120px;font-weight:700;text-align:right;padding:4px 
 /* 分析页 / 通用小组件 */
 .t-micro{font-size:var(--fs-10)}  /* 例外：刻意做小的装饰性文字（拖拽手柄等），不要给必须读的文字用 */
 .row-grip{opacity:.3;margin-right:4px}
-.dtab.dtab-sm{font-size:var(--fs-11);padding:4px 8px}
 .data-tabs.data-tabs-bare{margin:0;border:none}
 .data-tabs.data-tabs-tight{margin-bottom:var(--sp-3)}
 .sec-label{font-size:var(--fs-11);font-weight:700;color:var(--text2);letter-spacing:.04em;text-transform:uppercase}
@@ -1854,15 +1882,17 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
     <div id="page-data" class="page">
       <div class="data-bar">
         <div class="data-tabs data-tabs-bare">
-          <div class="dtab" onclick="showDataTab('target')" id="dtab-target">目标比例</div>
-          <div class="dtab" onclick="showDataTab('weight')" id="dtab-weight">权重表</div>
-          <div class="dtab" onclick="showDataTab('cashflow')" id="dtab-cashflow">流水记录</div>
-          <div class="dtab active" onclick="showDataTab('hierarchy')" id="dtab-hierarchy">组合层级</div>
-          <div class="dtab" onclick="showDataTab('typetable')" id="dtab-typetable">类型层级</div>
-          <div class="dtab" onclick="showDataTab('fx')" id="dtab-fx">汇率</div>
-          <div class="dtab" onclick="showDataTab('marketplan')" id="dtab-marketplan">市场规划</div>
+          <div class="dtab active" onclick="showDataTab('cashflow')" id="dtab-cashflow">流水记录</div>
           <div class="dtab" onclick="showDataTab('shared')" id="dtab-shared">共管持仓</div>
           <div class="dtab" onclick="showDataTab('fundsource')" id="dtab-fundsource">资金来源</div>
+          <span class="dtab-sep"></span>
+          <div class="dtab" onclick="showDataTab('hierarchy')" id="dtab-hierarchy">组合层级</div>
+          <div class="dtab" onclick="showDataTab('typetable')" id="dtab-typetable">类型层级</div>
+          <div class="dtab" onclick="showDataTab('target')" id="dtab-target">目标比例</div>
+          <div class="dtab" onclick="showDataTab('weight')" id="dtab-weight">权重表</div>
+          <span class="dtab-sep"></span>
+          <div class="dtab" onclick="showDataTab('fx')" id="dtab-fx">汇率</div>
+          <div class="dtab" onclick="showDataTab('marketplan')" id="dtab-marketplan">市场规划</div>
           <div class="dtab" onclick="showDataTab('xirr-calc')" id="dtab-xirr-calc">XIRR 计算器</div>
         </div>
         <div class="data-bar-actions">
@@ -1884,7 +1914,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
       <div id="data-target" class="data-panel">
         <div class="card section-full">
           <div class="card-header">
-            <div class="card-title">目标比例表（每行 = 品种 × 一级组合，同品种可多行）</div>
+            <div class="card-title">目标比例表<span class="info-icon hover-tip" data-tip="每行 = 品种 × 一级组合，同品种可多行"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span></div>
             <button class="btn btn-primary btn-sm" onclick="openTargetModal()">
               <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>新增目标比例行
             </button>
@@ -1895,7 +1925,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
           </table></div>
         </div>
         <div class="card">
-          <div class="card-header"><div class="card-title">高级组合目标占比（由目标比例表 × 权重推算，只读）</div>
+          <div class="card-header"><div class="card-title">高级组合目标占比<span class="info-icon hover-tip" data-tip="由目标比例表 × 权重推算，只读"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span></div>
             <span class="text-hint">行 = 子组合，列 = 父组合；每格：目标% / 实际%</span>
           </div>
           <div id="higher-target-wrap"></div>
@@ -1905,7 +1935,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
       <!-- 权重表 -->
       <div id="data-weight" class="data-panel">
         <div class="card">
-          <div class="card-header"><div class="card-title">组合权重表（子组合占父组合实际市值比例，自动计算，只读）</div>
+          <div class="card-header"><div class="card-title">组合权重表<span class="info-icon hover-tip" data-tip="子组合占父组合实际市值比例，自动计算，只读"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span></div>
             <span class="mp-breadcrumb" id="mp-breadcrumb"></span>
           </div>
           <div class="pie-cards-row">
@@ -1914,13 +1944,14 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
             <div class="pie-card"><canvas id="pie-canvas-2"></canvas></div>
             <div class="pie-card"><canvas id="pie-canvas-3"></canvas></div>
             <div class="pie-card"><canvas id="pie-canvas-4"></canvas></div>
+            <div class="pie-hint" id="pie-hint">点击左侧扇区，下钻到下一级</div>
           </div>
           <div id="weight-notes" class="weight-notes"></div>
         </div>
       </div>
 
       <!-- 流水记录 -->
-      <div id="data-cashflow" class="data-panel">
+      <div id="data-cashflow" class="data-panel active">
         <div class="kpi-grid kpi-grid-4" id="cf-kpi"></div>
         <div class="card">
           <div class="card-header">
@@ -1944,7 +1975,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
           <!-- 主流水视图 -->
           <div id="cf-main-view">
             <div class="chips" id="cf-chips"></div>
-            <div class="table-wrap"><table class="tbl-fixed">
+            <div class="table-wrap cf-scroll"><table class="tbl-fixed">
               <thead><tr>
                 <th class="w-100">日期</th>
                 <th class="w-120">一级组合</th>
@@ -1960,7 +1991,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
           <!-- 实操流水视图 -->
           <div id="cf-actual-view" style="display:none">
             <div class="chips" id="acf-chips"></div>
-            <div class="table-wrap"><table class="tbl-fixed">
+            <div class="table-wrap cf-scroll"><table class="tbl-fixed">
               <thead><tr>
                 <th class="w-100">日期</th>
                 <th class="w-140">一级组合</th>
@@ -1977,7 +2008,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
 
 
       <!-- 组合层级 -->
-      <div id="data-hierarchy" class="data-panel active">
+      <div id="data-hierarchy" class="data-panel">
         <div class="card section-full">
           <div class="card-header">
             <div class="card-title">组合层级 · 结构总览</div>
@@ -2026,7 +2057,7 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
       <!-- 汇率 -->
       <div id="data-fx" class="data-panel">
         <div class="card fx-card">
-          <div class="card-title card-title-solo">汇率设置（换算为 CNY）</div>
+          <div class="card-title card-title-solo">汇率设置<span class="info-icon hover-tip" data-tip="全站所有外币折算都按这里的汇率换成 CNY"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span></div>
           <table class="fx-table" id="fx-view"></table>
           <div id="fx-stale-hint" class="fx-hint"></div>
           <div class="fx-hint">直接改数字，回车或点空白处即保存</div>
@@ -2043,10 +2074,10 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
           <div class="text-hint mk-intro">基于设定总额重新规划 A股/H股/美股 三个市场各自的占比，并在每个市场内进一步拆出债券与权益的比例。仅作计算参考，不会修改实际持仓数据。本币换算按「汇率」标签页当前设置实时计算。</div>
           <div class="mk-base">
             <div class="mk-base-lbl">总额口径</div>
-            <div class="data-tabs data-tabs-bare" id="mkplan-base-tabs">
-              <div class="dtab dtab-sm" onclick="setMkplanBaseMode('all')">全部持仓</div>
-              <div class="dtab dtab-sm" onclick="setMkplanBaseMode('custom')">自定义金额</div>
-              <div class="dtab dtab-sm" onclick="setMkplanBaseMode('l3')">选择三级组合合计</div>
+            <div class="seg-tabs seg-sm" id="mkplan-base-tabs">
+              <button class="seg-btn" onclick="setMkplanBaseMode('all')">全部持仓</button>
+              <button class="seg-btn" onclick="setMkplanBaseMode('custom')">自定义金额</button>
+              <button class="seg-btn" onclick="setMkplanBaseMode('l3')">选择三级组合合计</button>
             </div>
             <div id="mkplan-base-extra" class="mk-base-extra"></div>
           </div>
@@ -2240,11 +2271,11 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
           </div>
           <div class="fg2">
             <div class="form-row"><label class="form-label">通胀率 %</label><input type="number" step="0.1" class="fi" id="pp-inflation" onchange="ppUpdateField('inflationRate',this.value/100)"></div>
-            <div class="form-row"><label class="form-label">基础提取率 %</label><input type="number" step="0.1" class="fi" id="pp-basewithdraw" onchange="ppUpdateField('baseWithdrawRate',this.value/100)"></div>
+            <div class="form-row"><label class="form-label">基础提取率 %<span class="info-icon hover-tip" data-tip="首年提取额 = 起始总本金 × 基础提取率"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span></label><input type="number" step="0.1" class="fi" id="pp-basewithdraw" onchange="ppUpdateField('baseWithdrawRate',this.value/100)"></div>
           </div>
           <div class="fg2">
-            <div class="form-row"><label class="form-label">提取增长率 %</label><input type="number" step="0.1" class="fi" id="pp-withdrawgrowth" onchange="ppUpdateField('withdrawGrowthRate',this.value/100)"></div>
-            <div class="form-row"><label class="form-label">增长起始年份</label><input type="number" class="fi" id="pp-growthstartyear" onchange="ppUpdateField('growthStartYear',this.value,true)"></div>
+            <div class="form-row"><label class="form-label">提取增长率 %<span class="info-icon hover-tip" data-tip="从「增长起始年份」起，提取额每年按这个比例增长"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span></label><input type="number" step="0.1" class="fi" id="pp-withdrawgrowth" onchange="ppUpdateField('withdrawGrowthRate',this.value/100)"></div>
+            <div class="form-row"><label class="form-label">增长起始年份<span class="info-icon hover-tip" data-tip="留空 = 提取额不增长，全程按基础提取额"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span></label><input type="number" class="fi" id="pp-growthstartyear" onchange="ppUpdateField('growthStartYear',this.value,true)"></div>
           </div>
           <div class="card-header pp-groups-hd">
             <div class="card-title">参与组合</div>
@@ -2266,11 +2297,14 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
       </div>
 
       <div class="pp-res" id="pp-results-bottom">
-        <div class="pp-split pp-top">
+        <div class="pp-tables">
           <div class="card">
             <div class="card-header card-header-ctl">
               <div class="card-title">年度明细</div>
-              <button class="btn btn-sm" id="pp-table-expand-btn" onclick="ppToggleTableExpand()">收起（每5年摘要）</button>
+              <div class="seg-tabs seg-sm" id="pp-table-view-tabs">
+                <button class="seg-btn" onclick="ppSetTableView(true)">逐年</button>
+                <button class="seg-btn" onclick="ppSetTableView(false)">每 5 年</button>
+              </div>
             </div>
             <div class="table-wrap">
               <table class="tbl-fixed">
@@ -2291,23 +2325,18 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
           </div>
           <div class="card">
             <div class="card-header card-header-ctl">
-              <div class="card-title">分组明细 <span id="pp-group-detail-title-suffix" class="t-note"></span></div>
-              <select class="fi fi-compact" id="pp-group-detail-sel" onchange="renderPerpetualGroupDetail(this.value)"><option value="">— 查看分组明细 —</option></select>
+              <div class="card-title">分组明细<span class="info-icon hover-tip" data-tip="实际余额可编辑到当年。当年填的是年末预估余额，用来看今年大概走到哪；年底拿到真实数字后再改成真实值"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span> <span id="pp-group-detail-title-suffix" class="t-note"></span></div>
+              <select class="fi fi-compact" id="pp-group-detail-sel" onchange="renderPerpetualGroupDetail(this.value)"></select>
             </div>
-            <div id="pp-group-detail-panel"><div class="empty empty-compact">请选择上方下拉框查看某个组合的逐年明细</div></div>
+            <div id="pp-group-detail-panel"></div>
           </div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-header pp-toggle-hd" onclick="togglePpFormulaCard()">
-          <div class="card-title">公式说明</div>
-          <span id="pp-formula-arrow" class="pp-arrow">展开 ▾</span>
-        </div>
-        <div id="pp-formula-body" style="display:none">
-          <div id="pp-formula-content" class="pp-formula"></div>
-        </div>
-      </div>
+      <details class="card pp-formula-card">
+        <summary class="conc-note-hd pp-formula-hd">公式说明</summary>
+        <div id="pp-formula-content" class="pp-formula"></div>
+      </details>
     </div>
 
     <!-- HIERARCHY (old page stub, kept for compat) -->
@@ -3209,7 +3238,7 @@ function showPage(name){
   if(name==='data'){showDataTab(_curDataTab);}
 }
 
-let _curDataTab='target';
+let _curDataTab='cashflow';
 function showDataTab(tab){
   _curDataTab=tab;
   document.querySelectorAll('.dtab').forEach(d=>d.classList.remove('active'));
@@ -3322,7 +3351,7 @@ const QuickCalc = (()=>{
     const backWord = r.back>0 ? '回到基准值需涨' : '回到基准值需跌';
     return `<div class="qc-res-line">
       <div class="qc-big ${cls(r.chg)}">${word} ${r.chg===0?'0.00%':Math.abs(r.chg).toFixed(2)+'%'}</div>
-      ${r.chg===0?'':`<div class="qc-back"><span class="qc-res-val ${cls(r.back)}">${pct(r.back)}</span>${infoIcon(backWord)}</div>`}
+      ${r.chg===0?'':`<div class="qc-back"><span class="qc-res-val">${pct(r.back)}</span>${infoIcon(backWord)}</div>`}
     </div>`;
   }
   const numInput = (it, key) => `<input type="number" step="any" inputmode="decimal" class="fi qc-num" value="${_escAttr(it[key])}" oninput="QuickCalc.onInput('${it.id}','${key}',this.value)" onchange="QuickCalc.onChange()">`;
@@ -3345,8 +3374,8 @@ const QuickCalc = (()=>{
       <div class="qc-result" id="qc-res-${it.id}">${resultHtml(it)}</div>
     </div>`;
   }
-  const addTile = gid => `<button type="button" class="qc-add" onclick="QuickCalc.openItem('', '${gid}')"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>新增标的</button>`;
   const groupKebab = sec => !sec.real ? '' : kebabBtn([
+    {l:'新增标的',a:`QuickCalc.openItem('', '${sec.id}')`},
     {l:'重命名',a:`QuickCalc.openGroup('${sec.id}')`},
     {l:'上移',a:`QuickCalc.moveGroup('${sec.id}',-1)`},
     {l:'下移',a:`QuickCalc.moveGroup('${sec.id}',1)`},
@@ -3360,7 +3389,7 @@ const QuickCalc = (()=>{
         <span class="qc-sum" data-qc-sum="${sec.id}">${summaryHtml(sec.items)}</span>
         <span onclick="event.stopPropagation()">${groupKebab(sec)}</span>
       </div>
-      ${sec.collapsed ? '' : `<div class="qc-grid">${sec.items.map(cardHtml).join('')}${addTile(sec.id)}</div>`}
+      ${sec.collapsed ? '' : `<div class="qc-grid">${sec.items.map(cardHtml).join('')}</div>`}
     </section>`;
   }
 
@@ -3373,13 +3402,14 @@ const QuickCalc = (()=>{
       <td>${dateInput(it)}</td>
       <td>${numInput(it,'cur')}</td>
       <td class="num cell-strong ${r?cls(r.chg):''}" id="qc-chg-${it.id}">${r?pct(r.chg):'—'}</td>
-      <td class="t-secondary" id="qc-el-${it.id}">${elapsedText(it)||'—'}</td>
+      <td class="num t-secondary" id="qc-back-${it.id}">${r&&r.chg!==0?pct(r.back):'—'}</td>
+      <td class="t-secondary qc-el" id="qc-el-${it.id}">${elapsedText(it)||'—'}</td>
       <td class="qc-c-op">${kebab(it)}</td>
     </tr>`;
   }
   function listSection(sec){
     return `<tr class="cat-row qc-grow" onclick="QuickCalc.toggleGroup('${sec.id}')" ${dropAttrs('g:'+sec.id)}>
-      <td colspan="6"><div class="cat-name">
+      <td colspan="7"><div class="cat-name">
         <span class="qc-chev${sec.collapsed?' is-closed':''}"></span>
         <span class="cat-title">${_esc(sec.name)}</span>
         <span class="cat-count">${sec.items.length} 个标的</span>
@@ -3390,8 +3420,8 @@ const QuickCalc = (()=>{
   }
   function listHtml(secs){
     return `<div class="table-wrap"><table class="tbl-fixed tbl-clip qc-list">
-      <colgroup><col><col class="qc-c-num"><col class="qc-c-date"><col class="qc-c-num"><col class="qc-c-chg"><col class="qc-c-el"><col class="qc-c-op"></colgroup>
-      <thead><tr><th class="no-sort">名称</th><th class="no-sort num">基准值</th><th class="no-sort">基准日期</th><th class="no-sort num">现值（今日）</th><th class="no-sort num">涨跌幅</th><th class="no-sort">已过</th><th class="no-sort"></th></tr></thead>
+      <colgroup><col class="qc-c-name"><col class="qc-c-num"><col class="qc-c-date"><col class="qc-c-num"><col class="qc-c-chg"><col class="qc-c-back"><col class="qc-c-el"><col class="qc-c-op"></colgroup>
+      <thead><tr><th class="no-sort">名称</th><th class="no-sort num">基准值</th><th class="no-sort">基准日期</th><th class="no-sort num">现值（今日）</th><th class="no-sort num">涨跌幅</th><th class="no-sort num">回到基准需涨/跌</th><th class="no-sort">基准至今</th><th class="no-sort"></th></tr></thead>
       <tbody>${secs.map(listSection).join('')}</tbody></table></div>`;
   }
 
@@ -3430,6 +3460,7 @@ const QuickCalc = (()=>{
     set('qc-card-'+id, e=>{ e.className = 'card accent-card card-flush-b qc-card '+linkState(it); });
     set('qc-linkbox-'+id, e=>{ e.className = 'qc-link '+linkState(it); });
     set('qc-chg-'+id, e=>{ e.textContent = r ? pct(r.chg) : '—'; e.className = 'num cell-strong '+(r?cls(r.chg):''); });
+    set('qc-back-'+id, e=>{ e.textContent = (r && r.chg!==0) ? pct(r.back) : '—'; });
     set('qc-el-'+id, e=>{ e.textContent = elapsedText(it) || '—'; });
     refreshSummaries();
   }
@@ -3546,7 +3577,9 @@ const QuickCalc = (()=>{
 // ══════════════════════════════════════════════
 const GroupCompare = (()=>{
   const MAX = 3;
-  let active = false, level = 2, picked = [];
+  let active = false, level = 1, picked = [];
+  const COLORS = ['#8057C9', PALETTE[5], EB_COLOR.light.eq];   // 对比的三个组合：紫 / 灰蓝 / 琥珀金（全站只用紫色强调，其余取图表色板里已有的两个色）
+  const topAt = (lv, n) => groupsAt(lv).map(g=>({g, v:_groupMarketVal2(lv, g)})).sort((a,b)=>b.v-a.v).slice(0, n).map(x=>x.g);   // 默认选中市值最大的两个
   const groupsAt = lv => lv===1 ? getAllL1() : [...new Set(HIERARCHY.map(h=>h['l'+lv]).filter(Boolean))];
   const pct2 = v => v.toFixed(2)+'%';
 
@@ -3569,12 +3602,20 @@ const GroupCompare = (()=>{
     const cfs = _groupCashflows(lv, g);
     const cost = _costStats(cfs, total);
     const fl = buildGroupXirrFlows(lv, g);
+    const yr = Y => { const r = _groupYearlyStats(lv, g).find(d=>d.year===Y); return r ? {rate: r.rate!=null ? r.rate*100 : null, gain: r.gain, why: r.incompleteMissing ? '该年末快照不完整' : r.openMissing ? '上年末快照不完整' : r.openAvailable===false ? '缺上年末快照' : ''} : {rate:null, gain:null, why:'没有这一年的记录'}; };
+    const cur = new Date().getFullYear();
+    // 前三大品种合计占比：按品种名合并后，最大的三个占组合总市值的比例
+    const byName = new Map(); prods.forEach(p=>byName.set(p.name, (byName.get(p.name)||0) + toCNY(p.amount,p.ccy)));
+    const top3 = total>0 ? [...byName.values()].sort((a,b)=>b-a).slice(0,3).reduce((x,y)=>x+y,0)/total*100 : null;
+    const eb = EqBond.split(prods), ebTot = eb.eq + eb.bond;
     return {
-      total, pctAll: totalCNY()>0 ? total/totalCNY()*100 : 0,
-      nProds: new Set(prods.map(p=>p.name)).size,
+      total, pctAll: totalCNY()>0 ? total/totalCNY()*100 : 0, netCost: cost.netCost,
       xirr: fl ? xirr(fl) : null,
-      gainPct: cost.netCost>0 ? cost.gainPct : null,
-      hhi: prods.length ? calcHHI(prods.map(p=>toCNY(p.amount,p.ccy)))*100 : null
+      gainPct: cost.netCost>0 ? cost.gainPct : null, gainAmt: cost.gain,
+      y0: yr(cur), y1: yr(cur-1),
+      dd: _groupNavDrawdown(lv, g),
+      eqPct: ebTot>0 ? eb.eq/ebTot*100 : null, eqUnset: total>0 ? eb.unset/total*100 : 0, eqMiss: eb.miss,
+      top3
     };
   }
 
@@ -3597,7 +3638,7 @@ const GroupCompare = (()=>{
       const who = names.filter((_,i)=>mask[i]==='1');
       return who.length===names.length ? (names.length===2?'两边共有':'三者共有') : who.length===1 ? '仅 '+who[0]+' 有' : who.join('、')+' 共有';
     };
-    const head = names.map((n,i)=>`<th class="no-sort num"><span class="leg-dot gc-dot" style="background:${PALETTE[i]}"></span>${_esc(n)}</th>`).join('');
+    const head = names.map((n,i)=>`<th class="no-sort num"><span class="leg-dot gc-dot" style="background:${COLORS[i]}"></span>${_esc(n)}</th>`).join('');
     const body = order.map(mask=>{
       const list = segs[mask].sort((a,b)=> (a.spread!=null||b.spread!=null) ? (b.spread||0)-(a.spread||0) : b.top-a.top);
       return `<tr class="cat-row gc-seg"><td colspan="${names.length+2}"><div class="cat-name"><span class="cat-title">${_esc(label(mask))}</span><span class="cat-count">${list.length} 个${what}</span></div></td></tr>`
@@ -3613,34 +3654,64 @@ const GroupCompare = (()=>{
       <tbody>${body||`<tr><td colspan="${names.length+2}" class="empty-line">暂无数据</td></tr>`}</tbody></table></div>`;
   }
 
+  // 重合度：2 个组合 = 两个大数字；3 个组合 = 两张对称矩阵（品种 / 类型），格子底色越深越像
   function overviewHtml(names, prodMaps, typeMaps){
-    const pairs = [];
-    for(let i=0;i<names.length;i++) for(let j=i+1;j<names.length;j++) pairs.push([i,j]);
-    const pairName = ([i,j]) => `${_esc(names[i])} × ${_esc(names[j])}`;
-    const allKeys = maps => maps.map(m=>new Set(m.keys()));
-    const sets = allKeys(prodMaps);
+    const sets = prodMaps.map(m=>new Set(m.keys()));
     const common = [...sets[0]].filter(k=>sets.every(s=>s.has(k))).length;
     const union = new Set(prodMaps.flatMap(m=>[...m.keys()])).size;
-    const boxes = [
-      statBoxHTML({val:common, lbl:names.length===2?'共有品种':'三者共有品种', note:`共 ${union} 个不同品种`}),
-      ...pairs.map(p=>statBoxHTML({val:pct2(overlap(prodMaps[p[0]],prodMaps[p[1]])), lbl:'品种结构重合度', note:pairName(p), noteTruncate:true})),
-      ...pairs.map(p=>statBoxHTML({val:pct2(overlap(typeMaps[p[0]],typeMaps[p[1]])), lbl:'类型结构重合度', note:pairName(p), noteTruncate:true}))
-    ];
-    return `<div class="gc-stats">${boxes.join('')}</div>`;
+    const sum = `<div class="gc-sum"><b>${common}</b> 个三者共有品种 · 共 ${union} 个不同品种</div>`;
+    if(names.length===2){
+      return `<div class="gc-stats">${[
+        statBoxHTML({val:common, lbl:'共有品种', note:`共 ${union} 个不同品种`}),
+        statBoxHTML({val:pct2(overlap(prodMaps[0],prodMaps[1])), lbl:'品种结构重合度'}),
+        statBoxHTML({val:pct2(overlap(typeMaps[0],typeMaps[1])), lbl:'类型结构重合度'})
+      ].join('')}</div>`;
+    }
+    const mx = (title, maps) => {
+      const head = names.map((n,i)=>`<th title="${_escAttr(n)}"><span class="leg-dot gc-dot" style="background:${COLORS[i]}"></span>${_esc(n)}</th>`).join('');
+      const rows = names.map((n,i)=>`<tr><th class="gc-mx-row" title="${_escAttr(n)}"><span class="leg-dot gc-dot" style="background:${COLORS[i]}"></span>${_esc(n)}</th>${names.map((_,j)=>{
+        if(i===j) return '<td class="gc-mx-self">—</td>';
+        const v = overlap(maps[i], maps[j]);
+        return `<td style="background:rgba(128,87,201,${(0.06+0.34*v/100).toFixed(3)})">${pct2(v)}</td>`;
+      }).join('')}</tr>`).join('');
+      return `<div><div class="sec-label">${title}</div><table class="gc-mx"><thead><tr><th class="gc-mx-row"></th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    };
+    return sum + `<div class="gc-mx-wrap">${mx('品种结构重合度', prodMaps)}${mx('类型结构重合度', typeMaps)}</div>`;
   }
 
+  // 关键指标：分「规模 / 业绩 / 风险 / 结构」四组；每行里「最好的值」加粗（收益类取最大、回撤取最接近 0、前三大占比取最小），
+  // 没有好坏之分的行（总市值、净本金、权益占比）不突出。收益类都是人民币口径，和看板逐年收益率表一致。
   function metricsTable(names, ms){
-    const row = (label, fn, tip) => `<tr><td>${label}${tip?infoIcon(tip):''}</td>${ms.map(m=>`<td class="num">${fn(m)}</td>`).join('')}</tr>`;
-    const signed = (v, d=2) => v==null ? '<span class="t-muted">—</span>' : `<span class="cell-strong ${v>=0?'pos':'neg'}">${v>=0?'+':''}${v.toFixed(d)}%</span>`;
-    return `<div class="table-wrap"><table class="tbl-fixed tbl-clip gc-table"><colgroup><col>${names.map(()=>'<col class="gc-c-num">').join('')}</colgroup>
-      <thead><tr><th class="no-sort">指标</th>${names.map((n,i)=>`<th class="no-sort num"><span class="leg-dot gc-dot" style="background:${PALETTE[i]}"></span>${_esc(n)}</th>`).join('')}</tr></thead>
+    const best = (fn, dir) => { const ok = ms.map(fn).filter(v=>v!=null); if(ok.length<2) return null; const t = dir==='max'?Math.max(...ok):Math.min(...ok); return ok.every(v=>v===t) ? null : t; };
+    const dash = '<span class="t-muted">—</span>';
+    const sg = v => (v>=0?'+':'');
+    const colorPct = (v, d=2) => v==null ? dash : `<span class="${v>=0?'pos':'neg'}">${sg(v)}${v.toFixed(d)}%</span>`;
+    const sub = t => `<span class="gc-sub">${t}</span>`;
+    const colspan = names.length+1;
+    const grp = t => `<tr class="cat-row gc-seg"><td colspan="${colspan}"><div class="cat-name"><span class="cat-title">${t}</span></div></td></tr>`;
+    const row = (label, fn, cell, o={}) => {
+      const t = o.dir ? best(fn, o.dir) : null;
+      return `<tr><td>${label}${o.tip?infoIcon(o.tip):''}</td>${ms.map(m=>{ const v = fn(m); return `<td class="num${t!=null&&v===t?' cell-strong':''}">${cell(v, m)}</td>`; }).join('')}</tr>`;
+    };
+    const yearCell = key => (v, m) => { const y = m[key]; if(v==null) return dash + (y.why?infoIcon(y.why):''); return colorPct(v) + (y.gain!=null ? sub(`${sg(y.gain)}${fmtCNY(y.gain)}`) : ''); };
+    const cur = new Date().getFullYear();
+    return `<div class="table-wrap"><table class="tbl-fixed tbl-clip gc-table"><colgroup><col class="gc-c-lbl">${names.map(()=>'<col>').join('')}</colgroup>
+      <thead><tr><th class="no-sort">指标</th>${names.map((n,i)=>`<th class="no-sort num" title="${_escAttr(n)}"><span class="leg-dot gc-dot" style="background:${COLORS[i]}"></span>${_esc(n)}</th>`).join('')}</tr></thead>
       <tbody>
-      ${row('总市值', m=>fmtCNY(m.total))}
-      ${row('占总资产', m=>pct2(m.pctAll))}
-      ${row('品种数', m=>m.nProds)}
-      ${row('全程 XIRR', m=>signed(m.xirr==null?null:m.xirr*100), '全部成本流水 + 今日市值，口径同看板')}
-      ${row('浮盈比例', m=>signed(m.gainPct), '（当前市值 − 净本金）÷ 净本金')}
-      ${row('品种 HHI × 100', m=>m.hhi==null?'<span class="t-muted">—</span>':m.hhi.toFixed(2), '越高越集中：>25 高度集中 · 15~25 中度 · <15 较分散')}
+      ${grp('规模')}
+      ${row('总市值', m=>m.total, (v,m)=>fmtCNY(v)+sub(pct2(m.pctAll)+' 总资产'))}
+      ${row('净本金', m=>m.netCost, v=>fmtCNY(v), {tip:'买入 − 卖出 − 分红，和看板紫卡同口径'})}
+      ${grp('业绩')}
+      ${row('全程 XIRR', m=>m.xirr==null?null:m.xirr*100, v=>colorPct(v), {dir:'max', tip:'全部成本流水 + 今日市值，口径同看板；该行最高的加粗'})}
+      ${row(`${cur} 年收益率`, m=>m.y0.rate, yearCell('y0'), {dir:'max', tip:'今年以来（上年末快照 → 今日市值，含当年资金进出的 XIRR），同看板逐年收益率；小字是收益金额'})}
+      ${row(`${cur-1} 年收益率`, m=>m.y1.rate, yearCell('y1'), {dir:'max', tip:'上年末快照 → 当年末快照的年化收益率；小字是收益金额'})}
+      ${row('累计浮盈比例', m=>m.gainPct, (v,m)=>v==null?dash:colorPct(v)+sub(`${sg(m.gainAmt)}${fmtCNY(m.gainAmt)}`), {dir:'max', tip:'（当前市值 − 净本金）÷ 净本金；小字是浮盈金额'})}
+      ${grp('风险')}
+      ${row('历史最大回撤', m=>m.dd?m.dd.max:null, v=>v==null?dash:(v<0?`<span class="neg">${v.toFixed(2)}%</span>`:'<span class="t-muted">无回撤</span>'), {dir:'max', tip:'按净值（剔除资金进出）算的最大跌幅，需要至少 2 个完整快照；该行回撤最小的加粗'})}
+      ${row('当前回撤', m=>m.dd?m.dd.cur:null, v=>v==null?dash:(v<0?`<span class="neg">${v.toFixed(2)}%</span>`:'<span class="t-muted">在历史最高</span>'), {dir:'max', tip:'最新净值相对历史最高净值的跌幅'})}
+      ${grp('结构')}
+      ${row('权益占比', m=>m.eqPct, (v,m)=>v==null?dash+infoIcon('这个组合里的类型都还没设定「权益占比」（数据管理 → 类型层级表）'):pct2(v)+(m.eqUnset>0.005?sub(`${pct2(m.eqUnset)} 未计入`):''), {tip:'按类型的「权益占比」折算（现金算债券、黄金算权益）；没设定权益占比的类型不计入，小字是它们占组合的比例'})}
+      ${row('前三大品种占比', m=>m.top3, v=>v==null?dash:pct2(v), {dir:'min', tip:'按品种名合并后，最大的 3 个品种合计占组合的比例，越低越分散；该行最低的加粗'})}
       </tbody></table></div>`;
   }
 
@@ -3651,19 +3722,22 @@ const GroupCompare = (()=>{
     picked = picked.filter(g=>groups.includes(g));
     document.querySelectorAll('#gc-level-tabs .seg-btn').forEach(b=>b.classList.toggle('active', +b.dataset.lv===level));
     document.getElementById('gc-chips').innerHTML = groups.length
-      ? groups.map(g=>{ const i = picked.indexOf(g); return `<span class="chip${i>=0?' active':''}" onclick="GroupCompare.toggle('${_escAttrJs(g)}')">${i>=0?`<span class="leg-dot gc-dot" style="background:${PALETTE[i]}"></span>`:''}${_esc(g)}</span>`; }).join('')
+      ? groups.map(g=>{ const i = picked.indexOf(g); return `<span class="chip${i>=0?' active':''}" onclick="GroupCompare.toggle('${_escAttrJs(g)}')">${i>=0?`<span class="leg-dot gc-dot" style="background:${COLORS[i]}"></span>`:''}${_esc(g)}</span>`; }).join('')
       : `<span class="empty-line">${level}级还没有分类</span>`;
     const out = document.getElementById('gc-result');
     if(picked.length<2){ out.innerHTML = `<div class="empty">选择 2～${MAX} 个同级组合开始对比（已选 ${picked.length} 个）</div>`; return; }
     const prodMaps = picked.map(g=>shareMap(level, g, p=>p.name));
     const typeMaps = picked.map(g=>shareMap(level, g, p=>p.type||'未分类'));
     const ms = picked.map(g=>metrics(level, g));
-    const card = (title, body, tip) => `<div class="card section-full"><div class="card-header"><div class="card-title">${title}${tip?infoIcon(tip):''}</div></div>${body}</div>`;
-    out.innerHTML =
-      card('概览', overviewHtml(picked, prodMaps, typeMaps), '结构重合度 = Σ min(各品种在两边的占比)，100% 表示结构完全一样；占比均为「占自身组合」的比例')
+    const card = (title, body, tip) => `<div class="card"><div class="card-header"><div class="card-title">${title}${tip?infoIcon(tip):''}</div></div>${body}</div>`;
+    out.innerHTML = `<div class="gc-grid">`
       + card('关键指标', metricsTable(picked, ms))
+      + `<div class="gc-col">`
+      + card('重合度', overviewHtml(picked, prodMaps, typeMaps), '结构重合度 = Σ min(各品种在两边的占比)，100% 表示结构完全一样；占比均为「占自身组合」的比例')
       + card('类型差异', diffTable(picked, typeMaps, '类型'))
-      + card('品种差异', diffTable(picked, prodMaps, '品种'), '按出现在哪几个组合分段；同时出现的品种按占比差从大到小排，占比较高的一边加粗');
+      + `</div>`
+      + card('品种差异', diffTable(picked, prodMaps, '品种'), '按出现在哪几个组合分段；同时出现的品种按占比差从大到小排，占比较高的一边加粗')
+      + `</div>`;
   }
 
   function open(){
@@ -3674,6 +3748,7 @@ const GroupCompare = (()=>{
     document.getElementById('bdlv-compare').classList.add('active');
     ['board-l1-cards','board-content','board-pierce-view'].forEach(id=>document.getElementById(id).style.display = 'none');
     document.getElementById('board-compare-view').style.display = '';
+    if(picked.length<2) picked = topAt(level, 2);   // 第一次进来默认选市值最大的两个，页面不空着
     render();
   }
   function close(){
@@ -3681,7 +3756,7 @@ const GroupCompare = (()=>{
     document.getElementById('bdlv-compare').classList.remove('active');
     document.getElementById('board-compare-view').style.display = 'none';
   }
-  function setLevel(lv){ level = lv; picked = []; render(); }
+  function setLevel(lv){ level = lv; picked = topAt(lv, 2); render(); }
   function toggle(g){
     const i = picked.indexOf(g);
     if(i>=0) picked.splice(i,1);
@@ -4471,17 +4546,21 @@ function resetMultiPie(){ _mpSelection=[null,null,null,null,null]; renderWeightT
 
 function renderMultiPie(){
   const N=5, L=['五','四','三','二','一'];
-  const P=[['#555','#666','#777','#888','#999','#aaa'],
-           ['#378ADD','#4890E0','#5A9FE5','#6BAEEA','#7DBDEF'],
-           ['#0F6E56','#1A7A62','#25866E','#30927A','#3B9E86'],
-           ['#BA7517','#C5832E','#D09145','#DB9F5C','#E6AD73'],
-           ['#E06C4F','#E37B62','#E68A75','#E99988','#ECA89B']];
+  const P=[['#6B7A99','#838FA9','#9AA5BA','#B2BACA','#CACFDA','#E1E4EB'],
+           ['#8057C9','#9472D2','#A98DDA','#BDA8E3','#D1C3EC'],
+           ['#2AA6B8','#4CB4C3','#6EC2CF','#90D1DA','#B2DFE5'],
+           ['#EF9F27','#F2AE4A','#F4BE6C','#F7CD8F','#F9DCB1'],
+           ['#8FA13A','#A1B05A','#B3BF79','#C5CE99','#D7DDB8']];
 
   for(let i=0;i<N;i++){
     const lv=i+1, canvas=document.getElementById('pie-canvas-'+i);
     if(!canvas||!canvas.getContext) continue;
 
     const cardEl=canvas.parentElement;
+    // 还没点上一级扇区的下一级卡片先不显示（原来是 4 张空白大卡），点击下钻后才依次出现
+    const _shown = i===0 || !!_mpSelection[i-1];
+    cardEl.style.display = _shown ? '' : 'none';
+    if(!_shown) continue;
     const cardW=cardEl.clientWidth-12;
     if(!cardW||cardW<100) continue;
 
@@ -4583,6 +4662,8 @@ function renderMultiPie(){
     canvas.onmouseleave=function(){ hideTip(); };
   }
 
+  const _hint=document.getElementById('pie-hint');
+  if(_hint) _hint.style.display = _mpSelection[4] ? 'none' : '';   // 五级都展开了就不需要提示
   // Breadcrumb
   const bc=document.getElementById('mp-breadcrumb'); if(!bc) return;
   let html='<span onclick="resetMultiPie()">总览</span>';
@@ -4713,7 +4794,7 @@ function toggleMkplanL3(name){
 function _renderMkplanBaseControls(){
   const mode=MARKET_PLAN.baseMode||'all';
   const modes=['all','custom','l3'];
-  document.querySelectorAll('#mkplan-base-tabs .dtab').forEach((el,i)=>{
+  document.querySelectorAll('#mkplan-base-tabs .seg-btn').forEach((el,i)=>{
     el.classList.toggle('active', modes[i]===mode);
   });
   const extraEl=document.getElementById('mkplan-base-extra');
@@ -4774,7 +4855,7 @@ function _mixedCcyHint(){
 }
 
 // A股/H股/美股 卡片强调色：H股直接引用「恒生指数」的分类色，保持跟大类配色联动，不写死一份重复的十六进制
-const MKPLAN_ACCENT = {A:'var(--red)', H:CAT_COLOR['恒生指数'], US:'var(--accent)'};
+const MKPLAN_ACCENT = {A:'var(--accent)', H:PALETTE[5], US:EB_COLOR.light.eq};
 function renderMarketPlan(){
   const labels={A:'A股',H:'H股',US:'美股'};
   const accent=MKPLAN_ACCENT;
@@ -6207,7 +6288,7 @@ function renderTypeTable(){
     const types=TYPE_TABLE.filter(r=>r.cat===cat);
     const typeLis=types.map(r=>`<li>${nodeHtml('tree-type-n',r.type,typeVal(r.type))}</li>`).join('');
     const catVal=types.reduce((s,r)=>s+typeVal(r.type),0);
-    return `<li>${nodeHtml('tree-cat-header',cat,catVal,'background:'+catClr(cat,ci))}<ul>${typeLis}</ul></li>`;
+    return `<li>${nodeHtml('tree-cat-header',cat,catVal,'--cc:'+catClr(cat,ci))}<ul>${typeLis}</ul></li>`;
   }).join('');
   const totalVal=TYPE_TABLE.reduce((s,r)=>s+typeVal(r.type),0);
   const treeHtml=TYPE_TABLE.length
@@ -7083,6 +7164,38 @@ function _getSnapshotPoints(mode, level, group){
   return merged;
 }
 
+// 净值序列的回撤 / 涨幅统计（市值趋势卡底部三栏、对比页「风险」两行共用）。amounts = 净值序列，validIdx = 完整点的下标。
+// 返回：历史最大回撤(worstDD，≤0 的百分数)及其峰/谷下标、最大涨幅(bestGain)及其谷/峰下标、当前回撤(curDD，最新点相对历史最高)。
+function _drawdownStats(amounts, validIdx){
+  let worstDD = 0, worstPeakIdx = -1, worstTroughIdx = -1;
+  let bestGain = 0, bestTroughIdx = -1, bestPeakIdx = -1;
+  let curDD = 0, curPeakIdx = -1;
+  if(validIdx.length<2) return {worstDD, worstPeakIdx, worstTroughIdx, bestGain, bestTroughIdx, bestPeakIdx, curDD, curPeakIdx};
+  let runningPeak = amounts[validIdx[0]], runningPeakIdx = validIdx[0];
+  let runningTrough = amounts[validIdx[0]], runningTroughIdx = validIdx[0];
+  for(const i of validIdx){
+    if(amounts[i] > runningPeak){ runningPeak = amounts[i]; runningPeakIdx = i; }
+    const ddHere = runningPeak>0 ? (amounts[i]-runningPeak)/runningPeak*100 : 0;
+    if(ddHere < worstDD){ worstDD = ddHere; worstPeakIdx = runningPeakIdx; worstTroughIdx = i; }
+    if(amounts[i] < runningTrough){ runningTrough = amounts[i]; runningTroughIdx = i; }
+    const gainHere = runningTrough>0 ? (amounts[i]-runningTrough)/runningTrough*100 : 0;
+    if(gainHere > bestGain){ bestGain = gainHere; bestTroughIdx = runningTroughIdx; bestPeakIdx = i; }
+  }
+  const lastI = validIdx[validIdx.length-1];
+  curPeakIdx = runningPeakIdx; curDD = runningPeak>0 ? (amounts[lastI]-runningPeak)/runningPeak*100 : 0;
+  return {worstDD, worstPeakIdx, worstTroughIdx, bestGain, bestTroughIdx, bestPeakIdx, curDD, curPeakIdx};
+}
+// 某个组合净值口径的最大回撤 / 当前回撤（完整快照点 < 2 个返回 null）。币种口径同看板趋势卡：单一外币组合按外币算
+function _groupNavDrawdown(level, group){
+  const pts = _getSnapshotPoints('group', level, group).filter(p=>!p.incomplete);
+  if(pts.length<2) return null;
+  const soleCcy = _soleForeignCcy(_groupProducts(level, group), level);
+  const div = soleCcy && soleCcy!=='MIXED' ? (FX[soleCcy]||1) : 1;
+  const labels = pts.map(p=>p.date), mv = pts.map(p=>p.amount/div);
+  const nav = SnapView.nav(labels, mv, SnapView.flows('group', level, group, div));
+  const st = _drawdownStats(nav.idx, nav.idx.map((_,i)=>i));
+  return {max: st.worstDD, cur: st.curDD};
+}
 function renderSnapshotChart(mode, level, group){
   const canvasId = mode==='total' ? 'c-snap-total' : 'c-snap-group';
   const canvas = document.getElementById(canvasId);
@@ -7163,18 +7276,7 @@ function renderSnapshotChart(mode, level, group){
   // 只在净值口径下算：市值口径含资金进出，追加本金会被算成「涨幅」、取钱会被算成「回撤」（示例数据里市值口径最大涨幅 +84.68%、净值口径只有 +17.02%），
   // 没有意义，所以市值视图不显示这两行、连线也不再分段上红绿，只有净值视图才有
   if(netView && _validIdx.length>=2){
-    let runningPeak = amounts[_validIdx[0]], runningPeakIdx = _validIdx[0];
-    let runningTrough = amounts[_validIdx[0]], runningTroughIdx = _validIdx[0];
-    for(const i of _validIdx){
-      if(amounts[i] > runningPeak){ runningPeak = amounts[i]; runningPeakIdx = i; }
-      const ddHere = runningPeak>0 ? (amounts[i]-runningPeak)/runningPeak*100 : 0;
-      if(ddHere < worstDD){ worstDD = ddHere; worstPeakIdx = runningPeakIdx; worstTroughIdx = i; }
-      if(amounts[i] < runningTrough){ runningTrough = amounts[i]; runningTroughIdx = i; }
-      const gainHere = runningTrough>0 ? (amounts[i]-runningTrough)/runningTrough*100 : 0;
-      if(gainHere > bestGain){ bestGain = gainHere; bestTroughIdx = runningTroughIdx; bestPeakIdx = i; }
-    }
-    const lastI = _validIdx[_validIdx.length-1];
-    curPeakIdx = runningPeakIdx; curDD = runningPeak>0 ? (amounts[lastI]-runningPeak)/runningPeak*100 : 0;
+    ({worstDD, worstPeakIdx, worstTroughIdx, bestGain, bestTroughIdx, bestPeakIdx, curDD, curPeakIdx} = _drawdownStats(amounts, _validIdx));
   }
   // 一段连接线（p0→p1两个相邻点之间）算不算落在回撤/涨幅区间里，要求两个端点都在区间内
   function _segInRange(p0, p1, lo, hi){ return lo>=0 && p0>=lo && p1<=hi && !pts[p0].incomplete && !pts[p1].incomplete; }
@@ -9104,9 +9206,7 @@ function renderSharedList(){
         </td>
         <td class="ta-r shp-pct ${val>lot.amount+0.01?'pos':val<lot.amount-0.01?'neg':''}">${lot.amount>0?((val/lot.amount-1)*100).toFixed(2)+'%':'—'}</td>
         <td class="shp-ops">
-          <button class="btn btn-sm" onclick="openSharedEventModal('${sp.id}','redeem','${lot.id}')">部分赎回</button>
-          <button class="btn btn-sm ml-1" onclick="openSharedEventModal('${sp.id}','transfer','${lot.id}')">转让</button>
-          ${kebabBtn([{l:'编辑',a:`openSharedLotEditModal('${sp.id}','${lot.id}')`},{l:'删除',a:`deleteSharedLot('${sp.id}','${lot.id}')`,d:1}],{cls:'shp-kebab'})}
+          ${kebabBtn([{l:'部分赎回',a:`openSharedEventModal('${sp.id}','redeem','${lot.id}')`},{l:'转让',a:`openSharedEventModal('${sp.id}','transfer','${lot.id}')`},{l:'编辑',a:`openSharedLotEditModal('${sp.id}','${lot.id}')`},{l:'删除',a:`deleteSharedLot('${sp.id}','${lot.id}')`,d:1}],{cls:'shp-kebab'})}
         </td>
       </tr>`;
     }).join('');
@@ -10095,13 +10195,6 @@ function _ppHideExplain(){
   const el = document.getElementById('pp-explain-box');
   if(el) el.remove();
 }
-function togglePpFormulaCard(){
-  const body = document.getElementById('pp-formula-body');
-  const arrow = document.getElementById('pp-formula-arrow');
-  const collapsed = body.style.display === 'none';
-  body.style.display = collapsed ? '' : 'none';
-  arrow.textContent = collapsed ? '收起 ▴' : '展开 ▾';
-}
 function renderPpFormulaCard(){
   const el = document.getElementById('pp-formula-content');
   if(!el) return;
@@ -10110,7 +10203,7 @@ function renderPpFormulaCard(){
       <b>提取顺位机制</b><br>${PP_ORDER_NOTE}
     </div>
     ${PP_FORMULAS.map(f=>`<div class="pp-formula-item"><b>${f.title}</b><br><span class="t-muted">${f.abstract}</span></div>`).join('')}
-    <div class="pp-formula-note">点击下方年度明细表的任意一行，可以看到这一年代入真实数字后的完整计算过程；再点一次收起。</div>
+    <div class="pp-formula-note">点击上方年度明细表的任意一行，可以看到这一年代入真实数字后的完整计算过程；再点一次收起。</div>
   `;
 }
 
@@ -10170,8 +10263,8 @@ function renderPerpetualPlan(){
   document.getElementById('pp-kpi').innerHTML=`
     <div class="kpi"><div class="kpi-label">起始总本金</div><div class="kpi-val">${fmtCNY(sim.idealStartTotal)}</div><div class="kpi-sub">${p.startYear-1}-12-31快照</div></div>
     <div class="kpi"><div class="kpi-label">首年提取额</div><div class="kpi-val">${fmtCNY(firstYearWithdraw)}</div><div class="kpi-sub">基础提取率 ${((p.baseWithdrawRate||0)*100).toFixed(1)}%</div></div>
-    <div class="kpi"><div class="kpi-label">第50年 · 理想</div><div class="kpi-val ${idealFinal>=0?'pos':'neg'}">${fmtCNY(idealFinal)}</div><div class="kpi-sub">${isPerpetualIdeal?'资产永续':'已耗尽'}</div></div>
-    <div class="kpi"><div class="kpi-label">第50年 · 实际</div><div class="kpi-val ${actualFinal>=0?'pos':'neg'}">${fmtCNY(actualFinal)}</div><div class="kpi-sub">${depleteYearActual?`<span class="neg">${depleteYearActual}年耗尽</span>`:'资产永续'}</div></div>
+    <div class="kpi"><div class="kpi-label">第50年 · 理想</div><div class="kpi-val${idealFinal<0?' neg':''}">${fmtCNY(idealFinal)}</div><div class="kpi-sub">${isPerpetualIdeal?'资产永续':'已耗尽'}</div></div>
+    <div class="kpi"><div class="kpi-label">第50年 · 实际</div><div class="kpi-val${actualFinal<0?' neg':''}">${fmtCNY(actualFinal)}</div><div class="kpi-sub">${depleteYearActual?`<span class="neg">${depleteYearActual}年耗尽</span>`:'资产永续'}</div></div>
   `;
 
   // Chart
@@ -10182,26 +10275,26 @@ function renderPerpetualPlan(){
     data:{
       labels: sim.years.map(y=>y.year),
       datasets:[
-        {label:'理想总余额', data: sim.years.map(y=>y.idealTotal), borderColor:'#8057C9', backgroundColor:'transparent', tension:.2, pointRadius:2},
-        {label:'实际总余额', data: sim.years.map(y=>y.actualTotal), borderColor:'#378ADD', backgroundColor:'transparent', tension:.2, pointRadius:2},
-        {label:'折现净值(实际)', data: sim.years.map(y=>y.realValue), borderColor:'#EF9F27', borderDash:[4,3], backgroundColor:'transparent', tension:.2, pointRadius:0}
+        {label:'理想总余额', data: sim.years.map(y=>y.idealTotal), borderColor:'#B4B1C2', backgroundColor:'transparent', tension:.2, pointRadius:0, pointHoverRadius:4, borderWidth:2},
+        {label:'实际总余额', data: sim.years.map(y=>y.actualTotal), borderColor:'#8057C9', backgroundColor:'transparent', tension:.2, pointRadius:0, pointHoverRadius:4, borderWidth:2.5},
+        {label:'折现净值(实际)', data: sim.years.map(y=>y.realValue), borderColor:'#8E8AA3', borderDash:[4,3], backgroundColor:'transparent', tension:.2, pointRadius:0, pointHoverRadius:4, borderWidth:1.5}
       ]
     },
     options:{
-      responsive:true, maintainAspectRatio:false,
+      responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
       plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}}},
       scales:{ y:{ticks:{font:{size:10}}}, x:{ticks:{font:{size:9},maxRotation:0,autoSkip:true,maxTicksLimit:18}} }
     }
   });
 
   // Table
-  document.getElementById('pp-table-expand-btn').textContent = _ppTableExpanded ? '收起（每5年摘要）' : '展开全部';
+  document.querySelectorAll('#pp-table-view-tabs .seg-btn').forEach((b,i)=>b.classList.toggle('active', (i===0)===_ppTableExpanded));
   const visibleYears = _ppTableExpanded ? sim.years : sim.years.filter(y=>y.n%5===0||y.n===1||y.n===sim.years.length-1);
   document.getElementById('pp-tbody').innerHTML = visibleYears.map(y=>{
     const editable = y.n>0 && _ppWithdrawEditable(y.year);
     const isOverridden = PERPETUAL_PLAN.actualWithdrawals && PERPETUAL_PLAN.actualWithdrawals[y.year]!=null;
     const withdrawCell = y.n===0 ? '—' : editable
-      ? `<input type="number" step="0.01" class="pp-edit in-cell" value="${isOverridden?y.withdraw.toFixed(2):''}" placeholder="${y.plannedWithdraw.toFixed(2)}" onclick="event.stopPropagation()" onchange="ppUpdateWithdraw(${y.year},this.value)">`
+      ? ppMoneyInputHtml('pp-edit', isOverridden?y.withdraw.toFixed(2):'', y.plannedWithdraw, `ppUpdateWithdraw(${y.year},this.value)`)
       : fmtCNY(y.withdraw);
     const isCurYear = y.year===_ppCurYear();
     const rowCls = isCurYear ? 'pp-row-cur' : (_ppIsYearPast(y.year)?'':'pp-row-future');
@@ -10222,24 +10315,39 @@ function renderPerpetualPlan(){
   // group detail selector
   const detSel = document.getElementById('pp-group-detail-sel');
   const curSel = detSel.value;
-  detSel.innerHTML = '<option value="">— 查看分组明细 —</option>' + sortedGroups.map(g=>{
+  const keys = sortedGroups.map(g=>g.level+'|'+g.l1);
+  const selKey = keys.includes(curSel) ? curSel : (keys[0]||'');   // 默认选第一个组合；原来选的组合被删了也回到第一个
+  detSel.innerHTML = sortedGroups.map(g=>{
     const k = g.level+'|'+g.l1;
     const lvLabel = g.isCustom ? '自定义' : ('一二三四五'[(g.level||1)-1]+'级');
-    return `<option value="${k}" ${k===curSel?'selected':''}>${g.l1} [${lvLabel}]</option>`;
+    return `<option value="${k}" ${k===selKey?'selected':''}>${g.l1} [${lvLabel}]</option>`;
   }).join('');
-  renderPerpetualGroupDetail(curSel);
+  renderPerpetualGroupDetail(selKey);
 }
 
-function ppToggleTableExpand(){
-  _ppTableExpanded = !_ppTableExpanded;
+function ppSetTableView(all){
+  _ppTableExpanded = !!all;
   renderPerpetualPlan();
+}
+// 可编辑金额格：平时显示 ¥59,320.00（和同表其它行一致），聚焦时切成数字输入、失焦切回；留空 = 沿用计划值（placeholder 显示）
+function ppMoneyInputHtml(cls, raw, plan, onchange){
+  return `<input type="text" inputmode="decimal" class="${cls} in-cell" value="${raw!==''?fmtCNY(parseFloat(raw)):''}" placeholder="${fmtCNY(plan)}"
+    onclick="event.stopPropagation()" onfocus="ppMoneyFocus(this)" onblur="ppMoneyBlur(this)" onchange="${onchange}">`;
+}
+function ppMoneyFocus(el){
+  const n=parseFloat(el.value.replace(/[¥,]/g,''));
+  el.type='number'; el.step='0.01'; el.value=isNaN(n)?'':n; el.select();
+}
+function ppMoneyBlur(el){
+  const n=el.value===''?NaN:parseFloat(el.value);
+  el.type='text'; el.value=isNaN(n)?'':fmtCNY(n);
 }
 
 function renderPerpetualGroupDetail(compositeKey){
   const panel = document.getElementById('pp-group-detail-panel');
   const titleSuffix = document.getElementById('pp-group-detail-title-suffix');
   if(!compositeKey){
-    panel.innerHTML='<div class="empty empty-compact">请选择上方下拉框查看某个组合的逐年明细</div>';
+    panel.innerHTML='<div class="empty empty-compact">尚未添加组合</div>';
     if(titleSuffix) titleSuffix.textContent='';
     return;
   }
@@ -10267,7 +10375,7 @@ function renderPerpetualGroupDetail(compositeKey){
       </tr></thead>
       <tbody>
         ${rows.map(r=>{
-          const editable = r.isPast;
+          const editable = r.year <= _ppCurYear();   // 已过去的年份 + 当年（当年填的是年末预估，年底再改成真实值）
           const g = PERPETUAL_PLAN.groups.find(g=>g.l1===l1&&g.level===level);
           const storedVal = g.actualBalances && g.actualBalances[r.year]!=null ? g.actualBalances[r.year].toFixed(2) : '';
           const isOverridden = storedVal!=='';
@@ -10277,10 +10385,10 @@ function renderPerpetualGroupDetail(compositeKey){
             <td>${r.year}</td>
             <td class="pp-cell pp-cell-dim">${r.idealRate!=null?(r.idealRate*100).toFixed(2)+'%':'—'}</td>
             <td class="pp-cell pp-cell-strong">${fmtCNY(r.idealBal)}</td>
-            <td class="pp-cell pp-cell-dim">${r.n===0?'—':(isOverridden?(r.actualRate*100).toFixed(2)+'%':(r.actualRate*100).toFixed(2)+'%（占位）')}</td>
+            <td class="pp-cell pp-cell-dim">${r.n===0?'—':(r.actualRate*100).toFixed(2)+'%'+(isOverridden?(isCurYear?'（预估）':''):'（占位）')}</td>
             <td class="pp-cell pp-cell-strong${r.n!==0&&editable?' pp-cell-edit':''}">
               ${r.n===0?fmtCNY(r.actualBal):editable
-                ? `<input type="number" step="0.01" class="pp-edit pp-edit-wide in-cell" value="${storedVal}" placeholder="${r.actualBal.toFixed(2)}" onchange="ppUpdateActualBalance('${l1}',${level},${r.year},this.value)">`
+                ? ppMoneyInputHtml('pp-edit pp-edit-wide', storedVal, r.actualBal, `ppUpdateActualBalance('${l1}',${level},${r.year},this.value)`)
                 : `<span class="${r.actualBal>=r.idealBal?'pos':'neg'}">${fmtCNY(r.actualBal)}</span>`}
             </td>
           </tr>`;
