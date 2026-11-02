@@ -57,7 +57,7 @@
      文件结构：① <style> CSS（设计变量 --sp-*/--fs-* 在最前）→ ② HTML 页面骨架 → ③ <script> 逻辑 → ④ Init 在最末。
      页面 id：overview 总览 / holdings 持仓 / analysis 分析 / board 穿透 / perpetual 永续规划 / watch 自选 / data 数据管理
      数据管理子页：target weight cashflow hierarchy typetable fx marketplan shared fundsource xirr-calc
-     命名空间对象：QuickCalc、GroupCompare、SnapView、SnapAll、EqBond、HMerge、XirrPop（新功能照此写法）
+     命名空间对象：QuickCalc、GroupCompare、SnapView、SnapAll、EqBond、HMerge、XirrPop、XirrRev（新功能照此写法）
 
      搜这些关键词定位（// ── 分区横幅 或 函数名）：
        基础工具   数值输入聚焦即全选 / kebab menu / helpers / XIRR (Newton) / Page nav / 应用内确认框 appConfirm / 动态弹窗外壳 modalShell / 弹窗行为统一管理
@@ -798,6 +798,11 @@ input.fi.fi-auto{background:var(--bg);color:var(--text3);cursor:default}
 .xcalc-hint{margin-bottom:10px}
 .xcalc-foot{margin-top:var(--sp-3);display:flex;align-items:center;justify-content:space-between}
 .xcalc-result{font-size:var(--fs-18);font-weight:700}
+.xcalc-rev-grid{margin-top:var(--sp-4)}
+.xrev-rate{display:flex;align-items:center;gap:var(--sp-2);margin-bottom:var(--sp-3)}
+.xcalc-result .xrev-date{color:var(--text3)}
+.xrev-rate-lbl,.xrev-rate-unit{font-size:var(--fs-12);color:var(--text2)}
+.xrev-rate input.fi{width:96px}
 .bp-row{display:flex;gap:var(--sp-2);align-items:center;margin-bottom:var(--sp-2)}
 .bp-row.is-hd{margin-bottom:var(--sp-2)}
 .bp-row.is-sum{margin-top:var(--sp-2);margin-bottom:0}
@@ -1501,6 +1506,7 @@ const DEFAULTS = {
   FUND_SOURCES: [],
   PRINCIPAL_SPLITS: {},
   QUICK_CALC: [],
+  XIRR_REV: {"rate":"","rows":[{"date":"","amount":""},{"date":"","amount":""},{"date":"","amount":""}]},
   QUICK_GROUPS: []
 };
 
@@ -1533,7 +1539,7 @@ function _collectData(ts){
   _pruneOrphanTargets();
   const cleanProducts  = PRODUCTS.filter(p=>!p._sharedSrc);
   const cleanCashflows = CASHFLOWS.filter(c=>!c._sharedSrc);
-  return {_ts:ts,FX,FX_TS,HIERARCHY,PRODUCTS:cleanProducts,CASHFLOWS:cleanCashflows,TYPE_TABLE,TARGET_ALLOC,TARGET_ORDER,BOARD_TYPE_ORDER,REBAL_THRESH,SNAPSHOTS,SHARED_CF_NOTES,XIRR_CALC_ROWS:_xirrCalcRows,MARKET_PLAN,BENCHMARK_PLAN,SHARED_PRODUCTS,ACTUAL_CASHFLOWS,PERPETUAL_PLAN,BOARD_NOTES,FUND_SOURCES,PRINCIPAL_SPLITS,QUICK_CALC,QUICK_GROUPS,HOLDINGS_ORDER,HOLDINGS_CAT_ORDER,UI_PREFS:_collectUiPrefs()};
+  return {_ts:ts,FX,FX_TS,HIERARCHY,PRODUCTS:cleanProducts,CASHFLOWS:cleanCashflows,TYPE_TABLE,TARGET_ALLOC,TARGET_ORDER,BOARD_TYPE_ORDER,REBAL_THRESH,SNAPSHOTS,SHARED_CF_NOTES,XIRR_CALC_ROWS:_xirrCalcRows,XIRR_REV:_xirrRevData,MARKET_PLAN,BENCHMARK_PLAN,SHARED_PRODUCTS,ACTUAL_CASHFLOWS,PERPETUAL_PLAN,BOARD_NOTES,FUND_SOURCES,PRINCIPAL_SPLITS,QUICK_CALC,QUICK_GROUPS,HOLDINGS_ORDER,HOLDINGS_CAT_ORDER,UI_PREFS:_collectUiPrefs()};
 }
 function lsSave(){
   try {
@@ -1608,6 +1614,9 @@ let PERPETUAL_PLAN = _saved && _saved.PERPETUAL_PLAN
   ? _saved.PERPETUAL_PLAN
   : JSON.parse(JSON.stringify(DEFAULTS.PERPETUAL_PLAN));
 let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[{date:'',amount:''},{date:'',amount:''},{date:'',amount:''}],[{date:'',amount:''},{date:'',amount:''},{date:'',amount:''}],[{date:'',amount:''},{date:'',amount:''},{date:'',amount:''}]];
+// 反向 XIRR 计算器的数据（逻辑在 XirrRev 命名空间里，数据放这里是因为要跟着 _collectData 存盘）
+const _xirrRevInit = ()=>({rate:'',rows:[{date:'',amount:''},{date:'',amount:''},{date:'',amount:''}]});
+let _xirrRevData = _saved && _saved.XIRR_REV && Array.isArray(_saved.XIRR_REV.rows) ? _saved.XIRR_REV : _xirrRevInit();
 </script>
 
 <!-- ══ MAIN ══ -->
@@ -2138,6 +2147,31 @@ let _xirrCalcRows = _saved && _saved.XIRR_CALC_ROWS ? _saved.XIRR_CALC_ROWS : [[
             </div>
           </div>
 
+        </div>
+
+        <div class="xcalc-grid xcalc-rev-grid">
+          <div class="card" id="xirr-rev-card">
+            <div class="card-header">
+              <div class="card-title">反向计算器</div>
+              <div class="hd-actions">
+                <button class="btn btn-sm" onclick="XirrRev.addRow()">+ 添加行</button>
+              </div>
+            </div>
+            <div class="text-hint xcalc-hint">已知目标 XIRR，留一行金额不填，算出它应该是多少（投入为负，赎回/终值为正）</div>
+            <div class="xrev-rate">
+              <span class="xrev-rate-lbl">目标 XIRR</span>
+              <input id="xirr-rev-rate" type="number" step="any" class="fi xirr-input" placeholder="例如 8" oninput="XirrRev.setRate(this.value)">
+              <span class="xrev-rate-unit">%</span>
+            </div>
+            <table class="tbl-fixed">
+              <thead><tr><th class="w-50p">日期</th><th>金额</th><th class="no-sort w-32"></th></tr></thead>
+              <tbody id="xirr-rev-tbody"></tbody>
+            </table>
+            <div class="xcalc-foot">
+              <button class="btn btn-sm" onclick="XirrRev.clear()">清空</button>
+              <div id="xirr-rev-result" class="xcalc-result"></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -3243,7 +3277,7 @@ function showDataTab(tab){
   if(tab==='marketplan')renderMarketPlan();
   if(tab==='shared')renderSharedList();
   if(tab==='fundsource')renderFundSourceList();
-  if(tab==='xirr-calc')xirrCalcInit();
+  if(tab==='xirr-calc'){xirrCalcInit();XirrRev.render();}
 }
 
 // ══════════════════════════════════════════════
@@ -3818,6 +3852,67 @@ function xirrCalcRun(i){
   el.innerHTML = `<span class="mr-2">XIRR</span><span>${(r*100).toFixed(2)}%</span>`;
   el.style.color = r>=0 ? 'var(--green)' : 'var(--red)';
 }
+
+// ── 反向 XIRR 计算器 ──
+// 已知目标 XIRR 和其余各行现金流，留一行金额空着，用闭式解求这一行：
+//   Σ aᵢ·(1+r)^(-yᵢ) = 0  ⇒  a_k = -(Σ_{i≠k} aᵢ·(1+r)^(-yᵢ)) · (1+r)^(y_k)
+// 年化口径与 xirr() 完全一致（天数 / 365.25）。
+const XirrRev = (function(){
+  const data = _xirrRevData;
+  const blank = ()=>({date:'',amount:''});
+  const YMS = 365.25*24*3600*1000;
+  // 纯计算，便于验证：rows 为 {date, amount(number|null)}，恰好一行 amount 为 null
+  function solve(rows, rate){
+    const unk = rows.filter(r=>r.amount===null);
+    const known = rows.filter(r=>r.amount!==null);
+    if(unk.length!==1 || !known.length || !(rate>-1)) return null;
+    const t0 = Math.min(...rows.map(r=>new Date(r.date)));
+    const y = d=>(new Date(d)-t0)/YMS;
+    const S = known.reduce((s,r)=>s+r.amount/Math.pow(1+rate,y(r.date)),0);
+    const a = -S*Math.pow(1+rate,y(unk[0].date));
+    return isFinite(a) ? a : null;
+  }
+  function render(){
+    const tb = document.getElementById('xirr-rev-tbody'); if(!tb) return;
+    document.getElementById('xirr-rev-rate').value = data.rate;
+    tb.innerHTML = data.rows.map((r,j)=>`
+      <tr>
+        <td><input type="date" class="fi xirr-input" style="color:${r.date?'var(--text)':'var(--border2)'}" value="${r.date}"
+          oninput="this.style.color=this.value?'var(--text)':'var(--border2)';XirrRev.set(${j},'date',this.value)"></td>
+        <td><input type="number" class="fi xirr-input" value="${r.amount}" placeholder="留空 = 待求"
+          oninput="XirrRev.set(${j},'amount',this.value)"></td>
+        <td class="ta-c">${kebabBtn([{l:'删除此行',a:`XirrRev.delRow(${j})`,d:1}])}</td>
+      </tr>`).join('');
+    run();
+  }
+  function run(){
+    const el = document.getElementById('xirr-rev-result'); if(!el) return;
+    el.textContent=''; el.style.color='';
+    const rate = parseFloat(data.rate)/100;
+    const dated = data.rows.filter(r=>r.date);
+    if(isNaN(rate) || dated.length<2) return;
+    const rows = dated.map(r=>({date:r.date, amount: r.amount==='' ? null : parseFloat(r.amount)}))
+                      .filter(r=>r.amount===null || !isNaN(r.amount));
+    const unk = rows.filter(r=>r.amount===null);
+    if(unk.length!==1) { if(unk.length>1){ el.style.color='var(--text3)'; el.style.fontSize='var(--fs-12)'; el.style.fontWeight='400'; el.textContent='只能留一行金额空着'; } return; }
+    el.style.fontSize=''; el.style.fontWeight='';
+    const a = solve(rows, rate);
+    if(a===null){ el.style.color='var(--text3)'; el.textContent='无法计算'; return; }
+    const sign = a>0 ? '赎回/终值' : (a<0 ? '投入' : '');
+    el.innerHTML = `<span class="mr-2 xrev-date">${unk[0].date}</span><span>${a.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`;
+    el.title = sign;
+    el.style.color = a>=0 ? 'var(--green)' : 'var(--red)';
+  }
+  const save = ()=>lsSave();
+  return {
+    data, solve, render, run,
+    set(j,k,v){ data.rows[j][k]=v; save(); run(); },
+    setRate(v){ data.rate=v; save(); run(); },
+    addRow(){ data.rows.push(blank()); save(); render(); },
+    delRow(j){ data.rows.splice(j,1); if(!data.rows.length) data.rows.push(blank()); save(); render(); },
+    clear(){ data.rate=''; data.rows.splice(0,data.rows.length,blank(),blank(),blank()); save(); render(); }
+  };
+})();
 
 
 // All l1 names (unique, from HIERARCHY)
@@ -6505,7 +6600,7 @@ function _inspectData(d){
   const nameOf=(o,i)=>(o&&typeof o.name==='string'&&o.name.trim())?o.name:('#'+(i+1));
   ['HIERARCHY','CASHFLOWS','TYPE_TABLE','SNAPSHOTS','SHARED_PRODUCTS','ACTUAL_CASHFLOWS','FUND_SOURCES','BOARD_TYPE_ORDER','XIRR_CALC_ROWS','QUICK_CALC','QUICK_GROUPS','HOLDINGS_ORDER','HOLDINGS_CAT_ORDER']
     .forEach(k=>{ if(d[k]!=null && !Array.isArray(d[k])) add(`字段 ${k} 应该是列表，实际是 ${Array.isArray(d[k])?'列表':typeof d[k]}`); });
-  ['FX','FX_TS','TARGET_ALLOC','TARGET_ORDER','REBAL_THRESH','SHARED_CF_NOTES','MARKET_PLAN','BENCHMARK_PLAN','PERPETUAL_PLAN','BOARD_NOTES','PRINCIPAL_SPLITS','UI_PREFS']
+  ['FX','FX_TS','TARGET_ALLOC','TARGET_ORDER','REBAL_THRESH','SHARED_CF_NOTES','MARKET_PLAN','BENCHMARK_PLAN','PERPETUAL_PLAN','XIRR_REV','BOARD_NOTES','PRINCIPAL_SPLITS','UI_PREFS']
     .forEach(k=>{ if(d[k]!=null && (typeof d[k]!=='object'||Array.isArray(d[k]))) add(`字段 ${k} 应该是对象，实际是 ${Array.isArray(d[k])?'列表':typeof d[k]}`); });
   if(d.FX && typeof d.FX==='object' && !Array.isArray(d.FX))
     Object.entries(d.FX).forEach(([c,v])=>{ if(typeof v!=='number'||!isFinite(v)||v<=0) add(`汇率 ${c} 不是有效数字（${JSON.stringify(v)}）`); });
