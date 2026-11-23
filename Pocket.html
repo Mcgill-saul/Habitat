@@ -85,6 +85,7 @@
     数据与存储 DATA（getDefaultData、loadData、migrateData、saveData）/ GIST 云同步 / BACKUP / BACKUP REMINDER / STATE
     日常 Tab   DAILY TAB（renderDaily 预算环 / 近 6 月趋势 / 本年饼图、showBudgetModal）
     复盘       MONTHLY REVIEW（月度大表 REVIEW_GROUPS、专项卡）/ ANNUAL REVIEW（年度复盘、editAnnualRow）/ PIGGY BANK 储蓄罐
+    复盘对账   MR AUDIT（ReviewAudit：月度 / 年度页顶部黄条，查「记录漏出列」「列的分类不存在」「重复计入」）
     图表       CANVAS CHARTS（deferDraw、drawRing、drawBarChart、drawPieChart）
     旅游 Tab   TRAVEL TAB（行程列表 / 日历 / 行程费用 / 结账）/ TRIP REVIEW（复盘看板）/ TRIP ACTIONS / NODE ACTIONS
     记账 Tab   RECORDS TAB（日历视图 buildCalGridHtml、showDayDetailModal、showRecordModal、saveRecord）/ TEMPLATES / RECORD ACTION
@@ -115,6 +116,8 @@
                                                                    汇率缺失时显示"暂无汇率"，不当 1:1；汇率页的基准币种 / 金额存在 appData.rateViewState
   持久化                       saveData()                          任何改了 appData 的地方都要调；它会触发云同步的防抖推送
   财务口径入口                 sumCatForRange / getAnnualCatData / getPiggyBalance   月度大表、年度专项、储蓄罐的统一取数函数，别在别处重写一份
+  复盘对账提示条               ReviewAudit.renderMonthly(year) / renderAnnual(years, ovMap)   只读检查，已挂在 renderMonthlyReview / renderAnnualReview 末尾；
+                                                                  容器 #reviewAuditBar / #annualAuditBar，无问题留空；明细弹窗 ReviewAudit.showDetail()
 
   数据结构要点见脚本开头的注释。
 ══════════════════════════════════════════════════════════════════
@@ -504,6 +507,24 @@ select.placeholder-active { color: #aaa; }
 .mr-monthly-adjust-grid label { font-size:var(--fs-11); }
 .mr-monthly-adjust-grid input { height:var(--ctl-h-md); padding:0 6px; font-size:var(--fs-12); }
 
+/* 复盘对账提示条（只在检出问题时出现，平时页面无变化） */
+.mr-audit-bar { display:flex; align-items:flex-start; gap:8px; background:var(--gold-soft); border-radius:var(--r-ctl); padding:10px 12px; margin-bottom:12px; font-size:var(--fs-12); line-height:1.6; color:var(--warn-text); cursor:pointer; }
+.mr-audit-bar-main { font-weight:600; }
+.mr-audit-bar-sub { font-size:var(--fs-11); opacity:0.85; }
+.mr-audit-bar-arrow { flex-shrink:0; margin-left:auto; opacity:0.7; }
+.mr-audit-sec { margin-bottom:16px; }
+.mr-audit-sec:last-child { margin-bottom:0; }
+.mr-audit-sec-title { font-size:var(--fs-12); font-weight:600; margin-bottom:4px; }
+.mr-audit-sec-hint { font-size:var(--fs-11); color:var(--text2); line-height:1.6; margin-bottom:6px; }
+.mr-audit-reason { font-size:var(--fs-11); color:var(--warn-text); background:var(--gold-soft); border-radius:var(--r-xs); padding:1px 4px; margin-left:4px; white-space:nowrap; }
+.mr-special-row span.mr-audit-reason { color:var(--warn-text); }
+.mr-audit-tip { font-size:var(--fs-12); line-height:1.7; color:var(--text); padding:3px 0; border-bottom:0.5px solid var(--border); }
+.mr-audit-tip:last-child { border-bottom:none; }
+.mr-audit-row { cursor:pointer; }
+.mr-audit-year { font-size:var(--fs-11); font-weight:600; color:var(--text); margin:8px 0 2px; }
+/* 明细放在自己的滚动区里，弹窗底部的「关闭」始终露在外面 */
+.mr-audit-body { max-height:55vh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+
 /* ===== Advanced Search ===== */
 .as-summary { display:flex; gap:16px; padding:10px 0; border-bottom:0.5px solid var(--border); margin-bottom:8px; font-size:var(--fs-13); }
 .as-summary span.as-label { color:var(--text2); }
@@ -534,12 +555,13 @@ select.placeholder-active { color: #aaa; }
     background:var(--bg); overflow-y:auto; padding:24px 20px 48px;
   }
   #page-review .mr-header, #page-review .mr-legend, #page-review .mr-table-wrap,
-  #page-review .section-title, #page-review #reviewSpecialCards, #page-review .mr-assets-wrap {
+  #page-review .section-title, #page-review #reviewSpecialCards, #page-review .mr-assets-wrap,
+  #page-review .mr-audit-bar-wrap {
     max-width:1600px; margin-left:auto; margin-right:auto;
   }
   #page-review .mr-summary-card { max-width:400px; margin:0 auto 16px; }
   #page-review .mr-table { width:100%; font-size:var(--fs-13); }
-  #page-review .mr-table th, #page-review .mr-table td { padding:7px 9px; }
+  #page-review .mr-table th, #page-review .mr-table td { padding:7px 6px; }
   #page-review .mr-table .mr-sticky-l0, #page-review .mr-table .mr-sticky-l1, #page-review .mr-table .mr-sticky-r1 {
     position:static;
   }
@@ -558,11 +580,11 @@ select.placeholder-active { color: #aaa; }
     position:fixed; inset:0; width:100%; max-width:none; z-index:250;
     background:var(--bg); overflow-y:auto; padding:24px 20px 48px;
   }
-  #page-annual .mr-header, #page-annual .mr-table-wrap {
+  #page-annual .mr-header, #page-annual .mr-table-wrap, #page-annual .mr-audit-bar-wrap {
     max-width:none; margin-left:auto; margin-right:auto;
   }
-  #page-annual .mr-table { width:100%; font-size:var(--fs-12); }
-  #page-annual .mr-table th, #page-annual .mr-table td { padding:5px 6px; text-align:center; }
+  #page-annual .mr-table { width:100%; font-size:var(--fs-11); }
+  #page-annual .mr-table th, #page-annual .mr-table td { padding:5px 3px; text-align:center; }
   #page-annual .mr-table .mr-sticky-l0, #page-annual .mr-table .mr-sticky-l1, #page-annual .mr-table .mr-sticky-r1 {
     position:static;
   }
@@ -757,6 +779,7 @@ select.placeholder-active { color: #aaa; }
       <div class="mr-summary-label">年度总结余</div>
       <div class="mr-summary-amount" id="reviewYearBalance">&yen; 0</div>
     </div>
+    <div class="mr-audit-bar-wrap" id="reviewAuditBar"></div>
     <div class="mr-table-wrap">
       <div class="mr-table-scroll" id="reviewTableScroll"></div>
       <div class="mr-table-fade"></div>
@@ -783,6 +806,7 @@ select.placeholder-active { color: #aaa; }
       </div>
       <button class="btn-link" onclick="showBudgetModal()">预算设置</button>
     </div>
+    <div class="mr-audit-bar-wrap" id="annualAuditBar"></div>
     <div class="mr-table-wrap">
       <div class="mr-table-scroll" id="annualTableScroll"></div>
       <div class="mr-table-fade"></div>
@@ -964,6 +988,8 @@ function migrateData() {
   }
   if (!appData.budgetByYear) appData.budgetByYear = {};
   if (!appData.annualOverride) appData.annualOverride = {};
+  // 覆盖值旧键按下标存，转成按分类路径/名称存（见 ANNUAL REVIEW 块）
+  if (typeof migrateAnnualOverrideKeys === 'function') migrateAnnualOverrideKeys();
   if (!appData.piggyBank) appData.piggyBank = { entries: [] };
   if (!Array.isArray(appData.piggyBank.entries)) appData.piggyBank.entries = [];
   if (!Array.isArray(appData.templates)) appData.templates = [];
@@ -1600,7 +1626,8 @@ var REVIEW_GROUPS = [
     {label:'房租', path:['居住','房租']},
     {label:'水电气', path:['居住','水电气']},
     {label:'通信费', path:['居住','通信费']},
-    {label:'居住杂项', path:['居住','居住杂项']}
+    {label:'物业费', path:['居住','物业费']},
+    {label:'居住杂类', path:['居住','居住杂类']}
   ]},
   {label:'饮食', kind:'flex', cols:[
     {label:'正餐', path:['饮食','正餐']},
@@ -1700,7 +1727,8 @@ function getMonthlyBudgetForYear(year, m0) {
 function getReviewMonthlyBudget(m0) {
   return getMonthlyBudgetForYear(reviewYear, m0);
 }
-function getAnnualCatData(year, prefix, specialTag) {
+// excludePrefix：可选，命中的记录不计入。用于「旅游」列排除其下的「旅游礼物」子类，避免与礼物列重复计。
+function getAnnualCatData(year, prefix, specialTag, excludePrefix) {
   var ys = year+'-01-01', ye=(year+1)+'-01-01';
   var sum = 0, list = [];
   for (var i=0;i<appData.records.length;i++) {
@@ -1708,7 +1736,8 @@ function getAnnualCatData(year, prefix, specialTag) {
     if (r.type!=='daily' || r.recordType!=='expense') continue;
     if (r.date < ys || r.date >= ye) continue;
     // 指定了specialTag时，只认专项标记，不看分类（分类此时与专项归属无关）
-    var matched = specialTag ? (r.specialTag === specialTag) : catMatchesPath(r.catPath, prefix);
+    var matched = specialTag ? (r.specialTag === specialTag)
+      : (catMatchesPath(r.catPath, prefix) && !(excludePrefix && catMatchesPath(r.catPath, excludePrefix)));
     if (matched) { sum += getRmbAmt(r); list.push(r); }
   }
   list.sort(function(a,b){ return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
@@ -1969,8 +1998,9 @@ function renderMonthlyReview() {
   // Annual special data
   var insData = getAnnualCatData(reviewYear, ['保险']);
   var spcData = getAnnualCatData(reviewYear, null, '特殊');
-  var travData = getAnnualCatData(reviewYear, ['旅游']);
-  var travGiftData = getAnnualCatData(reviewYear, ['旅游礼物']);
+  // 旅游礼物 是 旅游 下的二级分类：礼物单独取，旅游要排除礼物，否则两边都算一次
+  var travGiftData = getAnnualCatData(reviewYear, ['旅游','旅游礼物']);
+  var travData = getAnnualCatData(reviewYear, ['旅游'], null, ['旅游','旅游礼物']);
   var piggyExpData = getAnnualCatData(reviewYear, null, '储蓄罐');
   var travelActual = travData.sum + travGiftData.sum;
   var b = getBudgetForYear(reviewYear);
@@ -2147,6 +2177,7 @@ function renderMonthlyReview() {
   }
   $('reviewSpecialCards').innerHTML = cardsHtml;
 
+  ReviewAudit.renderMonthly(reviewYear);
   if (assetsPanelOpen) renderAssetsPanel();
 }
 
@@ -2182,13 +2213,38 @@ function closeAnnualReview() {
 }
 
 // 年度专项列定义
+// 旅游 / 旅游礼物 是同一棵树：礼物单列，旅游排除礼物，两列相加才等于旅游总开销（预算口径含礼物）
 var ANNUAL_SPECIAL_COLS = [
   { label:'保险',     getData: function(y) { return getAnnualCatData(y, ['保险']).sum; } },
   { label:'特殊',     getData: function(y) { return getAnnualCatData(y, null, '特殊').sum; } },
-  { label:'旅游',     getData: function(y) { return getAnnualCatData(y, ['旅游']).sum; } },
-  { label:'旅游礼物', getData: function(y) { return getAnnualCatData(y, ['旅游礼物']).sum; } },
+  { label:'旅游',     getData: function(y) { return getAnnualCatData(y, ['旅游'], null, ['旅游','旅游礼物']).sum; } },
+  { label:'旅游礼物', getData: function(y) { return getAnnualCatData(y, ['旅游','旅游礼物']).sum; } },
   { label:'储蓄罐支出', getData: function(y) { return getAnnualCatData(y, null, '储蓄罐').sum; } }
 ];
+
+// 年度手工覆盖值的键：日常列按分类路径、专项列按名称，插列/换顺序都不会错位。
+// 旧版键 col_<下标> / sp_<下标> 只按下标定位，插入「物业费」这类新列会整体串行，由 migrateAnnualOverrideKeys() 一次性转换。
+function annualColKey(col) { return 'c:' + (col.path || []).join('>'); }
+function annualSpKey(idx) { return 's:' + ANNUAL_SPECIAL_COLS[idx].label; }
+function migrateAnnualOverrideKeys() {
+  if (!appData || !appData.annualOverride) return;
+  var changed = false;
+  for (var y in appData.annualOverride) {
+    if (!Object.prototype.hasOwnProperty.call(appData.annualOverride, y)) continue;
+    var ov = appData.annualOverride[y] || {}, neo = {}, hasOld = false;
+    for (var k in ov) {
+      if (!Object.prototype.hasOwnProperty.call(ov, k)) continue;
+      var m = /^(col|sp)_(\d+)$/.exec(k);
+      if (!m) { neo[k] = ov[k]; continue; }
+      hasOld = true;
+      var idx = parseInt(m[2], 10);
+      if (m[1] === 'col' && idx < REVIEW_COLS.length) neo[annualColKey(REVIEW_COLS[idx])] = ov[k];
+      else if (m[1] === 'sp' && idx < ANNUAL_SPECIAL_COLS.length) neo[annualSpKey(idx)] = ov[k];
+    }
+    if (hasOld) { appData.annualOverride[y] = neo; changed = true; }
+  }
+  if (changed) saveData();
+}
 
 function renderAnnualReview() {
   // 确定年份范围：最早有记录的年 ~ 当前年
@@ -2259,7 +2315,7 @@ function renderAnnualReview() {
     // 日常分类：有覆盖值用覆盖值，否则从记录计算
     var colVals = [], basicTotal = 0;
     for (var ci=0; ci<REVIEW_COLS.length; ci++) {
-      var key = 'col_'+ci;
+      var key = annualColKey(REVIEW_COLS[ci]);
       var v = (ov[key] !== undefined) ? ov[key] : sumCatForRange(ys, ye, REVIEW_COLS[ci].path);
       colVals.push(v);
       basicTotal += v;
@@ -2268,7 +2324,7 @@ function renderAnnualReview() {
     // 专项：有覆盖值用覆盖值，否则从记录计算
     var specialVals = [], specialTotal = 0;
     for (var si=0; si<ANNUAL_SPECIAL_COLS.length; si++) {
-      var skey = 'sp_'+si;
+      var skey = annualSpKey(si);
       var sv = (ov[skey] !== undefined) ? ov[skey] : ANNUAL_SPECIAL_COLS[si].getData(year);
       specialVals.push(sv);
       specialTotal += sv;
@@ -2298,6 +2354,7 @@ function renderAnnualReview() {
 
   html += '</tbody></table>';
   $('annualTableScroll').innerHTML = html;
+  ReviewAudit.renderAnnual(years, appData.annualOverride);
 }
 
 function editAnnualRow(year) {
@@ -2306,21 +2363,21 @@ function editAnnualRow(year) {
   var fields = [];
   // 日常分类
   for (var ci=0; ci<REVIEW_COLS.length; ci++) {
-    var key = 'col_'+ci;
+    var key = annualColKey(REVIEW_COLS[ci]);
     var cur = (ov[key] !== undefined) ? ov[key] : sumCatForRange(ys, ye, REVIEW_COLS[ci].path);
-    fields.push({ key:key, label:REVIEW_COLS[ci].label||REVIEW_COLS[ci].path[REVIEW_COLS[ci].path.length-1], val:cur });
+    fields.push({ id:'c_'+ci, key:key, label:REVIEW_COLS[ci].label||REVIEW_COLS[ci].path[REVIEW_COLS[ci].path.length-1], val:cur });
   }
   // 专项
   for (var si=0; si<ANNUAL_SPECIAL_COLS.length; si++) {
-    var skey = 'sp_'+si;
+    var skey = annualSpKey(si);
     var scur = (ov[skey] !== undefined) ? ov[skey] : ANNUAL_SPECIAL_COLS[si].getData(year);
-    fields.push({ key:skey, label:ANNUAL_SPECIAL_COLS[si].label, val:scur });
+    fields.push({ id:'s_'+si, key:skey, label:ANNUAL_SPECIAL_COLS[si].label, val:scur });
   }
 
   var inputsHtml = '';
   for (var fi=0; fi<fields.length; fi++) {
     inputsHtml += '<div class="form-row"><label>'+escHtml(fields[fi].label)+'</label>' +
-      '<input type="number" id="annualOv_'+fields[fi].key+'" value="'+(fields[fi].val||0)+'" step="any" min="0"></div>';
+      '<input type="number" id="annualOv_'+fields[fi].id+'" value="'+(fields[fi].val||0)+'" step="any" min="0"></div>';
   }
 
   openModalShell({id:'annualEditOverlay', title:'编辑 '+year+' 年数据', style:'max-height:85vh;overflow-y:auto;',
@@ -2335,12 +2392,12 @@ function saveAnnualRow(year) {
   if (!appData.annualOverride) appData.annualOverride = {};
   var ov = {};
   for (var ci=0; ci<REVIEW_COLS.length; ci++) {
-    var el = $('annualOv_col_'+ci);
-    if (el && el.value !== '') ov['col_'+ci] = parseFloat(el.value) || 0;
+    var el = $('annualOv_c_'+ci);
+    if (el && el.value !== '') ov[annualColKey(REVIEW_COLS[ci])] = parseFloat(el.value) || 0;
   }
   for (var si=0; si<ANNUAL_SPECIAL_COLS.length; si++) {
-    var sel = $('annualOv_sp_'+si);
-    if (sel && sel.value !== '') ov['sp_'+si] = parseFloat(sel.value) || 0;
+    var sel = $('annualOv_s_'+si);
+    if (sel && sel.value !== '') ov[annualSpKey(si)] = parseFloat(sel.value) || 0;
   }
   appData.annualOverride[year] = ov;
   saveData(); toast('已更新');
@@ -2354,6 +2411,190 @@ function clearAnnualOverride(year) {
   closeModal();
   renderAnnualReview();
 }
+
+// ============ MR AUDIT 复盘对账 ============
+// 月度 / 年度复盘页顶部的黄色提示条：查「记录有没有漏进列」「列的分类还在不在」「一条记录被多列重复计入」。
+// 依赖: appData.records/dailyCats/annualOverride(DATA), REVIEW_COLS/catMatchesPath(MONTHLY REVIEW),
+//        getRmbAmt/formatMoney/fmtDateShort/escHtml(UTILS), openModalShell(MODAL), showRecordAction(RECORD ACTION)
+// 暴露: ReviewAudit.renderMonthly(year), ReviewAudit.renderAnnual(years, overrideMap), ReviewAudit.showDetail()
+// 注意: 只读检查，不修改记录、不改统计口径、不写 localStorage；提示条无问题时是空节点。
+//       EXCLUDE_ROOTS 对应 ANNUAL_SPECIAL_COLS 里的 保险 / 旅游 / 旅游礼物 三列，改那边要同步这里。
+var ReviewAudit = (function(){
+  var EXCLUDE_ROOTS = ['保险', '旅游', '旅游礼物'];
+  var cache = { years:[], results:[], badCols:[], skipped:[], scope:'month',
+                lostCount:0, lostSum:0, problemYears:0, overlapCount:0 };
+
+  // 分类路径是否仍完整存在于 dailyCats（逐级比对，不是只比名字）
+  function pathExists(path) {
+    var nodes = appData.dailyCats || [];
+    for (var i=0;i<path.length;i++) {
+      var found = null;
+      for (var j=0;j<nodes.length;j++) { if (nodes[j].name === path[i]) { found = nodes[j]; break; } }
+      if (!found) return false;
+      nodes = found.subs || [];
+    }
+    return true;
+  }
+  function catText(cp) { return (cp && cp.length) ? cp.join(' › ') : '（未选分类）'; }
+  function lostReason(cp) {
+    if (!cp || cp.length === 0) return '未选分类';
+    if (cp.length === 1) return '只选了大类';
+    return '分类未覆盖';
+  }
+
+  // 单年检查：逐条判断每笔支出有没有被某一列接住（不用两个总额相减，这样才拿得到明细）
+  function checkYear(year) {
+    var ys = year+'-01-01', ye = (year+1)+'-01-01';
+    var lost = [], overlap = [], lostSum = 0;
+    var recs = appData.records || [];
+    for (var i=0;i<recs.length;i++) {
+      var r = recs[i];
+      if (r.type !== 'daily' || r.recordType !== 'expense') continue;
+      if (r.specialTag) continue;                        // 专项标记的记录走年度专项卡
+      if (!r.date || r.date < ys || r.date >= ye) continue;
+      var cp = r.catPath || [];
+      if (cp.length && EXCLUDE_ROOTS.indexOf(cp[0]) !== -1) continue;  // 保险/旅游/旅游礼物 不属 17 列
+      var hitCols = [];
+      for (var ci=0; ci<REVIEW_COLS.length; ci++) {
+        if (catMatchesPath(cp, REVIEW_COLS[ci].path)) hitCols.push(REVIEW_COLS[ci].label);
+      }
+      if (hitCols.length === 0) {
+        var amt = getRmbAmt(r);
+        lost.push({ rec:r, amt:amt, reason:lostReason(cp) });
+        lostSum += amt;
+      } else if (hitCols.length > 1) {
+        overlap.push({ rec:r, amt:getRmbAmt(r), cols:hitCols });
+      }
+    }
+    lost.sort(function(a,b){ return a.rec.date < b.rec.date ? -1 : (a.rec.date > b.rec.date ? 1 : 0); });
+    return { year:year, lost:lost, lostSum:Math.round(lostSum*100)/100, overlap:overlap };
+  }
+  // 反向检查：每一列的分类路径在管理分类里是否还在（分类改名 / 删除会让整列永久为 0）
+  function checkBadCols() {
+    var bad = [];
+    for (var ci=0; ci<REVIEW_COLS.length; ci++) {
+      if (!pathExists(REVIEW_COLS[ci].path)) bad.push(REVIEW_COLS[ci]);
+    }
+    return bad;
+  }
+
+  function run(years, scope, skippedYears) {
+    var results = [], problemYears = 0, lostCount = 0, total = 0, overlapCount = 0;
+    for (var i=0;i<years.length;i++) {
+      var res = checkYear(years[i]);
+      results.push(res);
+      if (res.lost.length || res.overlap.length) problemYears++;
+      lostCount += res.lost.length;
+      overlapCount += res.overlap.length;
+      total += res.lostSum;
+    }
+    cache = {
+      years:years, results:results, badCols:checkBadCols(), skipped:skippedYears||[], scope:scope,
+      lostCount:lostCount, lostSum:Math.round(total*100)/100,
+      problemYears:problemYears, overlapCount:overlapCount
+    };
+    return cache;
+  }
+
+  function barHtml() {
+    var c = cache;
+    if (!c.lostCount && !c.badCols.length && !c.overlapCount) return '';
+    var main = '';
+    if (c.lostCount) {
+      main = (c.scope === 'month')
+        ? (c.years[0] + ' 年有 ' + c.lostCount + ' 笔共 ¥' + formatMoney(c.lostSum) + ' 的支出没有进任何一列')
+        : (c.problemYears + ' 个年度有支出没进任何一列，共 ' + c.lostCount + ' 笔 ¥' + formatMoney(c.lostSum));
+    } else if (c.badCols.length) {
+      main = c.badCols.length + ' 个列的分类在管理分类里找不到';
+    } else {
+      main = c.overlapCount + ' 笔支出被两列重复计入';
+    }
+    var subs = [];
+    if (main.indexOf('分类在管理分类里找不到') === -1 && c.badCols.length) subs.push('另有 ' + c.badCols.length + ' 个列的分类在管理分类里找不到');
+    if (main.indexOf('重复计入') === -1 && c.overlapCount) subs.push('另有 ' + c.overlapCount + ' 笔被两列重复计入');
+    if (c.skipped.length) subs.push(c.skipped.join('、') + ' 年有手工覆盖，未对账');
+    var html = '<div class="mr-audit-bar" onclick="ReviewAudit.showDetail()">' +
+      '<div><div class="mr-audit-bar-main">⚠ ' + escHtml(main) + '</div>';
+    if (subs.length) html += '<div class="mr-audit-bar-sub">' + escHtml(subs.join(' · ')) + '</div>';
+    html += '</div><span class="mr-audit-bar-arrow">›</span></div>';
+    return html;
+  }
+
+  function recordRow(item, extra) {
+    var r = item.rec, cp = r.catPath || [];
+    var reason = extra ? '<span class="mr-audit-reason">' + escHtml(extra) + '</span>' : '';
+    var note = r.note ? ' · ' + escHtml(r.note) : '';
+    return '<div class="mr-special-row mr-audit-row" onclick="closeAllModals();showRecordAction(\'' + r.id + '\')">' +
+      '<span>' + fmtDateShort(r.date) + ' ' + escHtml(catText(cp)) + reason + note + '</span>' +
+      '<span>' + formatMoney(item.amt) + '</span></div>';
+  }
+
+  function showDetail() {
+    var c = cache;
+    var title = (c.scope === 'month' && c.years.length) ? '复盘对账 · ' + c.years[0] + '年' : '复盘对账 · 全部年度';
+    var body = '';
+
+    if (c.lostCount) {
+      body += '<div class="mr-audit-sec"><div class="mr-audit-sec-title">没进任何一列 · ' + c.lostCount + ' 笔 &yen;' + formatMoney(c.lostSum) + '</div>' +
+        '<div class="mr-audit-sec-hint">这些记录的分类路径对不上任何一列，金额不会出现在表里。点一行可直接改分类。</div>';
+      for (var i=0;i<c.results.length;i++) {
+        var res = c.results[i];
+        if (!res.lost.length) continue;
+        if (c.results.length > 1) {
+          body += '<div class="mr-audit-year">' + res.year + ' 年 · ' + res.lost.length + ' 笔 &yen;' + formatMoney(res.lostSum) + '</div>';
+        }
+        for (var j=0;j<res.lost.length;j++) body += recordRow(res.lost[j], res.lost[j].reason);
+      }
+      body += '</div>';
+    }
+
+    if (c.badCols.length) {
+      body += '<div class="mr-audit-sec"><div class="mr-audit-sec-title">列的分类不见了 · ' + c.badCols.length + ' 个</div>' +
+        '<div class="mr-audit-sec-hint">列还在表里，但它对应的分类已经被改名或删除，这一列会一直是空的。</div>';
+      for (var bi=0; bi<c.badCols.length; bi++) {
+        body += '<div class="mr-audit-tip">列「' + escHtml(c.badCols[bi].label) + '」→ 分类 ' + escHtml(catText(c.badCols[bi].path)) + '</div>';
+      }
+      body += '</div>';
+    }
+
+    if (c.overlapCount) {
+      body += '<div class="mr-audit-sec"><div class="mr-audit-sec-title">被两列重复计入 · ' + c.overlapCount + ' 笔</div>' +
+        '<div class="mr-audit-sec-hint">同一条记录被两列同时命中，合计会把这笔钱算两次。</div>';
+      for (var k=0;k<c.results.length;k++) {
+        for (var m=0;m<c.results[k].overlap.length;m++) {
+          body += recordRow(c.results[k].overlap[m], c.results[k].overlap[m].cols.join(' / '));
+        }
+      }
+      body += '</div>';
+    }
+
+    if (c.skipped.length) {
+      body += '<div class="mr-audit-sec"><div class="mr-audit-tip">' + escHtml(c.skipped.join('、')) + ' 年在年度复盘里填了手工覆盖值，列值不是从记录算出来的，这一步没法对账。</div></div>';
+    }
+
+    openModalShell({ id:'mrAuditOverlay', title:escHtml(title), body:'<div class="mr-audit-body">' + body + '</div>',
+      footer:'<button class="btn btn-outline" onclick="closeModal(this)">关闭</button>' });
+  }
+
+  function renderMonthly(year) {
+    run([year], 'month');
+    var el = $('reviewAuditBar');
+    if (el) el.innerHTML = barHtml();
+  }
+  // 年度页：每年一行，逐行查；填了手工覆盖值的年份跳过（列值来自手填，对不上是正常的）
+  function renderAnnual(years, overrideMap) {
+    var live = [], skipped = [];
+    for (var i=0;i<years.length;i++) {
+      var ov = overrideMap ? overrideMap[years[i]] : null;
+      if (ov && Object.keys(ov).length > 0) skipped.push(years[i]); else live.push(years[i]);
+    }
+    run(live, 'annual', skipped);
+    var el = $('annualAuditBar');
+    if (el) el.innerHTML = barHtml();
+  }
+
+  return { renderMonthly:renderMonthly, renderAnnual:renderAnnual, showDetail:showDetail, checkYear:checkYear, checkBadCols:checkBadCols };
+})();
 
 // ============ CANVAS CHARTS ============
 // 依赖: (无外部依赖，纯绘图工具)
